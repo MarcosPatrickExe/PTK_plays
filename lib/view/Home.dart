@@ -43,7 +43,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
@@ -98,8 +97,8 @@ class HomeScreen extends StatelessWidget {
         currentIndex: 1, // Notifications tab selected
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Library'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Videos'),
+          BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Shorts'),
         ],
       ),
     );
