@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/video_notification.dart';
-import '../widgets/video_card.dart';
+import '../components/video_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -43,6 +43,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(

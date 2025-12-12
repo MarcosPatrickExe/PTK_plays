@@ -1,4 +1,5 @@
 class VideoNotification {
+  
   final String id;
   final String title;
   final String channelName;
@@ -16,4 +17,5 @@ class VideoNotification {
     required this.timeAgo,
     this.isWatched = false,
   });
+  
 }
