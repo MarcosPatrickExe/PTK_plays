@@ -21,7 +21,7 @@ class VideoCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: const Color(0xFF1E1E1E), // Slightly lighter than background
       child: InkWell(
-        onTap: onTap,
+        onTap: this.onTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
