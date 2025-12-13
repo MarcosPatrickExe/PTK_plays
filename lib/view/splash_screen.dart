@@ -61,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               children: [
                 ClipOval(
                   child: Image.asset(
-                    'assets/images/original_icon_app.jpg',
+                    'assets/original_icon_app.png',
                     width: 150,
                     height: 150,
                     fit: BoxFit.cover,
@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 20),
                 const CircularProgressIndicator(
-                  color: Colors.red,
+                  color: Color.fromARGB(255, 171, 54, 244),
                 ),
               ],
             ),
