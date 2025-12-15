@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/services/youtubeAPI.dart';
 import './Home.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,6 +40,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         );
       }
     });
+    
+    fetchVideos();
   }
 
   @override

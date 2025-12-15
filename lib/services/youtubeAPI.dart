@@ -1,25 +1,32 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http/http.dart';
+import '../utils/utils.dart';
 
-final String apiKey = "YOUR_API_KEY";
-final String channelId = "YOUR_CHANNEL_ID"; // e.g., "UC_Fh8jueZhKYjcSNgbQMzog" for Flutter
-
-Future<List<String>> fetchChannelVideoIds() async {
-  // 1. First, find the 'uploads' playlist ID for the channel
-  String channelUrl = 'https://www.youtube.com/@patrickson_plays';
-  var channelResponse = await http.get(Uri.parse(channelUrl));
-  var channelData = json.decode(channelResponse.body);
-  String uploadsPlaylistId = channelData['items'][0]['contentDetails']['relatedPlaylists']['uploads'];
-
-  // 2. Then, fetch videos from that playlist
-  String playlistUrl = 'www.googleapis.com';
-  var playlistResponse = await http.get(Uri.parse(playlistUrl));
-  var playlistData = json.decode(playlistResponse.body);
-
-  List<String> videoIds = [];
+Future<List<String>> fetchVideos() async {
   
-  for (var item in playlistData['items']) {
-    videoIds.add(item['snippet']['resourceId']['videoId']);
+  final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
+    'key': Utils.APIkey,
+    'part': 'snippet',
+    'channelId': Utils.channelID,
+    'order': 'date',
+    // 'maxResults': '10',
+    'type': 'video',
+  });
+
+  final Response channelResponse = await http.get(uri);
+
+  if (channelResponse.statusCode == 200) {
+    var data = json.decode(channelResponse.body);
+    final items = data['items'];
+
+    for (var ite in items) {
+      print('Video name: ${ite['snippet']['title']}');
+    }
+
+    return items;
+    
+  } else {
+    throw Exception('Erro ${channelResponse.statusCode}: ${channelResponse.body}');
   }
-  return videoIds;
 }
