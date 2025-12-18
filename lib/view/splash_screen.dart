@@ -41,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
     });
     
-    fetchVideos();
+    //fetchVideos();
   }
 
   @override
