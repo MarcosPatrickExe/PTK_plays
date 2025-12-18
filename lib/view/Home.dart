@@ -9,7 +9,7 @@ class HomeScreen extends StatelessWidget {
   final List<VideoNotification> _notifications = const [
     VideoNotification(
       id: '1',
-      title: 'Building a Flutter App in 30 Minutes',
+      title: 'video 1',
       channelName: 'Flutter Dev',
       thumbnailUrl: 'https://i.ytimg.com/vi/vpPqeM4F62E/maxresdefault.jpg', // Invalid but placeholder
       avatarUrl: 'https://avatars.githubusercontent.com/u/14101776?s=200&v=4',
@@ -17,7 +17,7 @@ class HomeScreen extends StatelessWidget {
     ),
     VideoNotification(
       id: '2',
-      title: 'Dark Mode UI Design Tutorial',
+      title: 'video 2',
       channelName: 'DesignMaster',
       thumbnailUrl: 'https://placeholder.com/darkmode.jpg',
       avatarUrl: 'https://placeholder.com/avatar1.jpg',
