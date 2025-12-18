@@ -25,7 +25,7 @@ class HomeScreen extends StatelessWidget {
     ),
     VideoNotification(
       id: '3',
-      title: 'The Future of AI Explained',
+      title: 'video model 4',
       channelName: 'Tech Today',
       thumbnailUrl: 'https://placeholder.com/ai.jpg',
       avatarUrl: 'https://placeholder.com/avatar2.jpg',
