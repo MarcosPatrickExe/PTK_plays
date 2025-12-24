@@ -4,8 +4,6 @@ import '../components/video_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-  
-
 
   final List<VideoNotification> _notifications = const [
     VideoNotification(
