@@ -11,7 +11,7 @@ class HomeScreen extends StatelessWidget {
       title: 'video 1',
       channelName: 'Flutter Dev',
       thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g', // Invalid but placeholder
-      avatarUrl: 'https://avatars.githubusercontent.com/u/14101776?s=200&v=4',
+      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(hours: 2),
     ),
     VideoNotification(
@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
       title: 'video 2',
       channelName: 'DesignMaster',
       thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
-      avatarUrl: 'https://placeholder.com/avatar1.jpg',
+      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(hours: 5),
     ),
     VideoNotification(
@@ -27,7 +27,7 @@ class HomeScreen extends StatelessWidget {
       title: 'video model 4',
       channelName: 'Tech Today',
       thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
-      avatarUrl: 'https://placeholder.com/avatar2.jpg',
+      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(days: 1),
     ),
     VideoNotification(
@@ -35,7 +35,7 @@ class HomeScreen extends StatelessWidget {
       title: 'Top 10 Coding Mistakes to Avoid',
       channelName: 'Pro Coder',
       thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
-      avatarUrl: 'https://placeholder.com/avatar3.jpg',
+      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(days: 2),
     ),
   ];
