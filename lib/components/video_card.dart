@@ -32,8 +32,7 @@ class VideoCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
-                  notification.thumbnailUrl,
+                child: Image.network( notification.thumbnailUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
