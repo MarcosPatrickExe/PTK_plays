@@ -12,6 +12,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    
     return MaterialApp(
       title: 'PTK plays',
       debugShowCheckedModeBanner: false,
@@ -24,5 +25,6 @@ class MyApp extends StatelessWidget {
       ),
       home: const SplashScreen(),
     );
+    
   }
 }
