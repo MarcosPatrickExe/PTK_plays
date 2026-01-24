@@ -86,7 +86,7 @@ class HomeScreen extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Clicked: ${notification.title}')),
               );
-            },
+            }, 
           );
         },
       ),
