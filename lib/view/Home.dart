@@ -87,25 +87,36 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: FutureBuilder(
-        
         future: this._videosCards,
-        builder: (bc, snapshot) {
+        builder: (BuildContext bc, AsyncSnapshot snapshot) {
           
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _notifications.length,
-            itemBuilder: (context, index) {
-              final notification = _notifications[index];
-              return VideoCard(
-                notification: notification,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.title}')));
-                },
-              );
-            },
-          );
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            // Show a loading indicator while waiting for data
+            return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 0, 255, 0)));
+            
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+            
+          } else if (snapshot.hasData) {
+            
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                final notification = _notifications[index];
+                return VideoCard(
+                  notification: notification,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.title}')));
+                  },
+                );
+              },
+            );
+          }else {
+            return Center( child: Text('No posts found') );
+          }
+          
         },
-        
       ),
 
       bottomNavigationBar: BottomNavigationBar(

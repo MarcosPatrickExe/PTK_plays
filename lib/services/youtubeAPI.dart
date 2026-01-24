@@ -4,7 +4,6 @@ import 'package:http/http.dart';
 import '../utils/utils.dart';
 
 Future<List<String>> fetchVideos() async {
-  
   final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
     'key': Utils.APIkey,
     'part': 'snippet',
@@ -23,13 +22,14 @@ Future<List<String>> fetchVideos() async {
     print('\n\n \n \n \n=======================================================================> \n\n');
 
     for (var ite in items) {
-      print('Video name: ${ite['snippet']['title']}');
+      print(ite['snippet']);
+      
+      // print('Video name: ${ite['snippet']['title']}');
     }
-    
+
     print('\n\n \n \n \n=======================================================================> \n\n');
 
     return Future.value(items);
-    
   } else {
     throw Exception('Erro ${channelResponse.statusCode}: ${channelResponse.body}');
   }
