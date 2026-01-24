@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
 import '../models/video_notification.dart';
 import '../components/video_card.dart';
+import '../services/youtubeAPI.dart' as apiYT;
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<List<String>> _videosCards;
+
+  @override
+  void initState() {
+    super.initState();
+    _videosCards = apiYT.fetchVideos();
+  }
 
   final List<VideoNotification> _notifications = const [
     VideoNotification(
       id: '1',
       title: 'video 1',
       channelName: 'Flutter Dev',
-      thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g', // Invalid but placeholder
+      thumbnailUrl:
+          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g', // Invalid but placeholder
       avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(hours: 2),
     ),
@@ -18,7 +31,8 @@ class HomeScreen extends StatelessWidget {
       id: '2',
       title: 'video 2',
       channelName: 'DesignMaster',
-      thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
+      thumbnailUrl:
+          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
       avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(hours: 5),
     ),
@@ -26,7 +40,8 @@ class HomeScreen extends StatelessWidget {
       id: '3',
       title: 'video model 4',
       channelName: 'Tech Today',
-      thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
+      thumbnailUrl:
+          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
       avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(days: 1),
     ),
@@ -34,7 +49,8 @@ class HomeScreen extends StatelessWidget {
       id: '4',
       title: 'Top 10 Coding Mistakes to Avoid',
       channelName: 'Pro Coder',
-      thumbnailUrl: 'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
+      thumbnailUrl:
+          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
       avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
       timeAgo: Duration(days: 2),
     ),
@@ -42,7 +58,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
@@ -54,11 +69,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(width: 8),
             const Text(
               'Notifications',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Colors.white,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
             ),
           ],
         ),
@@ -75,21 +86,28 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(width: 16),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _notifications.length,
-        itemBuilder: (context, index) {
-          final notification = _notifications[index];
-          return VideoCard(
-            notification: notification,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Clicked: ${notification.title}')),
+      body: FutureBuilder(
+        
+        future: this._videosCards,
+        builder: (bc, snapshot) {
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _notifications.length,
+            itemBuilder: (context, index) {
+              final notification = _notifications[index];
+              return VideoCard(
+                notification: notification,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.title}')));
+                },
               );
-            }, 
+            },
           );
         },
+        
       ),
+
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF1E1E1E),
         selectedItemColor: Colors.red,

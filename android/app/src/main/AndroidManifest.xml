@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="ptk_plays"
+        android:label="PTK Plays"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

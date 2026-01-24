@@ -20,15 +20,15 @@ Future<List<String>> fetchVideos() async {
     var data = json.decode(channelResponse.body);
     final items = data['items'];
 
-    print('\n\n===========================> \n\n');
+    print('\n\n \n \n \n=======================================================================> \n\n');
 
     for (var ite in items) {
       print('Video name: ${ite['snippet']['title']}');
     }
     
-    print('\n\n===========================> \n\n');
+    print('\n\n \n \n \n=======================================================================> \n\n');
 
-    return items;
+    return Future.value(items);
     
   } else {
     throw Exception('Erro ${channelResponse.statusCode}: ${channelResponse.body}');
