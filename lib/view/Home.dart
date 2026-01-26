@@ -1,65 +1,34 @@
 import 'package:flutter/material.dart';
-import '../models/video_notification.dart';
+import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import '../data/models/video_notification.dart';
 import '../components/video_card.dart';
-import '../services/youtubeAPI.dart' as apiYT;
+
 
 class HomeScreen extends StatefulWidget {
+  final YoutubeViewModel viewmodelYT;
+  HomeScreen(this.viewmodelYT );
+  
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<String>> _videosCards;
+  late Future<List<VideoNotification>> _videosCards;
 
   @override
   void initState() {
     super.initState();
-    _videosCards = apiYT.fetchVideos();
+    _videosCards = widget.viewmodelYT.loadVideos();
   }
 
-  final List<VideoNotification> _notifications = const [
-    VideoNotification(
-      id: '1',
-      title: 'video 1',
-      channelName: 'Flutter Dev',
-      thumbnailUrl:
-          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g', // Invalid but placeholder
-      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
-      timeAgo: Duration(hours: 2),
-    ),
-    VideoNotification(
-      id: '2',
-      title: 'video 2',
-      channelName: 'DesignMaster',
-      thumbnailUrl:
-          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
-      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
-      timeAgo: Duration(hours: 5),
-    ),
-    VideoNotification(
-      id: '3',
-      title: 'video model 4',
-      channelName: 'Tech Today',
-      thumbnailUrl:
-          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
-      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
-      timeAgo: Duration(days: 1),
-    ),
-    VideoNotification(
-      id: '4',
-      title: 'Top 10 Coding Mistakes to Avoid',
-      channelName: 'Pro Coder',
-      thumbnailUrl:
-          'https://i.ytimg.com/vi/EQ-5OnYjN9I/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLBpEJwoxSWZ3EHnYoQayJml6urn1g',
-      avatarUrl: 'https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj',
-      timeAgo: Duration(days: 2),
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
+    
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
+      
+// APPBAR
       appBar: AppBar(
         elevation: 0,
         backgroundColor: const Color(0xFF121212),
@@ -86,13 +55,16 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 16),
         ],
       ),
+      
+// BODY
       body: FutureBuilder(
         future: this._videosCards,
-        builder: (BuildContext bc, AsyncSnapshot snapshot) {
+        builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
           
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loading indicator while waiting for data
-            return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 0, 255, 0)));
+            
+            return Center( child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)) );
             
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -103,7 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                final notification = _notifications[index];
+                final notification = snapshot[index];
+
                 return VideoCard(
                   notification: notification,
                   onTap: () {
@@ -112,13 +85,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             );
-          }else {
-            return Center( child: Text('No posts found') );
+            
+          } else {
+            return Center(child: Text('No posts found'));
           }
           
         },
       ),
 
+// BOTTOM 
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF1E1E1E),
         selectedItemColor: Colors.red,
@@ -131,5 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+    
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/video_notification.dart';
+import '../data/models/video_notification.dart';
 
 class VideoCard extends StatelessWidget {
   
@@ -81,6 +81,7 @@ class VideoCard extends StatelessWidget {
                             fontSize: 13,
                           ),
                         ),
+                        
                       ],
                     ),
                   ),
@@ -92,6 +93,7 @@ class VideoCard extends StatelessWidget {
                     constraints: const BoxConstraints(),
                   ),
                 ],
+                
               ),
             ),
           ],
