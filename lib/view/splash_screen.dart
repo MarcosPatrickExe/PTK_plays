@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:ptk_plays/services/youtubeAPI.dart';
+import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import './Home.dart';
 
+
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({ super.key });
+  final YoutubeViewModel viewmodelYTtemp;
+  final String apiKEYtemp;
+  
+  const SplashScreen({ required this.viewmodelYTtemp, required this.apiKEYtemp });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
+
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
@@ -36,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Future.delayed( const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) =>  HomeScreen()),
+          MaterialPageRoute(builder: (context) =>  HomeScreen( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
         );
       }
     });

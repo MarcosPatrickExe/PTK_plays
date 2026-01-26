@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
-import '../data/models/video_notification.dart';
+import '../data/models/VideoNotification.dart';
 import '../components/video_card.dart';
-
 
 class HomeScreen extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
-  HomeScreen(this.viewmodelYT );
-  
+  final String apiKEY;
+
+  HomeScreen({ required this.viewmodelYT, required this.apiKEY });
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<VideoNotification>> _videosCards;
@@ -23,12 +23,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build( BuildContext context ) {
-    
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      
-// APPBAR
+
+      // APPBAR
       appBar: AppBar(
         elevation: 0,
         backgroundColor: const Color(0xFF121212),
@@ -55,16 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 16),
         ],
       ),
-      
-// BODY
+
+      // BODY
       body: FutureBuilder(
         future: this._videosCards,
         builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
-          
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loading indicator while waiting for data
-            
-            return Center( child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)) );
+
+            return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
             
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -75,12 +73,12 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                final notification = snapshot[index];
+                final notification = snapshot.data![index];
 
                 return VideoCard(
                   notification: notification,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.title}')));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle }')));
                   },
                 );
               },
@@ -89,11 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
           } else {
             return Center(child: Text('No posts found'));
           }
-          
         },
       ),
 
-// BOTTOM 
+      // BOTTOM
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF1E1E1E),
         selectedItemColor: Colors.red,
@@ -106,6 +103,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-    
   }
 }

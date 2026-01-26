@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/models/video_notification.dart';
+import '../data/models/VideoNotification.dart';
 
 class VideoCard extends StatelessWidget {
   
@@ -29,7 +29,7 @@ class VideoCard extends StatelessWidget {
             
             // Thumbnail
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical( top: Radius.circular(12) ),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Image.network( notification.thumbnailUrl,
@@ -63,7 +63,7 @@ class VideoCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          notification.title,
+                          notification.videoTitle,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -75,7 +75,7 @@ class VideoCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${notification.channelName} • ${_formatDuration(notification.timeAgo)}',
+                          '${notification.channelTittle} • 15:00}', // '${notification.channelTittle} • ${_formatDuration(notification.timeAgo)}',
                           style: TextStyle(
                             color: Colors.grey[400],
                             fontSize: 13,

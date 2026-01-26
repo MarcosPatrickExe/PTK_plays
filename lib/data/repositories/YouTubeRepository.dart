@@ -1,5 +1,5 @@
 import '../services/YouTubeService.dart';
-import '../models/video_notification.dart';
+import '../models/VideoNotification.dart';
 
 
 class YouTubeRepository {

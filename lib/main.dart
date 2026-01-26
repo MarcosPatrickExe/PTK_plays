@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
+import 'package:ptk_plays/data/services/YouTubeService.dart';
+import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'view/home.dart';
 import 'view/splash_screen.dart';
+import './utils/utils.dart';
 
 void main () {
   runApp(const MyApp());
@@ -13,6 +17,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build( BuildContext context ) {
     
+    YouTubeService ytServi = YouTubeService( Utils.APIkey );
+    YouTubeRepository ytRepo = YouTubeRepository( ytServi );
+    YoutubeViewModel ytVM = YoutubeViewModel(ytRepo);
+    
+    
     return MaterialApp(
       title: 'PTK plays',
       debugShowCheckedModeBanner: false,
@@ -23,7 +32,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto', // Default, but explicit is fine
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: SplashScreen( viewmodelYTtemp: ytVM, apiKEYtemp: Utils.APIkey ),
     );
     
   }
