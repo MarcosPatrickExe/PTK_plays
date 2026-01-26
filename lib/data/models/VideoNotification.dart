@@ -14,6 +14,15 @@ class VideoNotification {
   });
 
   factory VideoNotification.fromJson(Map<String, dynamic> content) {
+    
+    
+    print('\n\n \n \n \n=======================================================================> \n\n');
+    print('video title: ${content['snippet']['title']}');
+    print('video title: ${content['snippet']['channelTitle']}');
+    print('video title: ${content['snippet']['publishedAt']}');
+    
+    print('\n\n \n \n \n=======================================================================> \n\n');
+
     return VideoNotification(
       videoTitle: content['snippet']['title'],
       channelTittle: content['snippet']['channelTitle'],

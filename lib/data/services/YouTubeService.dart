@@ -8,7 +8,7 @@ class YouTubeService {
 
   YouTubeService(this.apiKEY );
 
-  Future<List<String>> fetchVideos() async {
+  Future<List<dynamic>> fetchVideos() async {
     final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
       'key': Utils.APIkey,
       'part': 'snippet',
@@ -16,6 +16,7 @@ class YouTubeService {
       'order': 'date',
       // 'maxResults': '10',
       'type': 'video',
+      'maxResults': '1',
     });
 
     final Response channelResponse = await http.get(uri);
@@ -24,15 +25,15 @@ class YouTubeService {
       var data = json.decode(channelResponse.body);
       final items = data['items'];
 
-      print('\n\n \n \n \n=======================================================================> \n\n');
-
+     // print('\n\n \n \n \n=======================================================================> \n\n');
+/*
       for (var ite in items) {
         print(ite['snippet']);
 
         // print('Video name: ${ite['snippet']['title']}');
       }
-
-      print('\n\n \n \n \n=======================================================================> \n\n');
+*/
+     // print('\n\n \n \n \n=======================================================================> \n\n');
 
       return Future.value(items);
       
