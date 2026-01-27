@@ -35,7 +35,7 @@ class _VideoScreenState extends State<Videos> {
         backgroundColor: const Color(0xFF121212),
         title: Row(
           children: [
-            const Icon(Icons.play_circle_filled, color: Colors.red, size: 32),
+            const Icon(Icons.play_circle_filled, color: Colors.purple, size: 32),
             const SizedBox(width: 8),
             Text(
               'Videos',
@@ -44,14 +44,20 @@ class _VideoScreenState extends State<Videos> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {},
-          ),
+          // FILTRAR VIDEOS:
+        //  IconButton( icon: const Icon( Icons.search, color: Colors.purple), onPressed: () {},  ),
+          
+          // NOTIFICACOES:
+        //  IconButton( onPressed: null, icon: Icon( Icons.notification_important )),
+          
+          IconButton( onPressed: null, icon: Icon( Icons.dark_mode_outlined )),
+           
+          IconButton( onPressed: null, icon: Icon( Icons.light_mode_rounded )),
+          
           CircleAvatar(
             backgroundColor: Colors.grey[800],
             radius: 16,
-            child: const Icon(Icons.person, color: Colors.white),
+            child: const Icon(Icons.person, color: Colors.purple),
           ),
           const SizedBox(width: 16),
         ],
