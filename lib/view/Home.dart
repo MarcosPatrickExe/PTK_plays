@@ -23,7 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) { 
+    
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
 
@@ -36,8 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const Icon(Icons.play_circle_filled, color: Colors.red, size: 32),
             const SizedBox(width: 8),
             const Text(
-              'Notifications',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
+              'Videos',
+              style:  TextStyle( fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white, ),
             ),
           ],
         ),
@@ -62,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loading indicator while waiting for data
 
-            return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
+            return Center( child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
             
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
