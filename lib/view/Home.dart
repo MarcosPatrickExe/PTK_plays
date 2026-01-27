@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../data/models/VideoNotification.dart';
 import '../components/video_card.dart';
@@ -36,9 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Icon(Icons.play_circle_filled, color: Colors.red, size: 32),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Videos',
-              style:  TextStyle( fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white, ),
+               style: GoogleFonts.goldman(  textStyle: TextStyle( fontWeight: FontWeight.bold, fontSize: 22.0, color: Colors.white, ) ),
             ),
           ],
         ),

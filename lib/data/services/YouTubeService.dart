@@ -1,23 +1,23 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
-import '../../utils/utils.dart';
+import 'package:ptk_plays/utils/utils.dart';
 
 class YouTubeService {
-  final String apiKEY;
+  final String _apiKEY;
 
-  YouTubeService(this.apiKEY );
+  YouTubeService( this._apiKEY );
 
   Future<List<dynamic>> fetchVideos() async {
     
     final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
-      'key': Utils.APIkey,
+      'key': this._apiKEY,
       'part': 'snippet',
       'channelId': Utils.channelID,
       'order': 'date',
       // 'maxResults': '10',
       'type': 'video',
-      'maxResults': '1',
+      'maxResults': '4',
     });
 
     final Response channelResponse = await http.get(uri);
