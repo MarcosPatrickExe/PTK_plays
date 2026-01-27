@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
-import './Home.dart';
+import 'Videos.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -41,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Future.delayed( const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) =>  HomeScreen( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
+          MaterialPageRoute(builder: (context) =>  Videos( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
         );
       }
     });

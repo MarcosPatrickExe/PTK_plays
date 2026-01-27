@@ -3,7 +3,7 @@ import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
 import 'package:ptk_plays/data/services/YouTubeService.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'view/home.dart';
-import 'view/splash_screen.dart';
+import 'view/SplashScreen.dart';
 import './utils/utils.dart';
 
 void main () {
