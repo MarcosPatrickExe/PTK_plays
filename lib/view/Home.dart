@@ -4,7 +4,7 @@ import '../utils/app_theme.dart';
 final themeNotifier = ValueNotifier<bool>(true); // true = dark
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  const HomePage({ super.key });
 
   @override
   Widget build( BuildContext context ) {
@@ -73,9 +73,9 @@ class PostCard extends StatelessWidget {
   const PostCard({super.key, required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
-    final accent =
-        isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
+  Widget build( BuildContext context ) {
+    
+    final accent =  isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
 
     return Container(
       decoration: BoxDecoration(
@@ -138,14 +138,16 @@ class PostCard extends StatelessWidget {
   }
 }
 
+
 class GradientBottomNav extends StatelessWidget {
+  
   final bool isDark;
-  const GradientBottomNav({super.key, required this.isDark});
+  const GradientBottomNav({ super.key, required this.isDark });
 
   @override
-  Widget build(BuildContext context) {
-    final accent =
-        isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
+  Widget build( BuildContext context ) {
+    
+    final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
 
     return Container(
       decoration: BoxDecoration(
@@ -162,8 +164,8 @@ class GradientBottomNav extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Vídeos'),
-          BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Fórum'),
+          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
+          BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),

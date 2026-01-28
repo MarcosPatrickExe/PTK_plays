@@ -13,10 +13,11 @@ class AppThemes {
   );
 
   static const lightBackground = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    begin: Alignment.bottomLeft,
+    end: Alignment.topRight,
     colors: [
-      Color(0xFFEEF2F3),
+      Color.fromARGB(31, 202, 215, 215),
+      Color.fromARGB(255, 165, 171, 173),
       Color(0xFFDCE6EB),
     ],
   );
