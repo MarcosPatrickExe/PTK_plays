@@ -16,8 +16,8 @@ class AppThemes {
     begin: Alignment.bottomLeft,
     end: Alignment.topRight,
     colors: [
-      Color.fromARGB(31, 202, 215, 215),
-      Color.fromARGB(255, 165, 171, 173),
+      Color.fromARGB(164, 226, 226, 226),
+      Color.fromARGB(255, 205, 209, 210),
       Color(0xFFDCE6EB),
     ],
   );
@@ -30,8 +30,10 @@ class AppThemes {
   );
 
   static const lightCard = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
     colors: [
-      Color(0xFFFFFFFF),
+      Color.fromARGB(255, 230, 230, 230),
       Color(0xFFF1F5F9),
     ],
   );
