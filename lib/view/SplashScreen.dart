@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/view/Home.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'Videos.dart';
 
@@ -22,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -40,13 +42,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Navigate to Home after 3 seconds
     Future.delayed( const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) =>  Videos( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
+        Navigator.of( context ).pushReplacement(
+          MaterialPageRoute(builder: (BuildContext context) =>  HomePage( )) // Videos( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
         );
       }
     });
     
-   
   }
 
   @override

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../data/models/VideoNotification.dart';
-import '../components/video_card.dart';
+import '../components/VideoCard.dart';
 
 class Videos extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
@@ -105,10 +105,14 @@ class _VideoScreenState extends State<Videos> {
         unselectedItemColor: Colors.grey,
         currentIndex: 1, // Notifications tab selected
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Videos'),
-          BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Shorts'),
+          BottomNavigationBarItem(icon: Icon( Icons.home), label: 'Feed'),
+          BottomNavigationBarItem(icon: Icon( Icons.notifications), label: 'Videos'),
+          BottomNavigationBarItem(icon: Icon( Icons.forum_rounded), label: 'Forum'),
+          BottomNavigationBarItem(icon: Icon( Icons.person_2_rounded), label: 'Perfil'),
         ],
+        onTap: ( int optionSeletecd ){
+          
+        },
       ),
     );
   }
