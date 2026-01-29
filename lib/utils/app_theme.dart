@@ -2,6 +2,20 @@ import 'package:flutter/material.dart';
 
 class AppThemes {
   
+  static ThemeData lightTheme = ThemeData(
+      primaryColor: Color(0xFF0479FF),
+      shadowColor: Color(0x883F3F3F),
+      brightness: Brightness.light,
+  );
+  
+  static ThemeData darkTheme = ThemeData(
+      primaryColor: Color(0xFFDEDEDE),
+      shadowColor: Color(0x86161616),
+      brightness: Brightness.dark,
+  );
+  
+  
+  
   static const darkBackground = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -16,8 +30,8 @@ class AppThemes {
     begin: Alignment.bottomLeft,
     end: Alignment.topRight,
     colors: [
-      Color.fromARGB(164, 226, 226, 226),
-      Color.fromARGB(255, 205, 209, 210),
+      Color(0xA3E2E2E2),
+      Color(0xFFCDD1D2),
       Color(0xFFDCE6EB),
     ],
   );
