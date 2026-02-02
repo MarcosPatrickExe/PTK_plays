@@ -67,6 +67,7 @@ class _VideoScreenState extends State<Videos> {
       body: FutureBuilder(
         future: this._videosCards,
         builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
+          
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loading indicator while waiting for data
 
@@ -86,7 +87,9 @@ class _VideoScreenState extends State<Videos> {
                 return VideoCard(
                   notification: notification,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle }')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                       SnackBar( content: Text('Clicked: ${notification.videoTitle }') )
+                    );
                   },
                 );
               },

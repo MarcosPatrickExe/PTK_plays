@@ -10,8 +10,6 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
-    
     return ValueListenableBuilder<bool>(
       valueListenable: themeNotifier,
       builder: (context, isDark, _) {
@@ -72,9 +70,7 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-  
 }
-
 
 class PostCard extends StatelessWidget {
   final bool isDark;
@@ -83,6 +79,9 @@ class PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
+
+    final temaSelecionado = Theme.of(context);
+    print('\n \n \n \n========================> \n TEMA ATUAL: ${temaSelecionado} \n \n');
 
     return Container(
       decoration: BoxDecoration(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
 import 'package:ptk_plays/data/services/YouTubeService.dart';
+import 'package:ptk_plays/utils/app_theme.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'view/home.dart';
 import 'view/SplashScreen.dart';
@@ -12,7 +13,7 @@ void main () {
 
 class MyApp extends StatelessWidget {
   
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({ Key? key }) : super(key: key);
 
   @override
   Widget build( BuildContext context ) {
@@ -24,14 +25,10 @@ class MyApp extends StatelessWidget {
     
     return MaterialApp(
       title: 'PTK plays',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.red,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        fontFamily: 'Roboto', // Default, but explicit is fine
-        useMaterial3: true,
-      ),
+      debugShowCheckedModeBanner: true,
+      theme: AppThemes.lightTheme,
+      darkTheme: AppThemes.darkTheme,
+      themeMode: ThemeMode.light,
       home: SplashScreen( viewmodelYTtemp: ytVM, apiKEYtemp: Utils.APIkey ),
     );
     

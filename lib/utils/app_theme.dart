@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppThemes {
   
@@ -6,12 +7,19 @@ class AppThemes {
       primaryColor: Color(0xFF0479FF),
       shadowColor: Color(0x883F3F3F),
       brightness: Brightness.light,
+      fontFamily: GoogleFonts.goldman(  textStyle: TextStyle( fontWeight: FontWeight.bold, fontSize: 22.0, color: const Color(0xFF235525), ) ).fontFamily,
+      useMaterial3: true,
+      textTheme: TextTheme(
+        titleLarge: TextStyle( fontSize: 12.0 )
+      )
   );
   
   static ThemeData darkTheme = ThemeData(
       primaryColor: Color(0xFFDEDEDE),
       shadowColor: Color(0x86161616),
       brightness: Brightness.dark,
+      fontFamily: GoogleFonts.abhayaLibre( textStyle: TextStyle( fontWeight: FontWeight.bold, fontSize: 12.0, color: Colors.purple) ).fontFamily,
+      useMaterial3: true,
   );
   
   
