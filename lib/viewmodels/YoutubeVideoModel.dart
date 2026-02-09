@@ -7,8 +7,6 @@ class YoutubeViewModel {
   YoutubeViewModel(this._repository);
 
 
-
-
   Future<List<VideoNotification>> loadVideos() async {
     
     return await _repository.getChannelVideos();

@@ -20,7 +20,7 @@ class _VideoScreenState extends State<Videos> {
   @override
   void initState() {
     super.initState();
-    _videosCards = widget.viewmodelYT.loadVideos();
+    _videosCards = super.widget.viewmodelYT.loadVideos();
   }
 
   @override

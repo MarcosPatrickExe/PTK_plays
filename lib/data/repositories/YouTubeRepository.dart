@@ -4,8 +4,7 @@ import '../models/VideoNotification.dart';
 
 class YouTubeRepository {
   final YouTubeService _serviceYT;
-  YouTubeRepository(this._serviceYT);
-
+  YouTubeRepository( this._serviceYT );
 
 
   Future<List<VideoNotification>> getChannelVideos() async {
@@ -17,7 +16,5 @@ class YouTubeRepository {
                  ( dynamic video) => VideoNotification.fromJson(video) )
                   .toList();
   }
-  
-  
   
 }

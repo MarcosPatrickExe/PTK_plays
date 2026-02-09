@@ -6,10 +6,10 @@ import '../utils/app_theme.dart';
 final themeNotifier = ValueNotifier<bool>(true); // true = dark
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  const HomePage({ super.key });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
     return ValueListenableBuilder<bool>(
       valueListenable: themeNotifier,
       builder: (context, isDark, _) {
@@ -36,7 +36,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _buildHeader( bool isDark ) {
     final borderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08);
 
     return Padding(
@@ -74,7 +74,7 @@ class HomePage extends StatelessWidget {
 
 class PostCard extends StatelessWidget {
   final bool isDark;
-  const PostCard({super.key, required this.isDark});
+  const PostCard({ super.key, required this.isDark });
 
   @override
   Widget build(BuildContext context) {
@@ -123,10 +123,10 @@ class PostCard extends StatelessWidget {
 
 class GradientBottomNav extends StatelessWidget {
   final bool isDark;
-  const GradientBottomNav({super.key, required this.isDark});
+  const GradientBottomNav({ super.key, required this.isDark });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
     return Container(
       decoration: BoxDecoration(gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard),
       child: BottomNavigationBar(

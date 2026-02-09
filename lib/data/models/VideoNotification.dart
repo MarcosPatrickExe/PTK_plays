@@ -12,10 +12,10 @@ class VideoNotification {
     required this.avatarUrl,
     required this.publishedAt,
   });
+  
 
-  factory VideoNotification.fromJson(Map<String, dynamic> content) {
-    
-    
+  factory VideoNotification.fromJson( Map<String, dynamic> content ) {
+
     print('\n\n \n \n \n=======================================================================> \n\n');
     print('video title: ${content['snippet']['title']}');
     print('video title: ${content['snippet']['channelTitle']}');
