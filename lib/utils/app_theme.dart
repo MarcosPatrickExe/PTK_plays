@@ -55,7 +55,7 @@ class AppThemes {
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
     colors: [
-      Color.fromARGB(255, 230, 230, 230),
+      Color(0xFFE6E6E6),
       Color(0xFFF1F5F9),
     ],
   );
