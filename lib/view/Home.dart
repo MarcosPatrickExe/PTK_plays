@@ -1,12 +1,17 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/view/Videos.dart';
+import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../utils/app_theme.dart';
 
 final themeNotifier = ValueNotifier<bool>(true); // true = dark
 
 class HomePage extends StatelessWidget {
-  const HomePage({ super.key });
+  final YoutubeViewModel _viewmodelYT;
+  final String _apiKEY;
+
+  HomePage({ super.key, required viewmodelYT, required apiKEY}) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +20,7 @@ class HomePage extends StatelessWidget {
       builder: (context, isDark, _) {
         return Scaffold(
           body: Container(
-            decoration: BoxDecoration( gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
+            decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
             child: SafeArea(
               child: Column(
                 children: [
@@ -30,7 +35,7 @@ class HomePage extends StatelessWidget {
               ),
             ),
           ),
-          bottomNavigationBar: GradientBottomNav(isDark: isDark),
+          bottomNavigationBar: GradientBottomNav( isDark: isDark, ref: this ),
         );
       },
     );
@@ -74,7 +79,7 @@ class HomePage extends StatelessWidget {
 
 class PostCard extends StatelessWidget {
   final bool isDark;
-  const PostCard({ super.key, required this.isDark });
+  const PostCard({super.key, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -123,10 +128,12 @@ class PostCard extends StatelessWidget {
 
 class GradientBottomNav extends StatelessWidget {
   final bool isDark;
-  const GradientBottomNav({ super.key, required this.isDark });
+  final HomePage ref;
+
+  const GradientBottomNav({super.key, required this.isDark, required this.ref });
 
   @override
-  Widget build( BuildContext context ) {
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard),
       child: BottomNavigationBar(
@@ -136,12 +143,13 @@ class GradientBottomNav extends StatelessWidget {
         unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
         type: BottomNavigationBarType.fixed,
         onTap: (int value_selected) {
-          
-            if(value_selected == 1){
-              Navigator.of( context ).pushReplacement(
-                MaterialPageRoute( builder: (BuildContext context) =>  HomePage( ) ) // Videos( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
-              );
-            }
+          if (value_selected == 1) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (BuildContext context) => Videos(viewmodelYT: ref._viewmodelYT, apiKEY: ref._apiKEY ),
+              ),
+            );
+          }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),

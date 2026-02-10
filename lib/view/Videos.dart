@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ptk_plays/view/Home.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../data/models/VideoNotification.dart';
 import '../components/VideoCard.dart';
@@ -14,6 +15,7 @@ class Videos extends StatefulWidget {
   State<Videos> createState() => _VideoScreenState();
 }
 
+
 class _VideoScreenState extends State<Videos> {
   late Future<List<VideoNotification>> _videosCards;
 
@@ -22,6 +24,7 @@ class _VideoScreenState extends State<Videos> {
     super.initState();
     _videosCards = super.widget.viewmodelYT.loadVideos();
   }
+
 
   @override
   Widget build( BuildContext context ) { 
@@ -115,8 +118,14 @@ class _VideoScreenState extends State<Videos> {
         ],
         onTap: ( int optionSeletecd ){
           
+            if( optionSeletecd == 0 ){
+              Navigator.of( context ).pushReplacement(
+                MaterialPageRoute( builder: (BuildContext context) =>  HomePage( viewmodelYT: super.widget.viewmodelYT, apiKEY: super.widget.apiKEY ) ) 
+              );
+            }
         },
       ),
+      
     );
   }
 }
