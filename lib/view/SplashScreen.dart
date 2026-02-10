@@ -43,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Future.delayed( const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of( context ).pushReplacement(
-          MaterialPageRoute( builder: (BuildContext context) =>  HomePage( ) ) // Videos( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
+          MaterialPageRoute( builder: (BuildContext context) =>  Videos( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp ) ) 
         );
       }
     });

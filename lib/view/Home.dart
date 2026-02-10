@@ -9,14 +9,13 @@ class HomePage extends StatelessWidget {
   const HomePage({ super.key });
 
   @override
-  Widget build( BuildContext context ) {
-    
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: themeNotifier,
       builder: (context, isDark, _) {
         return Scaffold(
           body: Container(
-            decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
+            decoration: BoxDecoration( gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
             child: SafeArea(
               child: Column(
                 children: [
@@ -37,7 +36,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader( bool isDark ) {
+  Widget _buildHeader(bool isDark) {
     final borderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08);
 
     return Padding(
@@ -78,7 +77,7 @@ class PostCard extends StatelessWidget {
   const PostCard({ super.key, required this.isDark });
 
   @override
-  Widget build( BuildContext context ) {
+  Widget build(BuildContext context) {
     final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
 
     final temaSelecionado = Theme.of(context);
@@ -136,10 +135,18 @@ class GradientBottomNav extends StatelessWidget {
         selectedItemColor: isDark ? AppThemes.darkAccent : AppThemes.lightAccent,
         unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
         type: BottomNavigationBarType.fixed,
+        onTap: (int value_selected) {
+          
+            if(value_selected == 1){
+              Navigator.of( context ).pushReplacement(
+                MaterialPageRoute( builder: (BuildContext context) =>  HomePage( ) ) // Videos( viewmodelYT: widget.viewmodelYTtemp, apiKEY: widget.apiKEYtemp,) ),
+              );
+            }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
           BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
-          BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
+          // BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
