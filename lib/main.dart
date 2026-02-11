@@ -14,7 +14,7 @@ void main () {
   
   runApp(
     ChangeNotifierProvider(
-      create: (_) => ThemeController(),
+      create: (BuildContext _) => ThemeController(),
       child: const MyApp(),
     )
   );
@@ -32,13 +32,14 @@ class MyApp extends StatelessWidget {
     YouTubeRepository ytRepo = YouTubeRepository( ytServi );
     YoutubeViewModel ytVM = YoutubeViewModel(ytRepo);
     
+    final ThemeMode themeMode = context.read<ThemeController>().getThemeMode;
     
     return MaterialApp(
       title: 'PTK plays',
       debugShowCheckedModeBanner: true,
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       home: SplashScreen( viewmodelYTtemp: ytVM, apiKEYtemp: Utils.APIkey ),
     );
     
