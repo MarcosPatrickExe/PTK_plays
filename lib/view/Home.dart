@@ -1,20 +1,22 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/view/Videos.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import '../components/Header.dart';
 import '../utils/app_theme.dart';
 
+
 final themeNotifier = ValueNotifier<bool>(true); // true = dark
+
 
 class HomePage extends StatelessWidget {
   final YoutubeViewModel _viewmodelYT;
   final String _apiKEY;
 
-  HomePage({ super.key, required viewmodelYT, required apiKEY}) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
+  HomePage({ super.key, required viewmodelYT, required apiKEY }) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
     return ValueListenableBuilder<bool>(
       valueListenable: themeNotifier,
       builder: (context, isDark, _) {
@@ -24,7 +26,7 @@ class HomePage extends StatelessWidget {
             child: SafeArea(
               child: Column(
                 children: [
-                  _buildHeader(isDark),
+                  buildHeader(title: "Feed", isDark: isDark),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.all(16),
@@ -40,49 +42,17 @@ class HomePage extends StatelessWidget {
       },
     );
   }
-
-  Widget _buildHeader(bool isDark) {
-    final borderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 3),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.55),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: borderColor, width: 1),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'PTK Plays',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
-                ),
-                IconButton(
-                  icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: isDark ? Colors.white : Colors.black87),
-                  onPressed: () => themeNotifier.value = !themeNotifier.value,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  
 }
+
+
 
 class PostCard extends StatelessWidget {
   final bool isDark;
-  const PostCard({super.key, required this.isDark});
+  const PostCard({ super.key, required this.isDark });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
     final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
 
     final temaSelecionado = Theme.of(context);
@@ -126,6 +96,7 @@ class PostCard extends StatelessWidget {
   }
 }
 
+
 class GradientBottomNav extends StatelessWidget {
   final bool isDark;
   final HomePage ref;
@@ -143,6 +114,7 @@ class GradientBottomNav extends StatelessWidget {
         unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
         type: BottomNavigationBarType.fixed,
         onTap: (int value_selected) {
+          
           if (value_selected == 1) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(

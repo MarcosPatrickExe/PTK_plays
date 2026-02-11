@@ -5,6 +5,8 @@ import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../data/models/VideoNotification.dart';
 import '../components/VideoCard.dart';
 
+
+
 class Videos extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
   final String apiKEY;
@@ -33,6 +35,13 @@ class _VideoScreenState extends State<Videos> {
       backgroundColor: const Color(0xFF121212),
 
       // APPBAR
+         // FILTRAR VIDEOS:
+         //  IconButton( icon: const Icon( Icons.search, color: Colors.purple), onPressed: () {},  ),
+          
+         // NOTIFICACOES:
+         //  IconButton( onPressed: null, icon: Icon( Icons.notification_important )),
+        
+        
       appBar: AppBar(
         elevation: 0,
         backgroundColor: const Color(0xFF121212),
@@ -44,18 +53,15 @@ class _VideoScreenState extends State<Videos> {
               'Videos',
                style: GoogleFonts.goldman(  textStyle: TextStyle( fontWeight: FontWeight.bold, fontSize: 22.0, color: Colors.white, ) ),
             ),
+            IconButton( onPressed: null, icon: Icon( Icons.dark_mode_outlined )),
+           
+             IconButton( onPressed: null, icon: Icon( Icons.light_mode_rounded )),
           ],
         ),
         actions: [
-          // FILTRAR VIDEOS:
-        //  IconButton( icon: const Icon( Icons.search, color: Colors.purple), onPressed: () {},  ),
+         
           
-          // NOTIFICACOES:
-        //  IconButton( onPressed: null, icon: Icon( Icons.notification_important )),
           
-          IconButton( onPressed: null, icon: Icon( Icons.dark_mode_outlined )),
-           
-          IconButton( onPressed: null, icon: Icon( Icons.light_mode_rounded )),
           
           CircleAvatar(
             backgroundColor: Colors.grey[800],
