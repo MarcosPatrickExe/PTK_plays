@@ -4,9 +4,9 @@ import 'package:ptk_plays/view/Videos.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
 import '../utils/app_theme.dart';
+import 'package:provider/provider.dart';
+import "package:ptk_plays/utils/ThemeController.dart";
 
-
-final themeNotifier = ValueNotifier<bool>(true); // true = dark
 
 
 class HomePage extends StatelessWidget {
@@ -17,33 +17,33 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build( BuildContext context ) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: themeNotifier,
-      builder: (context, isDark, _) {
-        return Scaffold(
-          body: Container(
-            decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  buildHeader(title: "Feed", isDark: isDark),
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [PostCard(isDark: isDark)],
-                    ),
-                  ),
-                ],
+    
+    bool isDark = context.watch<ThemeController>().isDark; 
+
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration( gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
+        child: SafeArea(
+          child: Column(
+            children: [
+              buildHeader(title: "Feed", widgetContext: context, isDarkk: isDark),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [ PostCard(isDark: isDark) ],
+                ),
               ),
-            ),
+            ],
           ),
-          bottomNavigationBar: GradientBottomNav( isDark: isDark, ref: this ),
-        );
-      },
+        ),
+      ),
+      bottomNavigationBar: GradientBottomNav( isDark: isDark, ref: this ),
     );
   }
-  
+    
 }
+  
+
 
 
 
@@ -55,8 +55,8 @@ class PostCard extends StatelessWidget {
   Widget build( BuildContext context ) {
     final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
 
-    final temaSelecionado = Theme.of(context);
-    print('\n \n \n \n========================> \n TEMA ATUAL: ${temaSelecionado} \n \n');
+    print('\n \n \n \n========================> \n TEMA ATUAL É: ${ isDark ? "BLACK" : "LIGHT"} \n \n');
+
 
     return Container(
       decoration: BoxDecoration(

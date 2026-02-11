@@ -4,7 +4,6 @@ import 'package:ptk_plays/data/services/YouTubeService.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/utils/app_theme.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
-import 'view/home.dart';
 import 'view/SplashScreen.dart';
 import './utils/utils.dart';
 import 'package:provider/provider.dart';
@@ -32,14 +31,12 @@ class MyApp extends StatelessWidget {
     YouTubeRepository ytRepo = YouTubeRepository( ytServi );
     YoutubeViewModel ytVM = YoutubeViewModel(ytRepo);
     
-    final ThemeMode themeMode = context.read<ThemeController>().getThemeMode;
-    
     return MaterialApp(
       title: 'PTK plays',
       debugShowCheckedModeBanner: true,
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
-      themeMode: themeMode,
+      themeMode: context.read<ThemeController>().getThemeMode,
       home: SplashScreen( viewmodelYTtemp: ytVM, apiKEYtemp: Utils.APIkey ),
     );
     

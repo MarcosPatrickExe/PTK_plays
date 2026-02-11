@@ -34,14 +34,6 @@ class _VideoScreenState extends State<Videos> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
 
-      // APPBAR
-         // FILTRAR VIDEOS:
-         //  IconButton( icon: const Icon( Icons.search, color: Colors.purple), onPressed: () {},  ),
-          
-         // NOTIFICACOES:
-         //  IconButton( onPressed: null, icon: Icon( Icons.notification_important )),
-        
-        
       appBar: AppBar(
         elevation: 0,
         backgroundColor: const Color(0xFF121212),
@@ -55,14 +47,11 @@ class _VideoScreenState extends State<Videos> {
             ),
             IconButton( onPressed: null, icon: Icon( Icons.dark_mode_outlined )),
            
-             IconButton( onPressed: null, icon: Icon( Icons.light_mode_rounded )),
+            IconButton( onPressed: null, icon: Icon( Icons.light_mode_rounded )),
           ],
         ),
         actions: [
          
-          
-          
-          
           CircleAvatar(
             backgroundColor: Colors.grey[800],
             radius: 16,
@@ -75,7 +64,7 @@ class _VideoScreenState extends State<Videos> {
       // BODY
       body: FutureBuilder(
         future: this._videosCards,
-        builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
+        builder: ( BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot ) {
           
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loading indicator while waiting for data

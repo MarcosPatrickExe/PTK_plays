@@ -1,9 +1,21 @@
 import "dart:ui";
 import "package:flutter/material.dart";
+import "package:ptk_plays/utils/ThemeController.dart";
+import 'package:provider/provider.dart';
 
 
-Widget buildHeader({ required String title, required bool isDark }) {
+Widget buildHeader({ required String title, required BuildContext widgetContext, bool? isDarkk }) {
+  
+  final bool isDark = widgetContext.read<ThemeController>().isDark;
   final borderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08);
+
+// APPBAR
+         // FILTRAR VIDEOS:
+         //  IconButton( icon: const Icon( Icons.search, color: Colors.purple), onPressed: () {},  ),
+          
+         // NOTIFICACOES:
+         //  IconButton( onPressed: null, icon: Icon( Icons.notification_important )),
+        
 
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 3),
@@ -27,7 +39,7 @@ Widget buildHeader({ required String title, required bool isDark }) {
               ),
               IconButton(
                 icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: isDark ? Colors.white : Colors.black87),
-                onPressed: () => themeNotifier.value = !themeNotifier.value,
+                onPressed: () => widgetContext.read<ThemeController>().toggleTheme() 
               ),
             ],
           ),
