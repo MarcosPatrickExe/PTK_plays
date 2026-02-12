@@ -22,15 +22,19 @@ class Videos extends StatefulWidget {
 
 class _VideoScreenState extends State<Videos> {
   late Future<List<VideoNotification>> _videosCards;
+  List<VideoNotification>? _loadedVideoCards;
 
   @override
   void initState() {
     super.initState();
-    _videosCards = super.widget.viewmodelYT.loadVideos();
+    
+    if(_loadedVideoCards == null) {
+      _videosCards = super.widget.viewmodelYT.loadVideos();
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
     bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
@@ -38,41 +42,68 @@ class _VideoScreenState extends State<Videos> {
 
       // BODY
       body: Container(
-        decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
+        decoration: BoxDecoration( gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
         child: SafeArea(
           child: Column(
             children: [
               buildHeader(title: "Videos", widgetContext: context),
               Expanded(
-                child: FutureBuilder(
-                  future: this._videosCards,
-                  builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      // Show a loading indicator while waiting for data
+              
+                child:
+                  ( _loadedVideoCards != null )
+                  
+                  ? ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemBuilder: (ctx, index){
+                      
+                      if(index < _loadedVideoCards!.length ){ // necessario pra evitar erro de 'out of range'
+            
+                        return VideoCard(
+                          notification: _loadedVideoCards![index],
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar( 
+                              SnackBar( content: Text('Clicked: ${ _loadedVideoCards![index].videoTitle}') )
+                            );
+                          },
+                        );
+                      }
+                       
+                    },
+                  )
+                  : FutureBuilder(
+                    future: this._videosCards,
+                    builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        // Show a loading indicator while waiting for data
 
-                      return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
-                    } else if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    } else if (snapshot.hasData) {
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: snapshot.data!.length,
-                        itemBuilder: (context, index) {
-                          final notification = snapshot.data![index];
+                        return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
+                        
+                      } else if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                        
+                      } else if (snapshot.hasData) {
+                        this._loadedVideoCards = snapshot.data;
+                        
+                        return ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            final notification = snapshot.data![index];
 
-                          return VideoCard(
-                            notification: notification,
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle}')));
-                            },
-                          );
-                        },
-                      );
-                    } else {
-                      return Center(child: Text('No posts found'));
-                    }
-                  },
-                ),
+                            return VideoCard(
+                              notification: notification,
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle}')));
+                              },
+                            );
+                          },
+                        );
+                        
+                      } else {
+                        return Center(child: Text('Nenhuma postagem encontrada :/'));
+                      }
+                    },
+                  ),
               ),
             ],
           ),
