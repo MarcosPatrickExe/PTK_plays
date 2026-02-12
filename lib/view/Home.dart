@@ -40,11 +40,8 @@ class HomePage extends StatelessWidget {
       bottomNavigationBar: GradientBottomNav( isDark: isDark, ref: this ),
     );
   }
-    
 }
   
-
-
 
 
 class PostCard extends StatelessWidget {
@@ -101,10 +98,11 @@ class GradientBottomNav extends StatelessWidget {
   final bool isDark;
   final HomePage ref;
 
-  const GradientBottomNav({super.key, required this.isDark, required this.ref });
+  const GradientBottomNav({ super.key, required this.isDark, required this.ref });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build( BuildContext context ) {
+    
     return Container(
       decoration: BoxDecoration(gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard),
       child: BottomNavigationBar(

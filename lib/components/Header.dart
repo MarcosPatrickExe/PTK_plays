@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 Widget buildHeader({ required String title, required BuildContext widgetContext, bool? isDarkk }) {
   
-  final bool isDark = widgetContext.read<ThemeController>().isDark;
+  final bool isDark = widgetContext.watch<ThemeController>().isDark;
   final borderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08);
 
 // APPBAR
@@ -34,7 +34,7 @@ Widget buildHeader({ required String title, required BuildContext widgetContext,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'PTK Plays',
+                title,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
               ),
               IconButton(

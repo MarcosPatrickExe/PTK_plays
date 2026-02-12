@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:ptk_plays/view/Home.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import '../components/Header.dart';
 import '../data/models/VideoNotification.dart';
 import '../components/VideoCard.dart';
-
+import '../utils/app_theme.dart';
+import '../utils/ThemeController.dart';
 
 
 class Videos extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
   final String apiKEY;
 
-  Videos({ required this.viewmodelYT, required this.apiKEY });
+  Videos({required this.viewmodelYT, required this.apiKEY});
 
   @override
   State<Videos> createState() => _VideoScreenState();
 }
-
 
 class _VideoScreenState extends State<Videos> {
   late Future<List<VideoNotification>> _videosCards;
@@ -27,76 +29,54 @@ class _VideoScreenState extends State<Videos> {
     _videosCards = super.widget.viewmodelYT.loadVideos();
   }
 
-
   @override
-  Widget build( BuildContext context ) { 
-    
+  Widget build(BuildContext context) {
+    bool isDark = context.watch<ThemeController>().isDark;
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
 
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFF121212),
-        title: Row(
-          children: [
-            const Icon(Icons.play_circle_filled, color: Colors.purple, size: 32),
-            const SizedBox(width: 8),
-            Text(
-              'Videos',
-               style: GoogleFonts.goldman(  textStyle: TextStyle( fontWeight: FontWeight.bold, fontSize: 22.0, color: Colors.white, ) ),
-            ),
-            IconButton( onPressed: null, icon: Icon( Icons.dark_mode_outlined )),
-           
-            IconButton( onPressed: null, icon: Icon( Icons.light_mode_rounded )),
-          ],
-        ),
-        actions: [
-         
-          CircleAvatar(
-            backgroundColor: Colors.grey[800],
-            radius: 16,
-            child: const Icon(Icons.person, color: Colors.purple),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-
       // BODY
-      body: FutureBuilder(
-        future: this._videosCards,
-        builder: ( BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot ) {
-          
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            // Show a loading indicator while waiting for data
+      body: Container(
+        decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
+        child: SafeArea(
+          child: Column(
+            children: [
+              buildHeader(title: "Videos", widgetContext: context),
+              Expanded(
+                child: FutureBuilder(
+                  future: this._videosCards,
+                  builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      // Show a loading indicator while waiting for data
 
-            return Center( child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
-            
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-            
-          } else if (snapshot.hasData) {
-            
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final notification = snapshot.data![index];
+                      return Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 213, 25, 255)));
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    } else if (snapshot.hasData) {
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          final notification = snapshot.data![index];
 
-                return VideoCard(
-                  notification: notification,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar( content: Text('Clicked: ${notification.videoTitle }') )
-                    );
+                          return VideoCard(
+                            notification: notification,
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle}')));
+                            },
+                          );
+                        },
+                      );
+                    } else {
+                      return Center(child: Text('No posts found'));
+                    }
                   },
-                );
-              },
-            );
-            
-          } else {
-            return Center(child: Text('No posts found'));
-          }
-        },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
 
       // BOTTOM
@@ -106,21 +86,21 @@ class _VideoScreenState extends State<Videos> {
         unselectedItemColor: Colors.grey,
         currentIndex: 1, // Notifications tab selected
         items: const [
-          BottomNavigationBarItem(icon: Icon( Icons.home), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon( Icons.notifications), label: 'Videos'),
-          BottomNavigationBarItem(icon: Icon( Icons.forum_rounded), label: 'Forum'),
-          BottomNavigationBarItem(icon: Icon( Icons.person_2_rounded), label: 'Perfil'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Videos'),
+          BottomNavigationBarItem(icon: Icon(Icons.forum_rounded), label: 'Forum'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_2_rounded), label: 'Perfil'),
         ],
-        onTap: ( int optionSeletecd ){
-          
-            if( optionSeletecd == 0 ){
-              Navigator.of( context ).pushReplacement(
-                MaterialPageRoute( builder: (BuildContext context) =>  HomePage( viewmodelYT: super.widget.viewmodelYT, apiKEY: super.widget.apiKEY ) ) 
-              );
-            }
+        onTap: (int optionSeletecd) {
+          if (optionSeletecd == 0) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (BuildContext context) => HomePage(viewmodelYT: super.widget.viewmodelYT, apiKEY: super.widget.apiKEY),
+              ),
+            );
+          }
         },
       ),
-      
     );
   }
 }
