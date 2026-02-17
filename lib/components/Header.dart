@@ -10,7 +10,7 @@ Widget buildHeader({ required String title, required BuildContext widgetContext,
   final borderColor = isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.08);
 
 // APPBAR
-         // FILTRAR VIDEOS:
+       // FILTRAR VIDEOS:
          //  IconButton( icon: const Icon( Icons.search, color: Colors.purple), onPressed: () {},  ),
           
          // NOTIFICACOES:
