@@ -73,6 +73,7 @@ class _VideoScreenState extends State<Videos> {
                   : FutureBuilder(
                     future: this._videosCards,
                     builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
+                      
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         // Show a loading indicator while waiting for data
 

@@ -25,7 +25,7 @@ class HomePage extends StatelessWidget {
         decoration: BoxDecoration( gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
         child: SafeArea(
           child: Column(
-            children: [
+            children: [ 
               buildHeader(title: "Feed", widgetContext: context, isDarkk: isDark),
               Expanded(
                 child: ListView(
