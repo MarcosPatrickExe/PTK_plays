@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
 
 
-
 class HomePage extends StatelessWidget {
   final YoutubeViewModel _viewmodelYT;
   final String _apiKEY;
@@ -41,7 +40,6 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-  
 
 
 class PostCard extends StatelessWidget {
