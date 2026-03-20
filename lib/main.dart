@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 
 
 void main () {
-  
   runApp(
     ChangeNotifierProvider(
       create: (BuildContext _) => ThemeController(),
