@@ -1,3 +1,13 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load( FileInputStream(keystorePropertiesFile) )
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,7 +16,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ptk_plays"
+    namespace = "com.ptksolucoesdigitais.ptk_plays"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973" // flutter.ndkVersion
 
@@ -21,7 +31,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.ptk_plays"
+        applicationId = "com.ptksolucoesdigitais.ptk_plays"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -29,14 +39,45 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-
-    buildTypes {
+    
+    /* 
+    signingConfigs {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file("upload-keystore.jks")
+            storePassword keystoreProperties['storePassword']
+        }
+    }*/
+    
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file("upload-keystore.jks")
+            storePassword = keystoreProperties["storePassword"] as String
         }
     }
+    
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+    
+    /* 
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        
+            // signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+    */
 }
 
 flutter {

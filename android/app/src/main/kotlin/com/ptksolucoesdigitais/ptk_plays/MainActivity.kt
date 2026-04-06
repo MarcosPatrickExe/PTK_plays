@@ -1,4 +1,4 @@
-package com.example.ptk_plays
+package com.ptksolucoesdigitais.ptk_plays
 
 import io.flutter.embedding.android.FlutterActivity
 
