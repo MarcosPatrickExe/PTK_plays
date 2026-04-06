@@ -40,14 +40,14 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: buildBottonNavBar( currentIndex: 0,   ) // GradientBottomNav(isDark: isDark, ref: this),
+      bottomNavigationBar: buildBottonNavBar( currentIndex: 0, widgetContext: context, isDark: isDark, ref: this  ) // GradientBottomNav(isDark: isDark, ref: this),
     );
   }
 }
 
 class PostCard extends StatelessWidget {
   final bool isDark;
-  const PostCard({super.key, required this.isDark});
+  const PostCard({ super.key, required this.isDark });
 
   @override
   Widget build(BuildContext context) {
