@@ -15,7 +15,6 @@ class HomePage extends StatelessWidget {
   YoutubeViewModel get getViewModelYT => this._viewmodelYT;
   String get getAPIkey => this._apiKEY;
 
-
   HomePage({ super.key, required viewmodelYT, required apiKEY}) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
 
 
@@ -40,7 +39,7 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: buildBottonNavBar( currentIndex: 0, widgetContext: context, isDark: isDark, ref: this  ) // GradientBottomNav(isDark: isDark, ref: this),
+      bottomNavigationBar: buildBottonNavBar( currentIndex: 0, widgetContext: context, isDark: isDark, apiKey: getAPIkey, ytViewModel: getViewModelYT ) // GradientBottomNav(isDark: isDark, ref: this),
     );
   }
 }
@@ -87,42 +86,6 @@ class PostCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text('Gameplay intensa, muitos sustos e aquele caos que vocês gostam 😈🎮', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
-        ],
-      ),
-    );
-  }
-}
-
-class GradientBottomNav extends StatelessWidget {
-  final bool isDark;
-  final HomePage ref;
-
-  const GradientBottomNav({super.key, required this.isDark, required this.ref});
-
-  @override
-  Widget build( BuildContext context ) {
-    return Container(
-      decoration: BoxDecoration(gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard),
-      child: BottomNavigationBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: isDark ? AppThemes.darkAccent : AppThemes.lightAccent,
-        unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
-        type: BottomNavigationBarType.fixed,
-        onTap: (int value_selected) {
-          if (value_selected == 1) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (BuildContext context) => Videos(viewmodelYT: ref._viewmodelYT, apiKEY: ref._apiKEY),
-              ),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
-          // BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
     );

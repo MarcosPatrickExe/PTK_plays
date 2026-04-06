@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/utils/app_theme.dart';
 import 'package:ptk_plays/view/Videos.dart';
+import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../view/Home.dart';
 
 Widget buildBottonNavBar({ 
    required int currentIndex, 
    required BuildContext widgetContext, 
    required bool isDark,  
-   required HomePage ref,
+   required YoutubeViewModel ytViewModel,
+   required String apiKey
  }) {
   
   //final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
   print('\n \n \n \n========================> metodo: \n TEMA ATUAL É: ${ isDark ? "BLACK" : "LIGHT"} \n \n');
+  
 
   return Container(
     decoration: BoxDecoration( gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard ),
@@ -21,20 +24,30 @@ Widget buildBottonNavBar({
       selectedItemColor: isDark ? AppThemes.darkAccent : AppThemes.lightAccent,
       unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
       type: BottomNavigationBarType.fixed,
+      currentIndex: currentIndex,
       onTap: (int value_selected) {
-        if (value_selected == 1) {
-          Navigator.of(widgetContext).pushReplacement(
-            MaterialPageRoute(
-              builder: (BuildContext context) => Videos(viewmodelYT: ref.getViewModelYT, apiKEY: ref.getAPIkey),
-            ),
-          );
+        
+        if (value_selected == 0) {
+        
+            Navigator.of(widgetContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (BuildContext context) => HomePage(viewmodelYT: ytViewModel, apiKEY: apiKey ),
+              ),
+            );
+        }else if (value_selected == 1) {
+            
+            Navigator.of(widgetContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (BuildContext context) => Videos(viewmodelYT: ytViewModel, apiKEY: apiKey ),
+              ),
+            );
         }
       },
       items: const [
         BottomNavigationBarItem( icon: Icon(Icons.home), label: 'Feed'),
         BottomNavigationBarItem( icon: Icon(Icons.video_library), label: 'Videos'),
         // BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
-        BottomNavigationBarItem( icon: Icon(Icons.person), label: 'Perfil'),
+        // BottomNavigationBarItem( icon: Icon(Icons.person), label: 'Perfil'),
       ],
     ),
   );

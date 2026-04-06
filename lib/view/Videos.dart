@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/view/Home.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
@@ -11,14 +12,18 @@ import '../utils/ThemeController.dart';
 
 
 class Videos extends StatefulWidget {
-  final YoutubeViewModel viewmodelYT;
-  final String apiKEY;
+  final YoutubeViewModel _viewmodelYT;
+  final String _apiKEY;
+  
+  YoutubeViewModel get getViewModelYT => this._viewmodelYT;
+  String get getAPIkey => this._apiKEY;
 
-  Videos({required this.viewmodelYT, required this.apiKEY});
+  Videos({required viewmodelYT, required apiKEY}): this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
 
   @override
   State<Videos> createState() => _VideoScreenState();
 }
+
 
 class _VideoScreenState extends State<Videos> {
   
@@ -30,7 +35,7 @@ class _VideoScreenState extends State<Videos> {
     super.initState();
     
     if(_loadedVideoCards == null) {
-      _videosCards = super.widget.viewmodelYT.loadVideos();
+      _videosCards = super.widget.getViewModelYT.loadVideos();
     }
   }
 
@@ -113,27 +118,13 @@ class _VideoScreenState extends State<Videos> {
       ),
 
       // BOTTOM
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF1E1E1E),
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey,
-        currentIndex: 1, // Notifications tab selected
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Videos'),
-          BottomNavigationBarItem(icon: Icon(Icons.forum_rounded), label: 'Forum'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_2_rounded), label: 'Perfil'),
-        ],
-        onTap: (int optionSeletecd) {
-          if (optionSeletecd == 0) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (BuildContext context) => HomePage(viewmodelYT: super.widget.viewmodelYT, apiKEY: super.widget.apiKEY),
-              ),
-            );
-          }
-        },
-      ),
+      bottomNavigationBar: buildBottonNavBar( 
+           currentIndex: 1,
+           widgetContext: context, 
+           isDark: isDark, 
+           apiKey: super.widget.getAPIkey, 
+           ytViewModel: super.widget.getViewModelYT  
+      )
     );
   }
 }
