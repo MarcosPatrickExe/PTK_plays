@@ -21,6 +21,7 @@ class Videos extends StatefulWidget {
 }
 
 class _VideoScreenState extends State<Videos> {
+  
   late Future<List<VideoNotification>> _videosCards;
   List<VideoNotification>? _loadedVideoCards;
 

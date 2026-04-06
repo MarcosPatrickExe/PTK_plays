@@ -10,7 +10,7 @@ Widget buildBottonNavBar({
    required HomePage ref,
  }) {
   
-  final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
+  //final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
   print('\n \n \n \n========================> \n TEMA ATUAL É: ${ isDark ? "BLACK" : "LIGHT"} \n \n');
 
   return Container(
@@ -25,7 +25,7 @@ Widget buildBottonNavBar({
         if (value_selected == 1) {
           Navigator.of(widgetContext).pushReplacement(
             MaterialPageRoute(
-              builder: (BuildContext context) => Videos(viewmodelYT: ref._viewmodelYT, apiKEY: ref._apiKEY),
+              builder: (BuildContext context) => Videos(viewmodelYT: ref.getViewModelYT, apiKEY: ref.getAPIkey),
             ),
           );
         }

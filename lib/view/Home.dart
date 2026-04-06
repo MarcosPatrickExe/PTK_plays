@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/view/Videos.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
@@ -7,52 +8,52 @@ import '../utils/app_theme.dart';
 import 'package:provider/provider.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
 
-
 class HomePage extends StatelessWidget {
   final YoutubeViewModel _viewmodelYT;
   final String _apiKEY;
-  
 
-  HomePage({ super.key, required viewmodelYT, required apiKEY }) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
+  YoutubeViewModel get getViewModelYT => this._viewmodelYT;
+  String get getAPIkey => this._apiKEY;
+
+
+  HomePage({ super.key, required viewmodelYT, required apiKEY}) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
+
 
   @override
   Widget build( BuildContext context ) {
-    
-    bool isDark = context.watch<ThemeController>().isDark; 
+    bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration( gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
+        decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
         child: SafeArea(
           child: Column(
-            children: [ 
+            children: [
               buildHeader(title: "Feed", widgetContext: context, isDarkk: isDark),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.all(16),
-                  children: [ PostCard(isDark: isDark) ],
+                  children: [PostCard(isDark: isDark)],
                 ),
               ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: GradientBottomNav( isDark: isDark, ref: this ),
+      bottomNavigationBar: buildBottonNavBar( currentIndex: 0,   ) // GradientBottomNav(isDark: isDark, ref: this),
     );
   }
 }
 
-
 class PostCard extends StatelessWidget {
   final bool isDark;
-  const PostCard({ super.key, required this.isDark });
+  const PostCard({super.key, required this.isDark});
 
   @override
-  Widget build( BuildContext context ) {
+  Widget build(BuildContext context) {
     final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
 
-    print('\n \n \n \n========================> \n TEMA ATUAL É: ${ isDark ? "BLACK" : "LIGHT"} \n \n');
-
+    print('\n \n \n \n========================> \n TEMA ATUAL É: ${isDark ? "BLACK" : "LIGHT"} \n \n');
 
     return Container(
       decoration: BoxDecoration(
@@ -92,16 +93,14 @@ class PostCard extends StatelessWidget {
   }
 }
 
-
 class GradientBottomNav extends StatelessWidget {
   final bool isDark;
   final HomePage ref;
 
-  const GradientBottomNav({ super.key, required this.isDark, required this.ref });
+  const GradientBottomNav({super.key, required this.isDark, required this.ref});
 
   @override
   Widget build( BuildContext context ) {
-    
     return Container(
       decoration: BoxDecoration(gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard),
       child: BottomNavigationBar(
@@ -111,11 +110,10 @@ class GradientBottomNav extends StatelessWidget {
         unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
         type: BottomNavigationBarType.fixed,
         onTap: (int value_selected) {
-          
           if (value_selected == 1) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (BuildContext context) => Videos(viewmodelYT: ref._viewmodelYT, apiKEY: ref._apiKEY ),
+                builder: (BuildContext context) => Videos(viewmodelYT: ref._viewmodelYT, apiKEY: ref._apiKEY),
               ),
             );
           }
