@@ -4,12 +4,10 @@ import 'package:http/http.dart';
 import 'package:ptk_plays/utils/utils.dart';
 
 class YouTubeService {
-  
   final String _apiKEY;
-  YouTubeService( this._apiKEY );
+  YouTubeService(this._apiKEY);
 
   Future<List<dynamic>> fetchVideos() async {
-    
     final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
       'key': this._apiKEY,
       'part': 'snippet',
@@ -22,22 +20,23 @@ class YouTubeService {
 
     final Response channelResponse = await http.get(uri);
 
+    print("\n \n \n HEADER REQUEST URL: "+( uri.toString())+"  \n \n \n");
+
     if (channelResponse.statusCode == 200) {
       var data = json.decode(channelResponse.body);
       final items = data['items'];
 
-     // print('\n\n \n \n \n=======================================================================> \n\n');
-/*
+      // print('\n\n \n \n \n=======================================================================> \n\n');
+      /*
       for (var ite in items) {
         print(ite['snippet']);
 
         // print('Video name: ${ite['snippet']['title']}');
       }
 */
-     // print('\n\n \n \n \n=======================================================================> \n\n');
+      // print('\n\n \n \n \n=======================================================================> \n\n');
 
       return Future.value(items);
-      
     } else {
       throw Exception('Erro ${channelResponse.statusCode}: ${channelResponse.body}');
     }
