@@ -41,10 +41,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _controller.forward();
 
     // Navigate to Home after 3 seconds
-    Future.delayed( const Duration(seconds: 3), () {
+    Future.delayed( const Duration(seconds: 2), () {
       if (mounted) {
         Navigator.of( context ).pushReplacement(
-          MaterialPageRoute( builder: (BuildContext context) =>  Videos( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp ) ) 
+          MaterialPageRoute( builder: (BuildContext context) =>  HomePage( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp ) ) 
         );
       }
     });
