@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/view/Home.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher_url;
 import '../components/Header.dart';
 import '../data/models/VideoNotification.dart';
 import '../components/VideoCard.dart';
@@ -38,6 +39,16 @@ class _VideoScreenState extends State<Videos> {
     }
   }
 
+  Future<void> _abrirVideo( String videoId ) async {
+    final url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+
+    if( await launcher_url.canLaunchUrl(url) ){
+      await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
+    } else {
+      throw 'Não foi possível abrir o vídeo';
+    }
+  }
+
   @override
   Widget build(BuildContext context) { 
     bool isDark = context.watch<ThemeController>().isDark;
@@ -65,7 +76,8 @@ class _VideoScreenState extends State<Videos> {
                             return VideoCard(
                               notification: _loadedVideoCards![index],
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('clicou: ${_loadedVideoCards![index].videoTitle}')));
+                                this._abrirVideo( _loadedVideoCards![index].videoID );
+                                // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('clicou: ${_loadedVideoCards![index].videoTitle}')));
                               },
                             );
                           }
@@ -95,7 +107,9 @@ class _VideoScreenState extends State<Videos> {
                                 return VideoCard(
                                   notification: notification,
                                   onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle}')));
+                                    
+                                    this._abrirVideo( notification.videoID );
+                                    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Clicked: ${notification.videoTitle}')));
                                   },
                                 );
                               },
