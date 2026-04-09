@@ -44,15 +44,16 @@ class _VideoScreenState extends State<Videos> {
     final url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
 
     if( await launcher_url.canLaunchUrl(url) ){
-      await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
+       mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir o vídeo :/");
+      // await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
     } else {
-      mostrarErroCustom(context);
+      mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir o vídeo :/");
       // throw 'Não foi possível abrir o vídeo';
     }
   }
 
   @override
-  Widget build(BuildContext context) { 
+  Widget build( BuildContext context ) { 
     bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
@@ -71,7 +72,7 @@ class _VideoScreenState extends State<Videos> {
                         padding: const EdgeInsets.all(16),
                         itemBuilder: (ctx, index) {
                           
-                          print("\n \n \n ========> PESQUISANDO os vídeos PELA X VEZ");
+                         // print("\n \n \n ========> PESQUISANDO os vídeos PELA X VEZ");
                            
                           if (index < _VideoScreenState._loadedVideoCards!.length) { // necessario pra evitar erro de 'out of range'
 
@@ -89,7 +90,7 @@ class _VideoScreenState extends State<Videos> {
                         future: this._videosCards,
                         builder: (BuildContext bc, AsyncSnapshot<List<VideoNotification>> snapshot) {
                           
-                           print("\n \n \n ========> PESQUISANDO os vídeos PELA PRIMEIRA VEZ");
+                          // print("\n \n \n ========> PESQUISANDO os vídeos PELA PRIMEIRA VEZ");
                           
                           if (snapshot.connectionState == ConnectionState.waiting) {
                            

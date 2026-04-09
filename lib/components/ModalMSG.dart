@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-
-void mostrarErroCustom( BuildContext context ) {
+void mostrarErroCustom(BuildContext context, {required final title, required final String msg }) {
   
   showDialog(
     context: context,
     barrierDismissible: true,
+    barrierColor: Color.fromARGB(170, 0, 0, 0),
     builder: (context) {
       
       return Dialog(
@@ -18,30 +18,15 @@ void mostrarErroCustom( BuildContext context ) {
             Container(
               margin: EdgeInsets.only(top: 50),
               padding: EdgeInsets.fromLTRB(20, 60, 20, 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Ops!',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text( title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   SizedBox(height: 10),
-                  Text(
-                    'Não foi possível abrir o vídeo :/',
-                    textAlign: TextAlign.center,
-                  ),
+                  Text( msg , textAlign: TextAlign.center),
                   SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Fechar'),
-                  ),
+                  ElevatedButton(onPressed: () => Navigator.pop(context), child: Text('Fechar')),
                 ],
               ),
             ),
@@ -52,18 +37,12 @@ void mostrarErroCustom( BuildContext context ) {
               child: CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.red,
-                child: Icon(
-                  Icons.error,
-                  size: 50,
-                  color: Colors.white,
-                ),
+                child: Icon(Icons.error, size: 50, color: Colors.white),
               ),
             ),
           ],
-          
         ),
       );
     },
   );
-  
 }
