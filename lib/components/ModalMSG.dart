@@ -40,9 +40,11 @@ void mostrarErroCustom(BuildContext context, {required final title, required fin
                 child: Icon(Icons.error, size: 50, color: Colors.white),
               ),
             ),
+            
           ],
         ),
       );
+      
     },
   );
 }

@@ -70,6 +70,7 @@ class _VideoScreenState extends State<Videos> {
                 child: ( _VideoScreenState._loadedVideoCards != null)
                     ? ListView.builder(
                         padding: const EdgeInsets.all(16),
+                        itemCount: _VideoScreenState._loadedVideoCards?.length ,
                         itemBuilder: (ctx, index) {
                           
                          // print("\n \n \n ========> PESQUISANDO os vídeos PELA X VEZ");
