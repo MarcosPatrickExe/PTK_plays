@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
 import 'package:ptk_plays/data/services/YouTubeService.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
@@ -9,7 +10,10 @@ import './utils/utils.dart';
 import 'package:provider/provider.dart';
 
 
-void main () {
+Future<void> main () async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
   runApp(
     ChangeNotifierProvider(
       create: (BuildContext _) => ThemeController(),
