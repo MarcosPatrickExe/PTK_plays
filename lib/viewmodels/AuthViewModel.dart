@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/AuthRepository.dart';
 import '../utils/AuthErrorTranslator.dart';
@@ -16,6 +17,20 @@ class AuthViewModel {
   }
 
   Future<void> logout() => _repository.logout();
+
+  /// Retorna null em caso de sucesso (ou cancelamento pelo usuario),
+  /// ou uma mensagem de erro traduzida.
+  Future<String?> loginComGoogle() async {
+    try {
+      await _repository.loginComGoogle();
+      return null;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      return 'Não foi possível entrar com o Google. Tente novamente.';
+    } on FirebaseAuthException catch (e) {
+      return traduzirErroDeAuth(e.code);
+    }
+  }
 
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
   Future<String?> excluirConta({required String senha}) async {

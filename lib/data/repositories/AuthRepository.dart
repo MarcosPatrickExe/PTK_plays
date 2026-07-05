@@ -1,10 +1,21 @@
+import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/UserModel.dart';
 
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // "Web client" gerado automaticamente pelo Firebase ao ativar o Google
+  // Sign-In (google-services.json / GoogleService-Info.plist). Nao e segredo,
+  // e o identificador publico usado pra validar o idToken em qualquer plataforma.
+  static const _webClientId = '696548413882-caba685okm8d002hvvq60k32ceim56bc.apps.googleusercontent.com';
+  static const _iosClientId = '696548413882-0f1s66gkjohih26in5roq2jf1r4na18b.apps.googleusercontent.com';
+
+  bool _googleSignInInicializado = false;
 
   User? get usuarioAtual => _auth.currentUser;
 
@@ -30,6 +41,49 @@ class AuthRepository {
       UserModel.touchUltimoAcesso(),
       SetOptions(merge: true),
     );
+  }
+
+  Future<void> _garantirGoogleSignInInicializado() async {
+    if (_googleSignInInicializado) return;
+
+    await GoogleSignIn.instance.initialize(
+      clientId: (!kIsWeb && Platform.isIOS) ? _iosClientId : null,
+      serverClientId: kIsWeb ? null : _webClientId,
+    );
+
+    _googleSignInInicializado = true;
+  }
+
+  Future<void> loginComGoogle() async {
+    UserCredential credential;
+
+    if (kIsWeb) {
+      credential = await _auth.signInWithPopup(GoogleAuthProvider());
+    } else {
+      await _garantirGoogleSignInInicializado();
+      final conta = await GoogleSignIn.instance.authenticate();
+      final idToken = conta.authentication.idToken;
+
+      credential = await _auth.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
+    }
+
+    final user = credential.user!;
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+
+    if (!doc.exists) {
+      final novoUsuario = UserModel.novoInscrito(
+        uid: user.uid,
+        nickname: user.displayName ?? user.email?.split('@').first ?? 'Jogador',
+        email: user.email ?? '',
+        fotoUrl: user.photoURL ?? '',
+      );
+      await _firestore.collection('users').doc(user.uid).set(novoUsuario.toFirestore());
+    } else {
+      await _firestore.collection('users').doc(user.uid).set(
+        UserModel.touchUltimoAcesso(),
+        SetOptions(merge: true),
+      );
+    }
   }
 
   Stream<UserModel?> streamUsuario(String uid) {
