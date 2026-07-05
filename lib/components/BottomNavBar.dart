@@ -12,10 +12,6 @@ Widget buildBottonNavBar({
    required String apiKey
  }) {
   
-  //final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
-  print('\n \n \n \n========================> metodo: \n TEMA ATUAL É: ${ isDark ? "BLACK" : "LIGHT"} \n \n');
-  
-
   return Container(
     decoration: BoxDecoration( gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard ),
     child: BottomNavigationBar(
