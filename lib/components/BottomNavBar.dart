@@ -1,50 +1,59 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:ptk_plays/utils/app_theme.dart';
+import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/view/Videos.dart';
+import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../view/Home.dart';
 
-Widget buildBottonNavBar({ 
-   required int currentIndex, 
-   required BuildContext widgetContext, 
-   required bool isDark,  
+Widget buildBottonNavBar({
+   required int currentIndex,
+   required BuildContext widgetContext,
+   required bool isDark,
    required YoutubeViewModel ytViewModel,
-   required String apiKey
+   required String apiKey,
+   required AuthViewModel authViewModel,
  }) {
-  
-  return Container(
-    decoration: BoxDecoration( gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard ),
-    child: BottomNavigationBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      selectedItemColor: isDark ? AppThemes.darkAccent : AppThemes.lightAccent,
-      unselectedItemColor: isDark ? Colors.white54 : Colors.black45,
-      type: BottomNavigationBarType.fixed,
-      currentIndex: currentIndex,
-      onTap: (int value_selected) {
-        
-        if (value_selected == 0) {
-        
-            Navigator.of(widgetContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (BuildContext context) => HomePage(viewmodelYT: ytViewModel, apiKEY: apiKey ),
-              ),
-            );
-        }else if (value_selected == 1) {
-            
-            Navigator.of(widgetContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (BuildContext context) => Videos(viewmodelYT: ytViewModel, apiKEY: apiKey ),
-              ),
-            );
-        }
-      },
-      items: const [
-        BottomNavigationBarItem( icon: Icon(Icons.home), label: 'Feed'),
-        BottomNavigationBarItem( icon: Icon(Icons.video_library), label: 'Videos'),
-        // BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
-        // BottomNavigationBarItem( icon: Icon(Icons.person), label: 'Perfil'),
-      ],
+
+  void navegar(int destino) {
+    if (destino == currentIndex) return;
+
+    late final Widget tela;
+    if (destino == 0) {
+      tela = HomePage(viewmodelYT: ytViewModel, apiKEY: apiKey, authViewModel: authViewModel);
+    } else if (destino == 1) {
+      tela = Videos(viewmodelYT: ytViewModel, apiKEY: apiKey, authViewModel: authViewModel);
+    } else {
+      tela = Profile(viewmodelYT: ytViewModel, apiKey: apiKey, authViewModel: authViewModel);
+    }
+
+    Navigator.of(widgetContext).pushReplacement(MaterialPageRoute(builder: (context) => tela));
+  }
+
+  return ClipRect(
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
+          border: Border(top: BorderSide(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight)),
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+          unselectedItemColor: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+          type: BottomNavigationBarType.fixed,
+          currentIndex: currentIndex,
+          onTap: navegar,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
+            BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+          ],
+        ),
+      ),
     ),
   );
 }

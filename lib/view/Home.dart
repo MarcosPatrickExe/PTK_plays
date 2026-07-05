@@ -1,45 +1,60 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:ptk_plays/components/AuthBackground.dart';
+import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
-import 'package:ptk_plays/view/Videos.dart';
+import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
-import '../utils/app_theme.dart';
-import 'package:provider/provider.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
 
 class HomePage extends StatelessWidget {
-  final YoutubeViewModel _viewmodelYT;
-  final String _apiKEY;
+  final YoutubeViewModel viewmodelYT;
+  final String apiKEY;
+  final AuthViewModel authViewModel;
 
-  YoutubeViewModel get getViewModelYT => this._viewmodelYT;
-  String get getAPIkey => this._apiKEY;
-
-  HomePage({ super.key, required viewmodelYT, required apiKEY}) : this._viewmodelYT = viewmodelYT, this._apiKEY = apiKEY;
-
+  const HomePage({
+    super.key,
+    required this.viewmodelYT,
+    required this.apiKEY,
+    required this.authViewModel,
+  });
 
   @override
   Widget build( BuildContext context ) {
     bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
-        child: SafeArea(
-          child: Column(
-            children: [
-              buildHeader(title: "Feed", widgetContext: context, isDarkk: isDark),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [PostCard(isDark: isDark)],
+      extendBody: true,
+      body: Stack(
+        children: [
+          Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
+          Positioned.fill(child: AuthBackground(isDark: isDark)),
+          SafeArea(
+            child: Column(
+              children: [
+                buildHeader(title: "Feed", widgetContext: context),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                    children: [PostCard(isDark: isDark)],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
-      bottomNavigationBar: buildBottonNavBar( currentIndex: 0, widgetContext: context, isDark: isDark, apiKey: getAPIkey, ytViewModel: getViewModelYT ) // GradientBottomNav(isDark: isDark, ref: this),
+      bottomNavigationBar: buildBottonNavBar(
+        currentIndex: 0,
+        widgetContext: context,
+        isDark: isDark,
+        apiKey: apiKEY,
+        ytViewModel: viewmodelYT,
+        authViewModel: authViewModel,
+      ),
     );
   }
 }
@@ -50,40 +65,38 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = isDark ? AppThemes.darkAccent : AppThemes.lightAccent;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: isDark ? AppThemes.darkCard : AppThemes.lightCard,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 5))],
-      ),
-      padding: const EdgeInsets.all(16),
+    return CardVidro(
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: accent,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AuthTheme.buttonGradient),
                 child: const Icon(Icons.play_arrow, color: Colors.white),
               ),
               const SizedBox(width: 10),
               Text(
                 'PTK Plays',
-                style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
               ),
               const Spacer(),
-              Text('há 2h', style: TextStyle(color: isDark ? Colors.white54 : Colors.black45)),
+              Text('há 2h', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             '🔥 Novo vídeo hoje às 20h!',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
           ),
           const SizedBox(height: 8),
-          Text('Gameplay intensa, muitos sustos e aquele caos que vocês gostam 😈🎮', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
+          Text(
+            'Gameplay intensa, muitos sustos e aquele caos que vocês gostam 😈🎮',
+            style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+          ),
         ],
       ),
     );

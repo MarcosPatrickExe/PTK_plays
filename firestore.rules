@@ -23,6 +23,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if estaLogado();
 
+      // cargo pode ser 'inscrito', 'vip' ou 'admin'. 'vip' e 'admin' sao
+      // atribuidos manualmente (nunca no cadastro), por isso o create abaixo
+      // so aceita 'inscrito', e o update trava o cargo contra mudanca pelo cliente.
       allow create: if ehDono(userId)
         && request.resource.data.cargo == 'inscrito'
         && request.resource.data.badges.size() == 0
@@ -41,7 +44,7 @@ service cloud.firestore {
         && statusValido(request.resource.data.status)
         && request.resource.data.ultimoAcesso == request.time;
 
-      allow delete: if false;
+      allow delete: if ehDono(userId);
     }
 
     match /{document=**} {

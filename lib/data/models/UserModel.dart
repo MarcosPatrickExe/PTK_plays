@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   static const List<String> categoriasValidas = ['otaku', 'gamer', 'streamer', 'geek', 'outro'];
   static const List<String> statusValidos = ['online', 'invisivel', 'naoPerturbe', 'offline'];
+  // 'vip' e 'admin' sao atribuidos manualmente (Console/painel), nunca no cadastro.
+  static const List<String> cargosValidos = ['inscrito', 'vip', 'admin'];
 
   final String uid;
   final String nickname;

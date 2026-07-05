@@ -1,14 +1,17 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/view/Home.dart';
+import 'package:ptk_plays/view/Login.dart';
+import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
-import 'Videos.dart';
 
 
 class SplashScreen extends StatefulWidget {
   final YoutubeViewModel viewmodelYTtemp;
   final String apiKEYtemp;
-  
-  const SplashScreen({ required this.viewmodelYTtemp, required this.apiKEYtemp });
+  final AuthViewModel authViewModelTemp;
+
+  const SplashScreen({ required this.viewmodelYTtemp, required this.apiKEYtemp, required this.authViewModelTemp });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -40,11 +43,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    // Navigate to Home after 3 seconds
+    // Navigate to Home (se logado) ou Login (se nao) after 2 seconds
     Future.delayed( const Duration(seconds: 2), () {
       if (mounted) {
+        final bool usuarioLogado = FirebaseAuth.instance.currentUser != null;
+
         Navigator.of( context ).pushReplacement(
-          MaterialPageRoute( builder: (BuildContext context) =>  HomePage( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp ) ) 
+          MaterialPageRoute( builder: (BuildContext context) => usuarioLogado
+            ? HomePage( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp, authViewModel: super.widget.authViewModelTemp )
+            : Login( viewmodelYT: super.widget.viewmodelYTtemp, apiKey: super.widget.apiKEYtemp, authViewModel: super.widget.authViewModelTemp )
+          )
         );
       }
     });
