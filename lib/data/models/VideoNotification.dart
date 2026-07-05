@@ -31,7 +31,7 @@ class VideoNotification {
       thumbnailUrl: content['snippet']['thumbnails']['high']['url'],
       avatarUrl: "https://yt3.googleusercontent.com/4mCK-MnbSW_HtTjUoH96315rCeYtnlSk6hBpxN0K3TzB3iz8YZJZOcdWKcWelYS-0GRJih4CoQ=s160-c-k-c0x00ffffff-no-rj",
       publishedAt: content['snippet']['publishedAt'],
-      videoID: content['id']['videoId']
+      videoID: content['snippet']['resourceId']['videoId']
     );
   }
 }
