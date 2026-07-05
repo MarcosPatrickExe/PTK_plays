@@ -17,4 +17,24 @@ class Utils {
 
   static const String channelID = "UCB0Xu_75SQQIHVjaTmGBYuQ";
 
+  static const String androidPackageName = "com.ptksolucoesdigitais.ptk_plays";
+  static const String iosBundleId = "com.ptksolucoesdigitais.ptk_plays";
+
+  /// Headers que identificam o app pra chave da API restrita por plataforma no Google Cloud Console.
+  static Map<String, String> get apiHeaders {
+    if (kIsWeb) {
+      return {};
+    } else if (Platform.isAndroid) {
+      return {
+        'X-Android-Package': androidPackageName,
+        'X-Android-Cert': dotenv.env['ANDROID_CERT_SHA1'] ?? '',
+      };
+    } else if (Platform.isIOS) {
+      return {
+        'X-Ios-Bundle-Identifier': iosBundleId,
+      };
+    }
+    return {};
+  }
+
 }

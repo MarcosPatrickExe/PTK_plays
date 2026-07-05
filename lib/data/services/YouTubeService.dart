@@ -8,17 +8,17 @@ class YouTubeService {
   YouTubeService(this._apiKEY);
 
   Future<List<dynamic>> fetchVideos() async {
-    final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
+    // Playlist "uploads" do canal: mesmo ID do canal trocando o prefixo UC por UU.
+    final String uploadsPlaylistId = Utils.channelID.replaceFirst('UC', 'UU');
+
+    final uri = Uri.https('www.googleapis.com', '/youtube/v3/playlistItems', {
       'key': this._apiKEY,
       'part': 'snippet',
-      'channelId': Utils.channelID,
-      'order': 'date',
-      // 'maxResults': '10',
-      'type': 'video',
+      'playlistId': uploadsPlaylistId,
       'maxResults': '4',
     });
 
-    final Response channelResponse = await http.get(uri);
+    final Response channelResponse = await http.get(uri, headers: Utils.apiHeaders);
 
     print("\n \n \n HEADER REQUEST URL: "+( uri.toString())+"  \n \n \n");
 

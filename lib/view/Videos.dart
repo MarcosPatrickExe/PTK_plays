@@ -44,11 +44,9 @@ class _VideoScreenState extends State<Videos> {
     final url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
 
     if( await launcher_url.canLaunchUrl(url) ){
-       mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir o vídeo :/");
-      // await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
+      await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
     } else {
       mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir o vídeo :/");
-      // throw 'Não foi possível abrir o vídeo';
     }
   }
 
