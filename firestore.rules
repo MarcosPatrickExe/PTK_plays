@@ -11,6 +11,15 @@ service cloud.firestore {
       return estaLogado() && request.auth.uid == userId;
     }
 
+    function ehAdmin() {
+      return estaLogado() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cargo == 'admin';
+    }
+
+    function tipoDePostagemValido(tipo) {
+      return tipo in ['avisoTexto', 'aoVivo', 'avisoFoto', 'enquete'];
+    }
+
     function categoriasValidas(categorias) {
       return categorias is list &&
         categorias.hasOnly(['otaku', 'gamer', 'streamer', 'geek', 'outro']);
@@ -45,6 +54,17 @@ service cloud.firestore {
         && request.resource.data.ultimoAcesso == request.time;
 
       allow delete: if ehDono(userId);
+    }
+
+    // Feed de avisos do canal (Home). O painel de admin dentro do app ainda
+    // nao existe, entao por enquanto os posts sao criados manualmente pelo
+    // admin direto no Console do Firebase (o que ja tem acesso irrestrito e
+    // ignora essas regras) — essa regra aqui serve pra quando o painel for
+    // construido, e pra impedir qualquer outro usuario de escrever posts.
+    match /posts/{postId} {
+      allow read: if estaLogado();
+      allow create, update: if ehAdmin() && tipoDePostagemValido(request.resource.data.tipo);
+      allow delete: if ehAdmin();
     }
 
     match /{document=**} {
