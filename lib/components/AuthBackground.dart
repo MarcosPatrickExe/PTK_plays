@@ -139,7 +139,7 @@ class AuthBackground extends StatelessWidget {
         ),
         Positioned(
           right: 34,
-          top: 96,
+          top: 390,
           child: _Floating(
             duration: const Duration(seconds: 7),
             amplitude: -14,
