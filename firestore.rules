@@ -44,7 +44,7 @@ service cloud.firestore {
         && statusValido(request.resource.data.status)
         && request.resource.data.ultimoAcesso == request.time;
 
-      allow delete: if false;
+      allow delete: if ehDono(userId);
     }
 
     match /{document=**} {
