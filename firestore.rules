@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function estaLogado() {
+      return request.auth != null;
+    }
+
+    function ehDono(userId) {
+      return estaLogado() && request.auth.uid == userId;
+    }
+
+    function categoriasValidas(categorias) {
+      return categorias is list &&
+        categorias.hasOnly(['otaku', 'gamer', 'streamer', 'geek', 'outro']);
+    }
+
+    function statusValido(status) {
+      return status in ['online', 'invisivel', 'naoPerturbe', 'offline'];
+    }
+
+    match /users/{userId} {
+      allow read: if estaLogado();
+
+      allow create: if ehDono(userId)
+        && request.resource.data.cargo == 'inscrito'
+        && request.resource.data.badges.size() == 0
+        && request.resource.data.contadores.comentarios == 0
+        && request.resource.data.contadores.curtidas == 0
+        && request.resource.data.contadores.cliquesLive == 0
+        && categoriasValidas(request.resource.data.categorias)
+        && statusValido(request.resource.data.status);
+
+      allow update: if ehDono(userId)
+        && request.resource.data.cargo == resource.data.cargo
+        && request.resource.data.badges == resource.data.badges
+        && request.resource.data.contadores == resource.data.contadores
+        && categoriasValidas(request.resource.data.categorias)
+        && statusValido(request.resource.data.status);
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
