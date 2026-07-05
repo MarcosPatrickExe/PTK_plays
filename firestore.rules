@@ -30,14 +30,16 @@ service cloud.firestore {
         && request.resource.data.contadores.curtidas == 0
         && request.resource.data.contadores.cliquesLive == 0
         && categoriasValidas(request.resource.data.categorias)
-        && statusValido(request.resource.data.status);
+        && statusValido(request.resource.data.status)
+        && request.resource.data.ultimoAcesso == request.time;
 
       allow update: if ehDono(userId)
         && request.resource.data.cargo == resource.data.cargo
         && request.resource.data.badges == resource.data.badges
         && request.resource.data.contadores == resource.data.contadores
         && categoriasValidas(request.resource.data.categorias)
-        && statusValido(request.resource.data.status);
+        && statusValido(request.resource.data.status)
+        && request.resource.data.ultimoAcesso == request.time;
 
       allow delete: if false;
     }
