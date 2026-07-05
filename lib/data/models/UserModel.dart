@@ -12,6 +12,7 @@ class UserModel {
   final List<String> categorias;
   final String status;
   final DateTime criadoEm;
+  final DateTime? ultimoAcesso;
   final List<String> badges;
   final Map<String, int> contadores;
 
@@ -24,6 +25,7 @@ class UserModel {
     required this.categorias,
     required this.status,
     required this.criadoEm,
+    required this.ultimoAcesso,
     required this.badges,
     required this.contadores,
   });
@@ -43,6 +45,7 @@ class UserModel {
       categorias: const [],
       status: 'online',
       criadoEm: DateTime.now(),
+      ultimoAcesso: null,
       badges: const [],
       contadores: const {'comentarios': 0, 'curtidas': 0, 'cliquesLive': 0},
     );
@@ -58,6 +61,7 @@ class UserModel {
       categorias: List<String>.from(data['categorias'] ?? []),
       status: data['status'],
       criadoEm: (data['criadoEm'] as Timestamp).toDate(),
+      ultimoAcesso: (data['ultimoAcesso'] as Timestamp?)?.toDate(),
       badges: List<String>.from(data['badges'] ?? []),
       contadores: Map<String, int>.from(data['contadores'] ?? {}),
     );
@@ -73,8 +77,15 @@ class UserModel {
       'categorias': categorias,
       'status': status,
       'criadoEm': Timestamp.fromDate(criadoEm),
+      'ultimoAcesso': FieldValue.serverTimestamp(),
       'badges': badges,
       'contadores': contadores,
     };
+  }
+
+  /// Payload leve pra so atualizar a data de ultimo acesso (login),
+  /// sem reenviar o documento inteiro. Use com SetOptions(merge: true).
+  static Map<String, dynamic> touchUltimoAcesso() {
+    return {'ultimoAcesso': FieldValue.serverTimestamp()};
   }
 }
