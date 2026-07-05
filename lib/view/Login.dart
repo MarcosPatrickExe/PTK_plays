@@ -83,8 +83,26 @@ class _LoginState extends State<Login> {
     );
   }
 
-  void _entrarComGoogle() {
-    mostrarErroCustom(context, title: "Em breve!", msg: "O login com Google ainda está a caminho.");
+  Future<void> _entrarComGoogle() async {
+    setState(() => _carregando = true);
+
+    final erro = await widget.authViewModel.loginComGoogle();
+
+    if (!mounted) return;
+    setState(() => _carregando = false);
+
+    if (erro != null) {
+      mostrarErroCustom(context, title: "Ops!", msg: erro);
+      return;
+    }
+
+    if (!widget.authViewModel.usuarioLogado) return; // usuario cancelou o fluxo
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
+      ),
+    );
   }
 
   @override
