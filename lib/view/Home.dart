@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/data/models/PostModel.dart';
+import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
+import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
@@ -25,6 +28,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build( BuildContext context ) {
     bool isDark = context.watch<ThemeController>().isDark;
+    final postViewModel = PostViewModel(PostRepository());
 
     return Scaffold(
       extendBody: true,
@@ -37,9 +41,42 @@ class HomePage extends StatelessWidget {
               children: [
                 buildHeader(title: "Feed", widgetContext: context),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    children: [PostCard(isDark: isDark)],
+                  child: StreamBuilder<List<PostModel>>(
+                    stream: postViewModel.streamPostagens(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(
+                          child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight),
+                        );
+                      }
+
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Não foi possível carregar os avisos.',
+                            style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+                          ),
+                        );
+                      }
+
+                      final postagens = snapshot.data ?? [];
+
+                      if (postagens.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'Nenhum aviso por aqui ainda :)',
+                            style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                        itemCount: postagens.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        itemBuilder: (context, index) => PostCard(isDark: isDark, post: postagens[index]),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -61,7 +98,8 @@ class HomePage extends StatelessWidget {
 
 class PostCard extends StatelessWidget {
   final bool isDark;
-  const PostCard({ super.key, required this.isDark });
+  final PostModel post;
+  const PostCard({ super.key, required this.isDark, required this.post });
 
   @override
   Widget build(BuildContext context) {
@@ -76,29 +114,167 @@ class PostCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AuthTheme.buttonGradient),
-                child: const Icon(Icons.play_arrow, color: Colors.white),
+                child: Icon(_iconePorTipo(post.tipo), color: Colors.white, size: 20),
               ),
               const SizedBox(width: 10),
-              Text(
-                'PTK Plays',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+              Expanded(
+                child: Text(
+                  post.autorNickname,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+                ),
               ),
-              const Spacer(),
-              Text('há 2h', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
+              Text(
+                _tempoRelativo(post.criadoEm),
+                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight, fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            '🔥 Novo vídeo hoje às 20h!',
-            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+          _conteudoPorTipo(),
+        ],
+      ),
+    );
+  }
+
+  Widget _conteudoPorTipo() {
+    switch (post.tipo) {
+      case PostModel.tipoAoVivo:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: const Color(0xFFE0264F), borderRadius: BorderRadius.circular(20)),
+              child: Text(
+                'AO VIVO',
+                style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
+              ),
+            ),
+            if (post.texto != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                post.texto!,
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+              ),
+            ],
+            if (post.plataformas != null && post.plataformas!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                post.plataformas!.map(_labelPlataforma).join(' • '),
+                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+              ),
+            ],
+          ],
+        );
+      case PostModel.tipoAvisoFoto:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (post.texto != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  post.texto!,
+                  style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+                ),
+              ),
+            if (post.fotoUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  post.fotoUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 160,
+                    color: Colors.grey.shade800,
+                    child: const Center(child: Icon(Icons.image, color: Colors.white54)),
+                  ),
+                ),
+              ),
+          ],
+        );
+      case PostModel.tipoEnquete:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              post.titulo ?? '',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+            ),
+            const SizedBox(height: 10),
+            ...?post.opcoes?.map(_linhaOpcaoEnquete),
+          ],
+        );
+      default: // avisoTexto
+        return Text(
+          post.texto ?? '',
+          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+        );
+    }
+  }
+
+  Widget _linhaOpcaoEnquete(PostOpcaoEnquete opcao) {
+    final totalVotos = post.opcoes!.fold<int>(0, (soma, o) => soma + o.votos);
+    final percentual = totalVotos == 0 ? 0.0 : opcao.votos / totalVotos;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(opcao.texto, style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight)),
+              Text('${(percentual * 100).round()}%', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Gameplay intensa, muitos sustos e aquele caos que vocês gostam 😈🎮',
-            style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: percentual,
+              minHeight: 8,
+              backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(.1),
+              valueColor: const AlwaysStoppedAnimation(AuthTheme.linkDark),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  IconData _iconePorTipo(String tipo) {
+    switch (tipo) {
+      case PostModel.tipoAoVivo:
+        return Icons.sensors;
+      case PostModel.tipoAvisoFoto:
+        return Icons.image;
+      case PostModel.tipoEnquete:
+        return Icons.poll;
+      default:
+        return Icons.campaign;
+    }
+  }
+
+  String _labelPlataforma(String p) {
+    switch (p) {
+      case 'youtube':
+        return 'YouTube';
+      case 'twitch':
+        return 'Twitch';
+      case 'kick':
+        return 'Kick';
+      default:
+        return p;
+    }
+  }
+
+  String _tempoRelativo(DateTime data) {
+    final diff = DateTime.now().difference(data);
+    if (diff.inMinutes < 1) return 'agora';
+    if (diff.inMinutes < 60) return 'há ${diff.inMinutes}min';
+    if (diff.inHours < 24) return 'há ${diff.inHours}h';
+    return 'há ${diff.inDays}d';
   }
 }
