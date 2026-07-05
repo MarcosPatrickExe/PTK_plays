@@ -20,21 +20,9 @@ class YouTubeService {
 
     final Response channelResponse = await http.get(uri, headers: Utils.apiHeaders);
 
-    print("\n \n \n HEADER REQUEST URL: "+( uri.toString())+"  \n \n \n");
-
     if (channelResponse.statusCode == 200) {
       var data = json.decode(channelResponse.body);
       final items = data['items'];
-
-      // print('\n\n \n \n \n=======================================================================> \n\n');
-      /*
-      for (var ite in items) {
-        print(ite['snippet']);
-
-        // print('Video name: ${ite['snippet']['title']}');
-      }
-*/
-      // print('\n\n \n \n \n=======================================================================> \n\n');
 
       return Future.value(items);
     } else {
