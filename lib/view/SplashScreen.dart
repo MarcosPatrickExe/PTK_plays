@@ -50,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
         Navigator.of( context ).pushReplacement(
           MaterialPageRoute( builder: (BuildContext context) => usuarioLogado
-            ? HomePage( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp )
+            ? HomePage( viewmodelYT: super.widget.viewmodelYTtemp, apiKEY: super.widget.apiKEYtemp, authViewModel: super.widget.authViewModelTemp )
             : Login( viewmodelYT: super.widget.viewmodelYTtemp, apiKey: super.widget.apiKEYtemp, authViewModel: super.widget.authViewModelTemp )
           )
         );
