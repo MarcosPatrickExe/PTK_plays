@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:ptk_plays/components/AuthBackground.dart';
+import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
+import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
-import 'package:ptk_plays/utils/app_theme.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
-import '../components/Header.dart';
 import 'Home.dart';
 
 class Cadastro extends StatefulWidget {
@@ -29,6 +32,8 @@ class _CadastroState extends State<Cadastro> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
+  bool _senhaVisivel = false;
+  bool _confirmarSenhaVisivel = false;
   bool _carregando = false;
 
   Future<void> _criarConta() async {
@@ -82,60 +87,139 @@ class _CadastroState extends State<Cadastro> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = context.watch<ThemeController>().isDark;
+    final bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: isDark ? AppThemes.darkBackground : AppThemes.lightBackground),
-        child: SafeArea(
-          child: Column(
-            children: [
-              buildHeader(title: "Criar conta", widgetContext: context),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _nicknameController,
-                        decoration: const InputDecoration(labelText: 'Nickname', border: OutlineInputBorder()),
+        decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight),
+        child: Stack(
+          children: [
+            Positioned.fill(child: AuthBackground(isDark: isDark)),
+            SafeArea(
+              child: Stack(
+                children: [
+                  Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Logo menor aqui, de proposito: sinaliza que o
+                          // usuario saiu do Login e esta numa tela diferente.
+                          const LogoPTK(size: 80),
+                          const SizedBox(height: 16),
+                          Text(
+                            'PTK Plays',
+                            style: GoogleFonts.outfit(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: .3,
+                              color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'CRIE SUA CONTA',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 2,
+                              color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          CardVidro(
+                            isDark: isDark,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                CampoTexto(
+                                  isDark: isDark,
+                                  label: 'Nickname',
+                                  controller: _nicknameController,
+                                  icone: iconPessoa,
+                                  hint: 'Como quer ser chamado',
+                                ),
+                                const SizedBox(height: 16),
+                                CampoTexto(
+                                  isDark: isDark,
+                                  label: 'Email',
+                                  controller: _emailController,
+                                  icone: iconEmail,
+                                  hint: 'Digite seu email',
+                                  keyboardType: TextInputType.emailAddress,
+                                ),
+                                const SizedBox(height: 16),
+                                CampoTexto(
+                                  isDark: isDark,
+                                  label: 'Senha',
+                                  controller: _senhaController,
+                                  icone: iconSenha,
+                                  hint: '••••••••',
+                                  obscure: !_senhaVisivel,
+                                  iconeFinal: GestureDetector(
+                                    onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
+                                    child: SvgPicture.string(iconOlho, width: 20, height: 20),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                CampoTexto(
+                                  isDark: isDark,
+                                  label: 'Confirmar senha',
+                                  controller: _confirmarSenhaController,
+                                  icone: iconSenha,
+                                  hint: '••••••••',
+                                  obscure: !_confirmarSenhaVisivel,
+                                  iconeFinal: GestureDetector(
+                                    onTap: () => setState(() => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
+                                    child: SvgPicture.string(iconOlho, width: 20, height: 20),
+                                  ),
+                                ),
+                                const SizedBox(height: 22),
+                                BotaoPrimario(label: 'Criar conta', carregando: _carregando, onTap: _criarConta),
+                                const SizedBox(height: 20),
+                                Center(
+                                  child: GestureDetector(
+                                    onTap: _carregando ? null : () => Navigator.of(context).pop(),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark ? AuthTheme.registerDark : AuthTheme.registerLight,
+                                        ),
+                                        children: [
+                                          const TextSpan(text: 'Já tem uma conta? '),
+                                          TextSpan(
+                                            text: 'Fazer login',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _senhaController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder()),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _confirmarSenhaController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Confirmar senha', border: OutlineInputBorder()),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _carregando ? null : _criarConta,
-                        child: _carregando
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Criar conta'),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: BotaoTema(isDark: isDark),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
