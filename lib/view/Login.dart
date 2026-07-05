@@ -1,9 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
+import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
@@ -12,12 +12,6 @@ import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'Cadastro.dart';
 import 'Home.dart';
 
-const String _iconLogin =
-    '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none"><circle cx="12" cy="8" r="4" fill="#8a2bd0"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" fill="#8a2bd0"/></svg>';
-const String _iconSenha =
-    '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none"><rect x="5" y="10" width="14" height="10" rx="2.5" fill="#8a2bd0"/><path d="M8 10V7a4 4 0 018 0v3" stroke="#8a2bd0" stroke-width="2.2" fill="none"/></svg>';
-const String _iconOlho =
-    '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" stroke="#b9bfc9" stroke-width="1.8" fill="none"/><circle cx="12" cy="12" r="2.6" fill="#b9bfc9"/></svg>';
 const String _iconGoogle = '''
 <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
 <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.4 5.4 2.5 13.2l7.8 6.1C12.2 13.3 17.6 9.5 24 9.5z"/>
@@ -119,26 +113,7 @@ class _LoginState extends State<Login> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 132,
-                            height: 132,
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(34),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Colors.white.withOpacity(.9), Colors.white.withOpacity(.25)],
-                              ),
-                              boxShadow: const [
-                                BoxShadow(color: Color(0x73280050), blurRadius: 50, offset: Offset(0, 22)),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(29),
-                              child: Image.asset('assets/login_logo.png', fit: BoxFit.cover),
-                            ),
-                          ),
+                          const LogoPTK(size: 132),
                           const SizedBox(height: 18),
                           Text(
                             'PTK Plays',
@@ -160,34 +135,34 @@ class _LoginState extends State<Login> {
                             ),
                           ),
                           const SizedBox(height: 30),
-                          _CardVidro(
+                          CardVidro(
                             isDark: isDark,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _CampoTexto(
+                                CampoTexto(
                                   isDark: isDark,
                                   label: 'Login',
                                   controller: _emailController,
-                                  icone: _iconLogin,
+                                  icone: iconPessoa,
                                   hint: 'Digite seu login',
                                   keyboardType: TextInputType.emailAddress,
                                 ),
                                 const SizedBox(height: 16),
-                                _CampoTexto(
+                                CampoTexto(
                                   isDark: isDark,
                                   label: 'Senha',
                                   controller: _senhaController,
-                                  icone: _iconSenha,
+                                  icone: iconSenha,
                                   hint: '••••••••',
                                   obscure: !_senhaVisivel,
                                   iconeFinal: GestureDetector(
                                     onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-                                    child: SvgPicture.string(_iconOlho, width: 20, height: 20),
+                                    child: SvgPicture.string(iconOlho, width: 20, height: 20),
                                   ),
                                 ),
                                 const SizedBox(height: 22),
-                                _BotaoEntrar(carregando: _carregando, onTap: _entrar),
+                                BotaoPrimario(label: 'Entrar', carregando: _carregando, onTap: _entrar),
                                 const SizedBox(height: 20),
                                 Center(
                                   child: GestureDetector(
@@ -249,7 +224,7 @@ class _LoginState extends State<Login> {
                     alignment: Alignment.topRight,
                     child: Padding(
                       padding: const EdgeInsets.all(22),
-                      child: _BotaoTema(isDark: isDark),
+                      child: BotaoTema(isDark: isDark),
                     ),
                   ),
                 ],
@@ -257,169 +232,6 @@ class _LoginState extends State<Login> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BotaoTema extends StatelessWidget {
-  final bool isDark;
-  const _BotaoTema({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.read<ThemeController>().toggleTheme(),
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
-          border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
-        ),
-        child: Icon(
-          isDark ? Icons.dark_mode : Icons.light_mode,
-          color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
-          size: 23,
-        ),
-      ),
-    );
-  }
-}
-
-class _CardVidro extends StatelessWidget {
-  final bool isDark;
-  final Widget child;
-  const _CardVidro({required this.isDark, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(26, 30, 26, 30),
-          decoration: BoxDecoration(
-            color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
-            boxShadow: const [
-              BoxShadow(color: Color(0x661E0046), blurRadius: 60, offset: Offset(0, 30)),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-class _CampoTexto extends StatelessWidget {
-  final bool isDark;
-  final String label;
-  final TextEditingController controller;
-  final String icone;
-  final String hint;
-  final bool obscure;
-  final Widget? iconeFinal;
-  final TextInputType? keyboardType;
-
-  const _CampoTexto({
-    required this.isDark,
-    required this.label,
-    required this.controller,
-    required this.icone,
-    required this.hint,
-    this.obscure = false,
-    this.iconeFinal,
-    this.keyboardType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              letterSpacing: .5,
-              color: isDark ? AuthTheme.labelDark : AuthTheme.labelLight,
-            ),
-          ),
-        ),
-        Container(
-          height: 54,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isDark ? AuthTheme.inputBgDark : AuthTheme.inputBgLight,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: const [
-              BoxShadow(color: Color(0x1F1E0046), blurRadius: 20, offset: Offset(0, 8)),
-            ],
-          ),
-          child: Row(
-            children: [
-              SvgPicture.string(icone, width: 19, height: 19),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  obscureText: obscure,
-                  keyboardType: keyboardType,
-                  style: GoogleFonts.outfit(fontSize: 15, color: AuthTheme.inputTextColor),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    hintText: hint,
-                    hintStyle: TextStyle(color: AuthTheme.placeholderColor),
-                  ),
-                ),
-              ),
-              if (iconeFinal != null) iconeFinal!,
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BotaoEntrar extends StatelessWidget {
-  final bool carregando;
-  final VoidCallback onTap;
-  const _BotaoEntrar({required this.carregando, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: carregando ? null : onTap,
-      child: Container(
-        height: 54,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          gradient: AuthTheme.buttonGradient,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: const [
-            BoxShadow(color: Color(0x66C828B4), blurRadius: 30, offset: Offset(0, 14)),
-          ],
-        ),
-        child: carregando
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              )
-            : Text(
-                'Entrar',
-                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: .5, color: Colors.white),
-              ),
       ),
     );
   }
