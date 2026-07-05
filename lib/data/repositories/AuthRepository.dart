@@ -31,4 +31,25 @@ class AuthRepository {
       SetOptions(merge: true),
     );
   }
+
+  Stream<UserModel?> streamUsuario(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map(
+      (doc) => doc.exists ? UserModel.fromFirestore(doc.data()!) : null,
+    );
+  }
+
+  Future<void> logout() async {
+    await _auth.signOut();
+  }
+
+  Future<void> excluirConta({required String senha}) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final credential = EmailAuthProvider.credential(email: user.email!, password: senha);
+    await user.reauthenticateWithCredential(credential);
+
+    await _firestore.collection('users').doc(user.uid).delete();
+    await user.delete();
+  }
 }
