@@ -1,7 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
 import 'package:ptk_plays/data/services/YouTubeService.dart';
+import 'package:ptk_plays/firebase_options.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/utils/app_theme.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -13,6 +15,7 @@ import 'package:provider/provider.dart';
 Future<void> main () async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
     ChangeNotifierProvider(
