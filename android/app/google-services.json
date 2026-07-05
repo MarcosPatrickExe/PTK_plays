@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "696548413882",
+    "project_id": "ptk-plays",
+    "storage_bucket": "ptk-plays.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:696548413882:android:69a4017791ba067d5b4d83",
+        "android_client_info": {
+          "package_name": "com.ptksolucoesdigitais.ptk_plays"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBelRhlDe60HYcK0VxDTu6rH7RoDflHlA0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
