@@ -74,7 +74,16 @@ class HomePage extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         itemCount: postagens.length,
                         separatorBuilder: (context, index) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) => PostCard(isDark: isDark, post: postagens[index]),
+                        itemBuilder: (context, index) => PostCard(
+                          isDark: isDark,
+                          post: postagens[index],
+                          uidAtual: authViewModel.uidAtual,
+                          onVotar: (indiceOpcao) {
+                            final uid = authViewModel.uidAtual;
+                            if (uid == null) return;
+                            postViewModel.votar(postId: postagens[index].id, indiceOpcao: indiceOpcao, uid: uid);
+                          },
+                        ),
                       );
                     },
                   ),
@@ -99,7 +108,16 @@ class HomePage extends StatelessWidget {
 class PostCard extends StatelessWidget {
   final bool isDark;
   final PostModel post;
-  const PostCard({ super.key, required this.isDark, required this.post });
+  final String? uidAtual;
+  final void Function(int indiceOpcao)? onVotar;
+
+  const PostCard({
+    super.key,
+    required this.isDark,
+    required this.post,
+    this.uidAtual,
+    this.onVotar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +212,7 @@ class PostCard extends StatelessWidget {
           ],
         );
       case PostModel.tipoEnquete:
+        final jaVotou = uidAtual != null && post.votantes.contains(uidAtual);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -202,7 +221,16 @@ class PostCard extends StatelessWidget {
               style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
             ),
             const SizedBox(height: 10),
-            ...?post.opcoes?.map(_linhaOpcaoEnquete),
+            if (post.opcoes != null)
+              for (int indice = 0; indice < post.opcoes!.length; indice++)
+                _linhaOpcaoEnquete(indice, post.opcoes![indice], jaVotou),
+            if (jaVotou) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Você já votou',
+                style: GoogleFonts.outfit(fontSize: 12, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+              ),
+            ],
           ],
         );
       default: // avisoTexto
@@ -213,33 +241,50 @@ class PostCard extends StatelessWidget {
     }
   }
 
-  Widget _linhaOpcaoEnquete(PostOpcaoEnquete opcao) {
+  static const _corVotacao = Color(0xFFA12EE0);
+
+  Widget _linhaOpcaoEnquete(int indice, PostOpcaoEnquete opcao, bool jaVotou) {
     final totalVotos = post.opcoes!.fold<int>(0, (soma, o) => soma + o.votos);
     final percentual = totalVotos == 0 ? 0.0 : opcao.votos / totalVotos;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(opcao.texto, style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight)),
-              Text('${(percentual * 100).round()}%', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: percentual,
-              minHeight: 8,
-              backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(.1),
-              valueColor: const AlwaysStoppedAnimation(AuthTheme.linkDark),
+      child: GestureDetector(
+        onTap: jaVotou ? null : () => onVotar?.call(indice),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      if (!jaVotou) ...[
+                        const Icon(Icons.radio_button_unchecked, size: 16, color: _corVotacao),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(opcao.texto, style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight)),
+                      ),
+                    ],
+                  ),
+                ),
+                Text('${(percentual * 100).round()}%', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: percentual,
+                minHeight: 8,
+                backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(.1),
+                valueColor: const AlwaysStoppedAnimation(_corVotacao),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
