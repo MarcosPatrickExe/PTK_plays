@@ -80,21 +80,29 @@ class CardVidro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(26, 30, 26, 30),
-          decoration: BoxDecoration(
-            color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
-            boxShadow: const [
-              BoxShadow(color: Color(0x661E0046), blurRadius: 60, offset: Offset(0, 30)),
-            ],
+    return Container(
+      // A sombra precisa ficar fora do ClipRRect: se estivesse na decoration
+      // clipada, o proprio clip corta o BoxShadow (que se espalha alem dos
+      // limites do card) e a sombra nunca aparece.
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: const [
+          BoxShadow(color: Color(0x661E0046), blurRadius: 60, offset: Offset(0, 30)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(26, 30, 26, 30),
+            decoration: BoxDecoration(
+              color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );

@@ -41,7 +41,10 @@ class PostRepository {
       opcoes[indiceOpcao]['votos'] = (opcoes[indiceOpcao]['votos'] ?? 0) + 1;
       votantes.add(uid);
 
-      transacao.update(ref, {'opcoes': opcoes, 'votantes': votantes});
+      final votosPorUsuario = Map<String, dynamic>.from(dados['votosPorUsuario'] ?? {});
+      votosPorUsuario[uid] = indiceOpcao;
+
+      transacao.update(ref, {'opcoes': opcoes, 'votantes': votantes, 'votosPorUsuario': votosPorUsuario});
     });
   }
 }

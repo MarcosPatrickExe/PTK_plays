@@ -53,6 +53,9 @@ class PostModel {
   /// enquete: uids de quem ja votou (evita votar mais de uma vez).
   final List<String> votantes;
 
+  /// enquete: uid -> indice da opcao escolhida (pra destacar o botao certo).
+  final Map<String, int> votosPorUsuario;
+
   const PostModel({
     required this.id,
     required this.tipo,
@@ -68,6 +71,7 @@ class PostModel {
     this.titulo,
     this.opcoes,
     this.votantes = const [],
+    this.votosPorUsuario = const {},
   });
 
   factory PostModel.fromFirestore(String id, Map<String, dynamic> data) {
@@ -88,6 +92,9 @@ class PostModel {
           ? (data['opcoes'] as List).map((o) => PostOpcaoEnquete.fromMap(Map<String, dynamic>.from(o))).toList()
           : null,
       votantes: data['votantes'] != null ? List<String>.from(data['votantes']) : const [],
+      votosPorUsuario: data['votosPorUsuario'] != null
+          ? Map<String, int>.from(data['votosPorUsuario'])
+          : const {},
     );
   }
 }

@@ -21,13 +21,15 @@ service cloud.firestore {
     }
 
     // Vota numa enquete: qualquer usuario logado pode, uma unica vez por post,
-    // e a escrita so pode alterar 'opcoes' e 'votantes' (nada mais do post).
+    // e a escrita so pode alterar 'opcoes', 'votantes' e 'votosPorUsuario'
+    // (nada mais do post). votosPorUsuario guarda qual opcao cada uid
+    // escolheu, pra UI poder destacar o botao que o usuario apertou.
     function podeVotar() {
       return estaLogado()
         && resource.data.tipo == 'enquete'
         && !(request.auth.uid in resource.data.get('votantes', []))
         && request.resource.data.votantes == resource.data.get('votantes', []).concat([request.auth.uid])
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opcoes', 'votantes']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opcoes', 'votantes', 'votosPorUsuario']);
     }
 
     function categoriasValidas(categorias) {

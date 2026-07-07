@@ -213,6 +213,7 @@ class PostCard extends StatelessWidget {
         );
       case PostModel.tipoEnquete:
         final jaVotou = uidAtual != null && post.votantes.contains(uidAtual);
+        final meuVotoIndice = jaVotou ? post.votosPorUsuario[uidAtual] : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -223,7 +224,11 @@ class PostCard extends StatelessWidget {
             const SizedBox(height: 10),
             if (post.opcoes != null)
               for (int indice = 0; indice < post.opcoes!.length; indice++)
-                _linhaOpcaoEnquete(indice, post.opcoes![indice], jaVotou),
+                _barraOpcaoEnquete(post.opcoes![indice]),
+            const SizedBox(height: 6),
+            if (post.opcoes != null)
+              for (int indice = 0; indice < post.opcoes!.length; indice++)
+                _botaoOpcaoEnquete(indice, post.opcoes![indice], jaVotou, meuVotoIndice),
             if (jaVotou) ...[
               const SizedBox(height: 4),
               Text(
@@ -242,48 +247,82 @@ class PostCard extends StatelessWidget {
   }
 
   static const _corVotacao = Color(0xFFA12EE0);
+  static const _corVotacaoEscura = Color(0xFF6A1B9A);
 
-  Widget _linhaOpcaoEnquete(int indice, PostOpcaoEnquete opcao, bool jaVotou) {
+  Widget _barraOpcaoEnquete(PostOpcaoEnquete opcao) {
     final totalVotos = post.opcoes!.fold<int>(0, (soma, o) => soma + o.votos);
     final percentual = totalVotos == 0 ? 0.0 : opcao.votos / totalVotos;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(opcao.texto, style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight)),
+              ),
+              Text('${(percentual * 100).round()}%', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: percentual,
+              minHeight: 8,
+              backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(.1),
+              valueColor: const AlwaysStoppedAnimation(_corVotacao),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Os botoes de voto ficam sempre visiveis (antes e depois de votar). Depois
+  // que o usuario vota, o botao escolhido fica roxo escuro (selecionado) e os
+  // demais ficam com aspecto desabilitado (cinza, sem toque) — em vez de
+  // sumir, pra deixar claro em qual opcao a pessoa votou.
+  Widget _botaoOpcaoEnquete(int indice, PostOpcaoEnquete opcao, bool jaVotou, int? meuVotoIndice) {
+    final selecionado = jaVotou && indice == meuVotoIndice;
+    final desabilitado = jaVotou && indice != meuVotoIndice;
+
+    Color corFundo;
+    Color corTexto;
+    Border? borda;
+
+    if (selecionado) {
+      corFundo = _corVotacaoEscura;
+      corTexto = Colors.white;
+    } else if (desabilitado) {
+      corFundo = (isDark ? Colors.white : Colors.black).withOpacity(.06);
+      corTexto = isDark ? AuthTheme.subDark : AuthTheme.subLight;
+    } else {
+      corFundo = Colors.transparent;
+      corTexto = _corVotacao;
+      borda = Border.all(color: _corVotacao, width: 1.4);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
         onTap: jaVotou ? null : () => onVotar?.call(indice),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      if (!jaVotou) ...[
-                        const Icon(Icons.radio_button_unchecked, size: 16, color: _corVotacao),
-                        const SizedBox(width: 6),
-                      ],
-                      Expanded(
-                        child: Text(opcao.texto, style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight)),
-                      ),
-                    ],
-                  ),
-                ),
-                Text('${(percentual * 100).round()}%', style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: percentual,
-                minHeight: 8,
-                backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(.1),
-                valueColor: const AlwaysStoppedAnimation(_corVotacao),
-              ),
-            ),
-          ],
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: corFundo,
+            borderRadius: BorderRadius.circular(12),
+            border: borda,
+          ),
+          child: Text(
+            opcao.texto,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: corTexto),
+          ),
         ),
       ),
     );

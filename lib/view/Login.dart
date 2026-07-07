@@ -160,7 +160,7 @@ class _LoginState extends State<Login> {
                               children: [
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Login',
+                                  label: 'Login ou nickname',
                                   controller: _emailController,
                                   icone: iconPessoa,
                                   hint: 'Email ou nickname',
