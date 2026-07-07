@@ -46,6 +46,7 @@ app.*.map.json
 
 # Segredos locais - nunca commitar
 .env
+env.json
 
 # Keystore de assinatura do Android - nunca commitar
 android/key.properties
