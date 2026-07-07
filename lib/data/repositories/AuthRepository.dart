@@ -24,6 +24,13 @@ class AuthRepository {
     required String email,
     required String senha,
   }) async {
+    final nicknameChave = nickname.trim().toLowerCase();
+
+    final mapeamentoExistente = await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).get();
+    if (mapeamentoExistente.exists) {
+      throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+    }
+
     final credential = await _auth.createUserWithEmailAndPassword(email: email, password: senha);
     final uid = credential.user!.uid;
 
@@ -31,9 +38,30 @@ class AuthRepository {
 
     final novoUsuario = UserModel.novoInscrito(uid: uid, nickname: nickname, email: email);
     await _firestore.collection('users').doc(uid).set(novoUsuario.toFirestore());
+
+    await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).set({
+      'uid': uid,
+      'email': email,
+    });
   }
 
-  Future<void> login({required String email, required String senha}) async {
+  /// Aceita tanto email quanto nickname no campo de login: se tiver "@",
+  /// trata como email direto; senao, resolve o email pelo mapeamento
+  /// nicknamesParaEmail antes de autenticar.
+  Future<String> _resolverEmailParaLogin(String loginOuEmail) async {
+    final valor = loginOuEmail.trim();
+    if (valor.contains('@')) return valor;
+
+    final doc = await _firestore.collection('nicknamesParaEmail').doc(valor.toLowerCase()).get();
+    if (!doc.exists) {
+      throw FirebaseAuthException(code: 'user-not-found', message: 'Usuário não encontrado.');
+    }
+
+    return doc.data()!['email'] as String;
+  }
+
+  Future<void> login({required String loginOuEmail, required String senha}) async {
+    final email = await _resolverEmailParaLogin(loginOuEmail);
     final credential = await _auth.signInWithEmailAndPassword(email: email, password: senha);
     final uid = credential.user!.uid;
 

@@ -6,4 +6,7 @@ class PostViewModel {
   PostViewModel(this._repository);
 
   Stream<List<PostModel>> streamPostagens() => _repository.streamPostagens();
+
+  Future<void> votar({required String postId, required int indiceOpcao, required String uid}) =>
+      _repository.votar(postId: postId, indiceOpcao: indiceOpcao, uid: uid);
 }

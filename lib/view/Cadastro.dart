@@ -47,6 +47,11 @@ class _CadastroState extends State<Cadastro> {
       return;
     }
 
+    if (nickname.contains('@')) {
+      mostrarErroCustom(context, title: "Ops!", msg: "O nickname não pode conter @.");
+      return;
+    }
+
     if (senha.length < 6) {
       mostrarErroCustom(context, title: "Ops!", msg: "A senha precisa ter pelo menos 6 caracteres.");
       return;
