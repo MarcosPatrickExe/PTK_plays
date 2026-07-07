@@ -44,17 +44,17 @@ class _LoginState extends State<Login> {
   bool _carregando = false;
 
   Future<void> _entrar() async {
-    final email = _emailController.text.trim();
+    final login = _emailController.text.trim();
     final senha = _senhaController.text;
 
-    if (email.isEmpty || senha.isEmpty) {
+    if (login.isEmpty || senha.isEmpty) {
       mostrarErroCustom(context, title: "Ops!", msg: "Preencha login e senha.");
       return;
     }
 
     setState(() => _carregando = true);
 
-    final erro = await widget.authViewModel.login(email: email, senha: senha);
+    final erro = await widget.authViewModel.login(loginOuEmail: login, senha: senha);
 
     if (!mounted) return;
     setState(() => _carregando = false);
@@ -163,8 +163,7 @@ class _LoginState extends State<Login> {
                                   label: 'Login',
                                   controller: _emailController,
                                   icone: iconPessoa,
-                                  hint: 'Digite seu login',
-                                  keyboardType: TextInputType.emailAddress,
+                                  hint: 'Email ou nickname',
                                 ),
                                 const SizedBox(height: 16),
                                 CampoTexto(

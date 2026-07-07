@@ -9,7 +9,9 @@ String traduzirErroDeAuth(String codigo) {
     case 'user-not-found':
     case 'wrong-password':
     case 'invalid-credential':
-      return 'Email ou senha incorretos.';
+      return 'Login ou senha incorretos.';
+    case 'nickname-em-uso':
+      return 'Esse nickname já está em uso. Escolha outro.';
     case 'too-many-requests':
       return 'Muitas tentativas. Tente novamente mais tarde.';
     case 'network-request-failed':

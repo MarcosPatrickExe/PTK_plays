@@ -9,6 +9,7 @@ class AuthViewModel {
   AuthViewModel(this._repository);
 
   bool get usuarioLogado => _repository.usuarioAtual != null;
+  String? get uidAtual => _repository.usuarioAtual?.uid;
 
   Stream<UserModel?> streamUsuarioAtual() {
     final uid = _repository.usuarioAtual?.uid;
@@ -56,10 +57,11 @@ class AuthViewModel {
     }
   }
 
+  /// Aceita email ou nickname no campo de login.
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
-  Future<String?> login({required String email, required String senha}) async {
+  Future<String?> login({required String loginOuEmail, required String senha}) async {
     try {
-      await _repository.login(email: email, senha: senha);
+      await _repository.login(loginOuEmail: loginOuEmail, senha: senha);
       return null;
     } on FirebaseAuthException catch (e) {
       return traduzirErroDeAuth(e.code);

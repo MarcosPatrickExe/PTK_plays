@@ -56,6 +56,22 @@ service cloud.firestore {
       allow delete: if ehDono(userId);
     }
 
+    // Mapeia nickname (em minusculo) -> email/uid, pra permitir login com
+    // nickname sem precisar de leitura autenticada na colecao users (o
+    // usuario ainda nao esta logado nesse momento). So expoe email, nada
+    // do resto do perfil. So o dono do uid pode criar/atualizar a propria
+    // entrada, e o id do documento (nickname) impede duas contas com o
+    // mesmo nickname (a segunda tentativa vira "update" de um dono diferente
+    // e e barrada).
+    match /nicknamesParaEmail/{nicknameChave} {
+      allow read: if true;
+      allow create: if estaLogado() && request.auth.uid == request.resource.data.uid;
+      allow update: if estaLogado()
+        && request.auth.uid == resource.data.uid
+        && request.auth.uid == request.resource.data.uid;
+      allow delete: if false;
+    }
+
     // Feed de avisos do canal (Home). O painel de admin dentro do app ainda
     // nao existe, entao por enquanto os posts sao criados manualmente pelo
     // admin direto no Console do Firebase (o que ja tem acesso irrestrito e
