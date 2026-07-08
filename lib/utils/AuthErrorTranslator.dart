@@ -16,6 +16,12 @@ String traduzirErroDeAuth(String codigo) {
       return 'Muitas tentativas. Tente novamente mais tarde.';
     case 'network-request-failed':
       return 'Sem conexão com a internet.';
+    case 'unauthorized-domain':
+      return 'Esse domínio não está autorizado a fazer login com Google. Avise o administrador do app.';
+    case 'popup-blocked':
+      return 'O navegador bloqueou o popup de login. Permita popups pra esse site e tente novamente.';
+    case 'operation-not-allowed':
+      return 'O login com Google não está habilitado pra esse app no momento.';
     default:
       return 'Algo deu errado. Tente novamente.';
   }
