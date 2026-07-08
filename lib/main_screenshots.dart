@@ -20,6 +20,13 @@ import 'package:ptk_plays/view/Videos.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 
+/// Resolve pra URL do asset bundle (assets/mock_photos/*, declarado no
+/// pubspec.yaml) servido pelo proprio app. Evita depender de qualquer
+/// dominio externo pra mostrar uma imagem de verdade (nao um icone de erro
+/// quebrado) nos cards, ja que dominios de imagem externos (picsum,
+/// YouTube, etc.) estao bloqueados neste ambiente.
+String _mockPhoto(String filename) => Uri.base.resolve('assets/assets/mock_photos/$filename').toString();
+
 final UserModel _usuarioFake = UserModel(
   uid: 'uid-fake-001',
   nickname: 'PatrickGamer',
@@ -101,7 +108,7 @@ class FakePostRepository implements PostRepository {
       autorNickname: 'PTK Plays',
       criadoEm: DateTime.now().subtract(const Duration(hours: 20)),
       texto: 'Setup novo ficou show! Quem curtiu? 🔥',
-      fotoUrl: 'https://picsum.photos/seed/ptkplays1/800/450',
+      fotoUrl: _mockPhoto('post_photo.jpg'),
     ),
     PostModel(
       id: 'p4',
@@ -122,35 +129,35 @@ class FakePostRepository implements PostRepository {
 
 class FakeYoutubeViewModel implements YoutubeViewModel {
   static final List<VideoNotification> _videos = [
-    const VideoNotification(
+    VideoNotification(
       videoTitle: 'ELDEN RING mas eu não sei jogar - PARTE 1',
       channelTittle: 'PTK Plays',
-      thumbnailUrl: 'https://picsum.photos/seed/ptkvideo1/480/270',
-      avatarUrl: 'https://picsum.photos/seed/ptkavatar/80/80',
+      thumbnailUrl: _mockPhoto('video_thumb_1.jpg'),
+      avatarUrl: _mockPhoto('avatar.jpg'),
       publishedAt: '2026-07-01T18:00:00Z',
       videoID: 'fake1',
     ),
-    const VideoNotification(
+    VideoNotification(
       videoTitle: 'Reagindo aos memes da galera do chat',
       channelTittle: 'PTK Plays',
-      thumbnailUrl: 'https://picsum.photos/seed/ptkvideo2/480/270',
-      avatarUrl: 'https://picsum.photos/seed/ptkavatar/80/80',
+      thumbnailUrl: _mockPhoto('video_thumb_2.jpg'),
+      avatarUrl: _mockPhoto('avatar.jpg'),
       publishedAt: '2026-06-28T18:00:00Z',
       videoID: 'fake2',
     ),
-    const VideoNotification(
+    VideoNotification(
       videoTitle: 'Live de sexta: Hollow Knight Silksong ao vivo',
       channelTittle: 'PTK Plays',
-      thumbnailUrl: 'https://picsum.photos/seed/ptkvideo3/480/270',
-      avatarUrl: 'https://picsum.photos/seed/ptkavatar/80/80',
+      thumbnailUrl: _mockPhoto('video_thumb_3.jpg'),
+      avatarUrl: _mockPhoto('avatar.jpg'),
       publishedAt: '2026-06-20T18:00:00Z',
       videoID: 'fake3',
     ),
-    const VideoNotification(
+    VideoNotification(
       videoTitle: 'Respondendo perguntas da comunidade #12',
       channelTittle: 'PTK Plays',
-      thumbnailUrl: 'https://picsum.photos/seed/ptkvideo4/480/270',
-      avatarUrl: 'https://picsum.photos/seed/ptkavatar/80/80',
+      thumbnailUrl: _mockPhoto('video_thumb_4.jpg'),
+      avatarUrl: _mockPhoto('avatar.jpg'),
       publishedAt: '2026-06-14T18:00:00Z',
       videoID: 'fake4',
     ),
