@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
+import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
@@ -128,7 +129,8 @@ class _LoginState extends State<Login> {
                   Center(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-                      child: Column(
+                      child: ResponsiveMaxWidth(
+                        child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const LogoPTK(size: 132),
@@ -234,6 +236,7 @@ class _LoginState extends State<Login> {
                             ),
                           ),
                         ],
+                        ),
                       ),
                     ),
                   ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
+import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -68,22 +69,25 @@ class _VideoScreenState extends State<Videos> {
                 buildHeader(title: "Vídeos", widgetContext: context),
                 Expanded(
                   child: ( _VideoScreenState._loadedVideoCards != null)
-                      ? ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                          itemCount: _VideoScreenState._loadedVideoCards?.length ,
-                          itemBuilder: (ctx, index) {
+                      ? ResponsiveCenter(
+                          maxWidthFraction: 0.4,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                            itemCount: _VideoScreenState._loadedVideoCards?.length ,
+                            itemBuilder: (ctx, index) {
 
-                            if (index < _VideoScreenState._loadedVideoCards!.length) { // necessario pra evitar erro de 'out of range'
+                              if (index < _VideoScreenState._loadedVideoCards!.length) { // necessario pra evitar erro de 'out of range'
 
-                              return VideoCard(
-                                notification: _VideoScreenState._loadedVideoCards![index],
-                                isDark: isDark,
-                                onTap: () {
-                                  this._abrirVideo( _VideoScreenState._loadedVideoCards![index].videoID );
-                                },
-                              );
-                            }
-                          },
+                                return VideoCard(
+                                  notification: _VideoScreenState._loadedVideoCards![index],
+                                  isDark: isDark,
+                                  onTap: () {
+                                    this._abrirVideo( _VideoScreenState._loadedVideoCards![index].videoID );
+                                  },
+                                );
+                              }
+                            },
+                          ),
                         )
                       : FutureBuilder(
                           future: this._videosCards,
@@ -98,20 +102,23 @@ class _VideoScreenState extends State<Videos> {
                             } else if (snapshot.hasData) {
                               _VideoScreenState._loadedVideoCards = snapshot.data;
 
-                              return ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                                itemCount: snapshot.data!.length,
-                                itemBuilder: (context, index) {
-                                  final notification = snapshot.data![index];
+                              return ResponsiveCenter(
+                                maxWidthFraction: 0.4,
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                                  itemCount: snapshot.data!.length,
+                                  itemBuilder: (context, index) {
+                                    final notification = snapshot.data![index];
 
-                                  return VideoCard(
-                                    notification: notification,
-                                    isDark: isDark,
-                                    onTap: () {
-                                      this._abrirVideo( notification.videoID );
-                                    },
-                                  );
-                                },
+                                    return VideoCard(
+                                      notification: notification,
+                                      isDark: isDark,
+                                      onTap: () {
+                                        this._abrirVideo( notification.videoID );
+                                      },
+                                    );
+                                  },
+                                ),
                               );
                             } else {
                               return Center(child: Text('Nenhuma postagem encontrada :/'));

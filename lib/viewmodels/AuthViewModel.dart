@@ -29,6 +29,9 @@ class AuthViewModel {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
       return 'Não foi possível entrar com o Google. Tente novamente.';
     } on FirebaseAuthException catch (e) {
+      // Usuario fechou o popup ou abriu outro antes de terminar: nao e erro,
+      // e o mesmo fluxo de "cancelou" do GoogleSignInException acima.
+      if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') return null;
       return traduzirErroDeAuth(e.code);
     }
   }

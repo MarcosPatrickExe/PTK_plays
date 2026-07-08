@@ -39,9 +39,9 @@ class VideoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                // Thumbnail
+                // Thumbnail (quadrado, pra o card nao esticar em telas largas)
                 AspectRatio(
-                  aspectRatio: 16 / 9,
+                  aspectRatio: 1,
                   child: Image.network( notification.thumbnailUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
