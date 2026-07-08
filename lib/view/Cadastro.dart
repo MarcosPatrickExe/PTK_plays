@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
+import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
@@ -106,7 +107,8 @@ class _CadastroState extends State<Cadastro> {
                   Center(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-                      child: Column(
+                      child: ResponsiveMaxWidth(
+                        child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // Logo menor aqui, de proposito: sinaliza que o
@@ -211,6 +213,7 @@ class _CadastroState extends State<Cadastro> {
                             ),
                           ),
                         ],
+                        ),
                       ),
                     ),
                   ),

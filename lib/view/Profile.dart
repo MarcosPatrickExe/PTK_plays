@@ -5,6 +5,7 @@ import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
+import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
@@ -132,7 +133,8 @@ class Profile extends StatelessWidget {
 
                       final usuario = snapshot.data!;
 
-                      return ListView(
+                      return ResponsiveCenter(
+                        child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         children: [
                           _CabecalhoPerfil(usuario: usuario, isDark: isDark),
@@ -242,6 +244,7 @@ class Profile extends StatelessWidget {
                             ),
                           ),
                         ],
+                        ),
                       );
                     },
                   ),

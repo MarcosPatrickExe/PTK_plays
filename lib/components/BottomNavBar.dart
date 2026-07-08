@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/view/Videos.dart';
@@ -31,27 +32,29 @@ Widget buildBottonNavBar({
     Navigator.of(widgetContext).pushReplacement(MaterialPageRoute(builder: (context) => tela));
   }
 
-  return ClipRect(
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
-          border: Border(top: BorderSide(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight)),
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
-          unselectedItemColor: isDark ? AuthTheme.subDark : AuthTheme.subLight,
-          type: BottomNavigationBarType.fixed,
-          currentIndex: currentIndex,
-          onTap: navegar,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-            BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-          ],
+  return ResponsiveCenter(
+    child: ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
+            border: Border(top: BorderSide(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight)),
+          ),
+          child: BottomNavigationBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            selectedItemColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+            unselectedItemColor: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+            type: BottomNavigationBarType.fixed,
+            currentIndex: currentIndex,
+            onTap: navegar,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
+              BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+            ],
+          ),
         ),
       ),
     ),
