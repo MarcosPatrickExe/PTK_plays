@@ -17,18 +17,20 @@ class HomePage extends StatelessWidget {
   final YoutubeViewModel viewmodelYT;
   final String apiKEY;
   final AuthViewModel authViewModel;
+  final PostRepository? postRepository;
 
   const HomePage({
     super.key,
     required this.viewmodelYT,
     required this.apiKEY,
     required this.authViewModel,
+    this.postRepository,
   });
 
   @override
   Widget build( BuildContext context ) {
     bool isDark = context.watch<ThemeController>().isDark;
-    final postViewModel = PostViewModel(PostRepository());
+    final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
     return Scaffold(
       extendBody: true,
