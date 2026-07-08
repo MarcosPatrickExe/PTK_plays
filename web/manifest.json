@@ -1,11 +1,11 @@
 {
-    "name": "ptk_plays",
-    "short_name": "ptk_plays",
+    "name": "PTK Plays",
+    "short_name": "PTK Plays",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#8a2bd0",
+    "theme_color": "#8a2bd0",
+    "description": "PTK Plays: comunidade de fas do canal PTK Plays.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
