@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
@@ -70,19 +71,21 @@ class HomePage extends StatelessWidget {
                         );
                       }
 
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                        itemCount: postagens.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) => PostCard(
-                          isDark: isDark,
-                          post: postagens[index],
-                          uidAtual: authViewModel.uidAtual,
-                          onVotar: (indiceOpcao) {
-                            final uid = authViewModel.uidAtual;
-                            if (uid == null) return;
-                            postViewModel.votar(postId: postagens[index].id, indiceOpcao: indiceOpcao, uid: uid);
-                          },
+                      return ResponsiveCenter(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                          itemCount: postagens.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) => PostCard(
+                            isDark: isDark,
+                            post: postagens[index],
+                            uidAtual: authViewModel.uidAtual,
+                            onVotar: (indiceOpcao) {
+                              final uid = authViewModel.uidAtual;
+                              if (uid == null) return;
+                              postViewModel.votar(postId: postagens[index].id, indiceOpcao: indiceOpcao, uid: uid);
+                            },
+                          ),
                         ),
                       );
                     },
