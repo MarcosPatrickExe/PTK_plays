@@ -45,6 +45,7 @@ flutter:
   assets:
     - assets/original_icon_app.png
     - assets/login_logo.png
+    - assets/mock_photos/
 
 flutter_icons:
   android: true
