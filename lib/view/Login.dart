@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -88,6 +90,28 @@ class _LoginState extends State<Login> {
     setState(() => _carregando = true);
 
     final erro = await widget.authViewModel.loginComGoogle();
+
+    if (!mounted) return;
+    setState(() => _carregando = false);
+
+    if (erro != null) {
+      mostrarErroCustom(context, title: "Ops!", msg: erro);
+      return;
+    }
+
+    if (!widget.authViewModel.usuarioLogado) return; // usuario cancelou o fluxo
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
+      ),
+    );
+  }
+
+  Future<void> _entrarComApple() async {
+    setState(() => _carregando = true);
+
+    final erro = await widget.authViewModel.loginComApple();
 
     if (!mounted) return;
     setState(() => _carregando = false);
@@ -231,6 +255,10 @@ class _LoginState extends State<Login> {
                                   ],
                                 ),
                                 const SizedBox(height: 18),
+                                if (!kIsWeb && Platform.isIOS) ...[
+                                  _BotaoApple(isDark: isDark, onTap: _carregando ? null : _entrarComApple),
+                                  const SizedBox(height: 12),
+                                ],
                                 _BotaoGoogle(isDark: isDark, onTap: _carregando ? null : _entrarComGoogle),
                               ],
                             ),
@@ -249,6 +277,46 @@ class _LoginState extends State<Login> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BotaoApple extends StatelessWidget {
+  final bool isDark;
+  final VoidCallback? onTap;
+  const _BotaoApple({required this.isDark, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    // Segue o padrao visual exigido pela Apple: botao preto com texto/logo
+    // brancos no tema claro, invertido (branco com contorno) no tema escuro.
+    final Color bg = isDark ? Colors.white : Colors.black;
+    final Color fg = isDark ? Colors.black : Colors.white;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 54,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: const [
+            BoxShadow(color: Color(0x2E1E0046), blurRadius: 24, offset: Offset(0, 10)),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.apple, size: 22, color: fg),
+            const SizedBox(width: 10),
+            Text(
+              'Entrar com a Apple',
+              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: fg),
             ),
           ],
         ),

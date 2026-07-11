@@ -61,6 +61,9 @@ class FakeAuthViewModel implements AuthViewModel {
   Future<String?> loginComGoogle() async => null;
 
   @override
+  Future<String?> loginComApple() async => null;
+
+  @override
   Future<String?> excluirConta({required String senha}) async => null;
 
   @override
