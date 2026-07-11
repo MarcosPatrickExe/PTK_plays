@@ -305,6 +305,10 @@ class _BotaoApple extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(15),
+          // Mesma logica do botao do Google: borda so aparece quando o fundo
+          // do botao e claro (aqui, no tema escuro) pra dar definicao contra
+          // o fundo; no fundo preto do tema claro o contraste ja e suficiente.
+          border: Border.all(color: isDark ? const Color(0x33000000) : Colors.transparent),
           boxShadow: const [
             BoxShadow(color: Color(0x2E1E0046), blurRadius: 24, offset: Offset(0, 10)),
           ],
