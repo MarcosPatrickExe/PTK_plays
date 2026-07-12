@@ -58,7 +58,10 @@ class _VideoScreenState extends State<Videos> {
     bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
-      extendBody: true,
+      // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
+      // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
+      // inteiro (body em branco) no CanvasKit web. Em vez disso, ela entra
+      // como uma camada flutuante no Stack, igual um overlay comum.
       body: Stack(
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
@@ -129,16 +132,23 @@ class _VideoScreenState extends State<Videos> {
               ],
             ),
           ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: buildBottonNavBar(
+                currentIndex: 1,
+                widgetContext: context,
+                isDark: isDark,
+                apiKey: widget.apiKEY,
+                ytViewModel: widget.viewmodelYT,
+                authViewModel: widget.authViewModel,
+              ),
+            ),
+          ),
         ],
-      ),
-
-      bottomNavigationBar: buildBottonNavBar(
-        currentIndex: 1,
-        widgetContext: context,
-        isDark: isDark,
-        apiKey: widget.apiKEY,
-        ytViewModel: widget.viewmodelYT,
-        authViewModel: widget.authViewModel,
       ),
     );
   }
