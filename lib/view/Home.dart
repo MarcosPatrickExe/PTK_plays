@@ -7,14 +7,16 @@ import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
+import 'package:ptk_plays/services/LiveNotificationRouter.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher_url;
 import '../components/Header.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
   final String apiKEY;
   final AuthViewModel authViewModel;
@@ -29,9 +31,56 @@ class HomePage extends StatelessWidget {
   });
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late final PostViewModel _postViewModel;
+  final ScrollController _scrollController = ScrollController();
+
+  /// Id do post que veio de uma notificacao de "ao vivo" — usado pra rolar
+  /// ate o topo (onde a live sempre aparece, por ser o post mais recente) e
+  /// destacar visualmente o card certo por alguns segundos.
+  String? _postIdDestacado;
+
+  @override
+  void initState() {
+    super.initState();
+    _postViewModel = PostViewModel(widget.postRepository ?? PostRepository());
+
+    LiveNotificationRouter.postIdParaDestacar.addListener(_aoReceberNotificacaoAoVivo);
+    _aoReceberNotificacaoAoVivo(); // cobre o caso do app ter aberto direto por uma notificacao
+  }
+
+  @override
+  void dispose() {
+    LiveNotificationRouter.postIdParaDestacar.removeListener(_aoReceberNotificacaoAoVivo);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _aoReceberNotificacaoAoVivo() {
+    final postId = LiveNotificationRouter.postIdParaDestacar.value;
+    if (postId == null) return;
+
+    LiveNotificationRouter.postIdParaDestacar.value = null; // consome o valor, uma vez so
+    setState(() => _postIdDestacado = postId);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+    });
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted && _postIdDestacado == postId) {
+        setState(() => _postIdDestacado = null);
+      }
+    });
+  }
+
+  @override
   Widget build( BuildContext context ) {
     bool isDark = context.watch<ThemeController>().isDark;
-    final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
     return Scaffold(
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
@@ -48,7 +97,7 @@ class HomePage extends StatelessWidget {
                 buildHeader(title: "Feed", widgetContext: context),
                 Expanded(
                   child: StreamBuilder<List<PostModel>>(
-                    stream: postViewModel.streamPostagens(),
+                    stream: _postViewModel.streamPostagens(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Center(
@@ -78,17 +127,19 @@ class HomePage extends StatelessWidget {
 
                       return ResponsiveCenter(
                         child: ListView.separated(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                           itemCount: postagens.length,
                           separatorBuilder: (context, index) => const SizedBox(height: 16),
                           itemBuilder: (context, index) => PostCard(
                             isDark: isDark,
                             post: postagens[index],
-                            uidAtual: authViewModel.uidAtual,
+                            uidAtual: widget.authViewModel.uidAtual,
+                            destacado: postagens[index].id == _postIdDestacado,
                             onVotar: (indiceOpcao) {
-                              final uid = authViewModel.uidAtual;
+                              final uid = widget.authViewModel.uidAtual;
                               if (uid == null) return;
-                              postViewModel.votar(postId: postagens[index].id, indiceOpcao: indiceOpcao, uid: uid);
+                              _postViewModel.votar(postId: postagens[index].id, indiceOpcao: indiceOpcao, uid: uid);
                             },
                           ),
                         ),
@@ -109,9 +160,9 @@ class HomePage extends StatelessWidget {
                 currentIndex: 0,
                 widgetContext: context,
                 isDark: isDark,
-                apiKey: apiKEY,
-                ytViewModel: viewmodelYT,
-                authViewModel: authViewModel,
+                apiKey: widget.apiKEY,
+                ytViewModel: widget.viewmodelYT,
+                authViewModel: widget.authViewModel,
               ),
             ),
           ),
@@ -125,6 +176,7 @@ class PostCard extends StatelessWidget {
   final bool isDark;
   final PostModel post;
   final String? uidAtual;
+  final bool destacado;
   final void Function(int indiceOpcao)? onVotar;
 
   const PostCard({
@@ -132,40 +184,53 @@ class PostCard extends StatelessWidget {
     required this.isDark,
     required this.post,
     this.uidAtual,
+    this.destacado = false,
     this.onVotar,
   });
 
+  static const _corDestaque = Color(0xFFA12EE0);
+
   @override
   Widget build(BuildContext context) {
-    return CardVidro(
-      isDark: isDark,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AuthTheme.buttonGradient),
-                child: Icon(_iconePorTipo(post.tipo), color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  post.autorNickname,
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: destacado ? Border.all(color: _corDestaque, width: 2.5) : null,
+        boxShadow: destacado
+            ? [BoxShadow(color: _corDestaque.withOpacity(.5), blurRadius: 16, spreadRadius: 1)]
+            : null,
+      ),
+      child: CardVidro(
+        isDark: isDark,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AuthTheme.buttonGradient),
+                  child: Icon(_iconePorTipo(post.tipo), color: Colors.white, size: 20),
                 ),
-              ),
-              Text(
-                _tempoRelativo(post.criadoEm),
-                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _conteudoPorTipo(),
-        ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    post.autorNickname,
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+                  ),
+                ),
+                Text(
+                  _tempoRelativo(post.criadoEm),
+                  style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _conteudoPorTipo(),
+          ],
+        ),
       ),
     );
   }
@@ -191,11 +256,12 @@ class PostCard extends StatelessWidget {
                 style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
               ),
             ],
-            if (post.plataformas != null && post.plataformas!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                post.plataformas!.map(_labelPlataforma).join(' • '),
-                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+            if (post.linksPorPlataforma.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: post.linksPorPlataforma.entries.map((e) => _botaoPlataforma(e.key, e.value)).toList(),
               ),
             ],
           ],
@@ -368,6 +434,64 @@ class PostCard extends StatelessWidget {
       default:
         return p;
     }
+  }
+
+  Color _corPlataforma(String p) {
+    switch (p) {
+      case 'youtube':
+        return const Color(0xFFFF0000);
+      case 'twitch':
+        return const Color(0xFF9146FF);
+      case 'kick':
+        return const Color(0xFF53FC18);
+      default:
+        return AuthTheme.buttonGradient.colors.first;
+    }
+  }
+
+  IconData _iconePlataforma(String p) {
+    switch (p) {
+      case 'youtube':
+        return Icons.play_arrow_rounded;
+      case 'twitch':
+        return Icons.videogame_asset_rounded;
+      case 'kick':
+        return Icons.bolt_rounded;
+      default:
+        return Icons.live_tv_rounded;
+    }
+  }
+
+  Future<void> _abrirLink(String url) async {
+    final uri = Uri.parse(url);
+    if (await launcher_url.canLaunchUrl(uri)) {
+      await launcher_url.launchUrl(uri, mode: launcher_url.LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _botaoPlataforma(String plataforma, String link) {
+    final cor = _corPlataforma(plataforma);
+    // Kick e um verde bem claro; texto preto fica mais legivel que branco nele.
+    final corTexto = plataforma == 'kick' ? Colors.black : Colors.white;
+
+    return GestureDetector(
+      onTap: () => _abrirLink(link),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_iconePlataforma(plataforma), color: corTexto, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              'Assistir na ${_labelPlataforma(plataforma)}',
+              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: corTexto),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _tempoRelativo(DateTime data) {

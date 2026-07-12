@@ -4,6 +4,7 @@ import 'package:ptk_plays/data/repositories/AuthRepository.dart';
 import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
 import 'package:ptk_plays/data/services/YouTubeService.dart';
 import 'package:ptk_plays/firebase_options.dart';
+import 'package:ptk_plays/services/NotificationService.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/utils/app_theme.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
@@ -16,6 +17,7 @@ import 'package:provider/provider.dart';
 Future<void> main () async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService.inicializar();
 
   runApp(
     ChangeNotifierProvider(

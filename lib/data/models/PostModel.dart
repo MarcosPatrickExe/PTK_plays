@@ -42,9 +42,9 @@ class PostModel {
   /// avisoFoto.
   final String? fotoUrl;
 
-  /// aoVivo: subset de 'youtube', 'twitch', 'kick'.
-  final List<String>? plataformas;
-  final String? linkAoVivo;
+  /// aoVivo: plataforma ('youtube', 'twitch', 'kick') -> link da live nela.
+  /// So aparecem botao pras plataformas que tiverem link preenchido.
+  final Map<String, String> linksPorPlataforma;
 
   /// enquete.
   final String? titulo;
@@ -66,8 +66,7 @@ class PostModel {
     this.comentariosCount = 0,
     this.texto,
     this.fotoUrl,
-    this.plataformas,
-    this.linkAoVivo,
+    this.linksPorPlataforma = const {},
     this.titulo,
     this.opcoes,
     this.votantes = const [],
@@ -85,8 +84,9 @@ class PostModel {
       comentariosCount: data['comentariosCount'] ?? 0,
       texto: data['texto'],
       fotoUrl: data['fotoUrl'],
-      plataformas: data['plataformas'] != null ? List<String>.from(data['plataformas']) : null,
-      linkAoVivo: data['linkAoVivo'],
+      linksPorPlataforma: data['linksPorPlataforma'] != null
+          ? Map<String, String>.from(data['linksPorPlataforma'])
+          : const {},
       titulo: data['titulo'],
       opcoes: data['opcoes'] != null
           ? (data['opcoes'] as List).map((o) => PostOpcaoEnquete.fromMap(Map<String, dynamic>.from(o))).toList()
