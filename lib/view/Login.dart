@@ -201,7 +201,7 @@ class _LoginState extends State<Login> {
                                   obscure: !_senhaVisivel,
                                   iconeFinal: GestureDetector(
                                     onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-                                    child: SvgPicture.string(iconOlho, width: 20, height: 20),
+                                    child: SvgPicture.string(_senhaVisivel ? iconOlho : iconOlhoFechado, width: 20, height: 20),
                                   ),
                                 ),
                                 const SizedBox(height: 22),

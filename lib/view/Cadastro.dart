@@ -166,7 +166,7 @@ class _CadastroState extends State<Cadastro> {
                                   obscure: !_senhaVisivel,
                                   iconeFinal: GestureDetector(
                                     onTap: () => setState(() => _senhaVisivel = !_senhaVisivel),
-                                    child: SvgPicture.string(iconOlho, width: 20, height: 20),
+                                    child: SvgPicture.string(_senhaVisivel ? iconOlho : iconOlhoFechado, width: 20, height: 20),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -179,7 +179,7 @@ class _CadastroState extends State<Cadastro> {
                                   obscure: !_confirmarSenhaVisivel,
                                   iconeFinal: GestureDetector(
                                     onTap: () => setState(() => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
-                                    child: SvgPicture.string(iconOlho, width: 20, height: 20),
+                                    child: SvgPicture.string(_confirmarSenhaVisivel ? iconOlho : iconOlhoFechado, width: 20, height: 20),
                                   ),
                                 ),
                                 const SizedBox(height: 22),
