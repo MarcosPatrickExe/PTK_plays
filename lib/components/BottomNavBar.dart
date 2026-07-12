@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
@@ -32,47 +33,66 @@ Widget buildBottonNavBar({
     Navigator.of(widgetContext).pushReplacement(MaterialPageRoute(builder: (context) => tela));
   }
 
-  // Rodape flutuante, tipo dock do macOS: nao encosta na borda inferior nem
-  // nas laterais, com cantos arredondados em volta e sombra propria — por
+  final navigationBar = BottomNavigationBar(
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    selectedItemColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+    unselectedItemColor: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+    type: BottomNavigationBarType.fixed,
+    currentIndex: currentIndex,
+    onTap: navegar,
+    items: const [
+      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
+      BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
+      BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+    ],
+  );
+
+  // Na Web, o rodape fica flutuante, tipo dock do macOS: nao encosta na borda
+  // inferior nem nas laterais, com cantos arredondados e sombra propria — por
   // isso a sombra fica num Container por fora do ClipRRect (senao o clip
-  // corta a sombra, que se espalha alem dos limites do card).
-  return ResponsiveCenter(
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: const [
-            BoxShadow(color: Color(0x331E0046), blurRadius: 24, offset: Offset(0, 10)),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
-              ),
-              child: BottomNavigationBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                selectedItemColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
-                unselectedItemColor: isDark ? AuthTheme.subDark : AuthTheme.subLight,
-                type: BottomNavigationBarType.fixed,
-                currentIndex: currentIndex,
-                onTap: navegar,
-                items: const [
-                  BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-                  BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
-                  BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-                ],
+  // corta a sombra, que se espalha alem dos limites do card). No app nativo
+  // (Android/iOS) o rodape continua colado e reto na borda inferior, como
+  // sempre foi — o estilo dock e so pra Web.
+  if (kIsWeb) {
+    return ResponsiveCenter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(color: Color(0x331E0046), blurRadius: 24, offset: Offset(0, 10)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
+                ),
+                child: navigationBar,
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  return ClipRect(
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
+          border: Border(top: BorderSide(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight)),
+        ),
+        child: navigationBar,
       ),
     ),
   );
