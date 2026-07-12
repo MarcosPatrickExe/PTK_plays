@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/UserModel.dart';
 
 class AuthRepository {
@@ -95,13 +99,48 @@ class AuthRepository {
       credential = await _auth.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
     }
 
+    await _sincronizarUsuarioNoFirestore(credential.user!);
+  }
+
+  /// Fluxo exigido pela Apple (guideline 4.8) como alternativa equivalente
+  /// ao Google Sign-In. So funciona em iOS/macOS: nao ha configuracao de
+  /// Service ID/return URL feita pro fluxo web do pacote em Android/Web.
+  Future<void> loginComApple() async {
+    final rawNonce = _gerarNonce();
+    final nonce = _sha256DoNonce(rawNonce);
+
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+      nonce: nonce,
+    );
+
+    final oauthCredential = OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      rawNonce: rawNonce,
+    );
+
+    final credential = await _auth.signInWithCredential(oauthCredential);
     final user = credential.user!;
+
+    // A Apple so retorna nome na primeira autorizacao; usa aqui pra
+    // preencher o profile do Firebase Auth caso ainda esteja vazio.
+    if (user.displayName == null || user.displayName!.isEmpty) {
+      final nomeCompleto = [appleCredential.givenName, appleCredential.familyName]
+          .where((parte) => parte != null && parte.isNotEmpty)
+          .join(' ');
+      if (nomeCompleto.isNotEmpty) await user.updateDisplayName(nomeCompleto);
+    }
+
+    await _sincronizarUsuarioNoFirestore(user, nicknameSugerido: appleCredential.givenName);
+  }
+
+  Future<void> _sincronizarUsuarioNoFirestore(User user, {String? nicknameSugerido}) async {
     final doc = await _firestore.collection('users').doc(user.uid).get();
 
     if (!doc.exists) {
       final novoUsuario = UserModel.novoInscrito(
         uid: user.uid,
-        nickname: user.displayName ?? user.email?.split('@').first ?? 'Jogador',
+        nickname: user.displayName ?? nicknameSugerido ?? user.email?.split('@').first ?? 'Jogador',
         email: user.email ?? '',
         fotoUrl: user.photoURL ?? '',
       );
@@ -112,6 +151,18 @@ class AuthRepository {
         SetOptions(merge: true),
       );
     }
+  }
+
+  /// String aleatoria criptograficamente segura usada como nonce anti-replay
+  /// no fluxo OpenID Connect da Apple.
+  String _gerarNonce([int length = 32]) {
+    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+  }
+
+  String _sha256DoNonce(String input) {
+    return sha256.convert(utf8.encode(input)).toString();
   }
 
   Stream<UserModel?> streamUsuario(String uid) {

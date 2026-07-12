@@ -34,7 +34,10 @@ class HomePage extends StatelessWidget {
     final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
     return Scaffold(
-      extendBody: true,
+      // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
+      // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
+      // inteiro (body em branco) no CanvasKit web. Em vez disso, ela entra
+      // como uma camada flutuante no Stack, igual um overlay comum.
       body: Stack(
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
@@ -96,15 +99,23 @@ class HomePage extends StatelessWidget {
               ],
             ),
           ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: buildBottonNavBar(
+                currentIndex: 0,
+                widgetContext: context,
+                isDark: isDark,
+                apiKey: apiKEY,
+                ytViewModel: viewmodelYT,
+                authViewModel: authViewModel,
+              ),
+            ),
+          ),
         ],
-      ),
-      bottomNavigationBar: buildBottonNavBar(
-        currentIndex: 0,
-        widgetContext: context,
-        isDark: isDark,
-        apiKey: apiKEY,
-        ytViewModel: viewmodelYT,
-        authViewModel: authViewModel,
       ),
     );
   }
