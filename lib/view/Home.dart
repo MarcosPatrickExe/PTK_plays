@@ -243,9 +243,12 @@ class PostCard extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFE0264F), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                color: post.encerrada ? Colors.grey.shade600 : const Color(0xFFE0264F),
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Text(
-                'AO VIVO',
+                post.encerrada ? 'LIVE ENCERRADA' : 'AO VIVO',
                 style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),

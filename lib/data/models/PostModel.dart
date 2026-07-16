@@ -46,6 +46,10 @@ class PostModel {
   /// So aparecem botao pras plataformas que tiverem link preenchido.
   final Map<String, String> linksPorPlataforma;
 
+  /// aoVivo: true quando a live acabou em todas as plataformas (linksPorPlataforma
+  /// fica vazio). O card passa a mostrar o badge "LIVE ENCERRADA" em vez do "AO VIVO".
+  final bool encerrada;
+
   /// enquete.
   final String? titulo;
   final List<PostOpcaoEnquete>? opcoes;
@@ -67,6 +71,7 @@ class PostModel {
     this.texto,
     this.fotoUrl,
     this.linksPorPlataforma = const {},
+    this.encerrada = false,
     this.titulo,
     this.opcoes,
     this.votantes = const [],
@@ -87,6 +92,7 @@ class PostModel {
       linksPorPlataforma: data['linksPorPlataforma'] != null
           ? Map<String, String>.from(data['linksPorPlataforma'])
           : const {},
+      encerrada: data['encerrada'] ?? false,
       titulo: data['titulo'],
       opcoes: data['opcoes'] != null
           ? (data['opcoes'] as List).map((o) => PostOpcaoEnquete.fromMap(Map<String, dynamic>.from(o))).toList()

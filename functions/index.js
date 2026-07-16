@@ -8,6 +8,16 @@ initializeApp();
 // Mesma regiao do Firestore (Sao Paulo), pra manter tudo perto.
 setGlobalOptions({ region: "southamerica-east1" });
 
+const { verificarYoutubeAoVivo } = require("./lib/youtube");
+const { twitchWebhook } = require("./lib/twitch");
+const { kickWebhook, kickAuthStart, kickOAuthCallback } = require("./lib/kick");
+
+exports.verificarYoutubeAoVivo = verificarYoutubeAoVivo;
+exports.twitchWebhook = twitchWebhook;
+exports.kickWebhook = kickWebhook;
+exports.kickAuthStart = kickAuthStart;
+exports.kickOAuthCallback = kickOAuthCallback;
+
 const TOPICO_AO_VIVO = "ao_vivo";
 
 /**
