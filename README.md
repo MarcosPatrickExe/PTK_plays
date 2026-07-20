@@ -1,6 +1,5 @@
 # ptk_plays
 
-A new Flutter project.
 
 ## Getting Started
 
