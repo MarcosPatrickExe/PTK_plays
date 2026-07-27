@@ -40,19 +40,14 @@ não consegue publicar atualizações.
 - **Prazo em vigor detectado em jul/2026**: atualizar o nível desejado da API
   até **31 de agosto de 2026**, senão o app fica bloqueado pra novas
   atualizações no Google Play.
-- Este projeto usa `compileSdk = flutter.compileSdkVersion` e
-  `targetSdk = flutter.targetSdkVersion` em `android/app/build.gradle.kts`
-  (sem valor fixo) — ou seja, o nível da API segue o default embutido em
-  cada versão do Flutter SDK, não um número travado no código.
-- **O que isso significa na prática**: o requisito só é cumprido se o
-  **Flutter usado pelo Codemagic para gerar o build** estiver
-  razoavelmente atualizado. Se o Codemagic estiver com uma versão antiga do
-  Flutter presa em cache, o AAB gerado pode sair com um `targetSdkVersion`
-  desatualizado mesmo com esse código sem alterações.
-- Sempre que formos tratar um aviso de "nível da API desatualizado" do Play
-  Console, checar/atualizar a versão do Flutter usada no Codemagic antes de
-  mexer no `build.gradle.kts` — só travar um número fixo aqui se o
-  Codemagic não puder ser atualizado por algum motivo.
+- Por decisão explícita do usuário, `android/app/build.gradle.kts` usa
+  `compileSdk = 36` e `targetSdk = 36` **fixos** (não mais
+  `flutter.compileSdkVersion`/`flutter.targetSdkVersion`), pra não depender
+  da versão do Flutter usada no Codemagic pra cumprir essa exigência.
+- **Isso precisa ser revisado manualmente** sempre que a Play Store exigir
+  um nível mais novo (ela vai mandar um aviso parecido de novo quando o
+  Android 17/18/etc. sair e o prazo de "1 ano de defasagem" apertar de novo)
+  — não é mais algo que se resolve sozinho atualizando o Flutter.
 
 ### Teste fechado obrigatório antes de produção
 
