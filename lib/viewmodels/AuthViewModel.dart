@@ -26,14 +26,8 @@ class AuthViewModel {
     try {
       await _repository.loginComGoogle();
       return null;
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) return null;
-      return 'Não foi possível entrar com o Google. Tente novamente.';
-    } on FirebaseAuthException catch (e) {
-      // Usuario fechou o popup ou abriu outro antes de terminar: nao e erro,
-      // e o mesmo fluxo de "cancelou" do GoogleSignInException acima.
-      if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') return null;
-      return traduzirErroDeAuth(e.code);
+    } catch (e) {
+      return mapearErroLoginGoogle(e);
     }
   }
 
@@ -43,11 +37,8 @@ class AuthViewModel {
     try {
       await _repository.loginComApple();
       return null;
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code == AuthorizationErrorCode.canceled) return null;
-      return 'Não foi possível entrar com a Apple. Tente novamente.';
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e) {
+      return mapearErroLoginApple(e);
     }
   }
 
@@ -85,4 +76,39 @@ class AuthViewModel {
       return traduzirErroDeAuth(e.code);
     }
   }
+}
+
+/// Traduz qualquer erro lancado pelo fluxo de login com Google para uma
+/// mensagem de usuario, ou null se foi apenas um cancelamento.
+///
+/// Extraida como funcao (testavel sem depender do Firebase/plugins nativos)
+/// porque antes so tratavamos [GoogleSignInException] e [FirebaseAuthException]:
+/// qualquer outra excecao (ex.: PlatformException de uma falha de Play
+/// Services/Credential Manager no Android) subia sem ser capturada e o
+/// loading ficava preso pra sempre, dando a impressao de "nao acontece nada"
+/// ao selecionar a conta.
+String? mapearErroLoginGoogle(Object erro) {
+  if (erro is GoogleSignInException) {
+    if (erro.code == GoogleSignInExceptionCode.canceled) return null;
+    return 'Não foi possível entrar com o Google. Tente novamente.';
+  }
+  if (erro is FirebaseAuthException) {
+    // Usuario fechou o popup ou abriu outro antes de terminar: nao e erro,
+    // e o mesmo fluxo de "cancelou" do GoogleSignInException acima.
+    if (erro.code == 'popup-closed-by-user' || erro.code == 'cancelled-popup-request') return null;
+    return traduzirErroDeAuth(erro.code);
+  }
+  return 'Não foi possível entrar com o Google. Tente novamente.';
+}
+
+/// Mesma ideia de [mapearErroLoginGoogle], mas pro fluxo de Sign in with Apple.
+String? mapearErroLoginApple(Object erro) {
+  if (erro is SignInWithAppleAuthorizationException) {
+    if (erro.code == AuthorizationErrorCode.canceled) return null;
+    return 'Não foi possível entrar com a Apple. Tente novamente.';
+  }
+  if (erro is FirebaseAuthException) {
+    return traduzirErroDeAuth(erro.code);
+  }
+  return 'Não foi possível entrar com a Apple. Tente novamente.';
 }

@@ -25,7 +25,7 @@ void main() {
       expect(tamanho.width, 400);
     });
 
-    testWidgets('restringe a 50% da largura na web em tela larga (desktop)', (tester) async {
+    testWidgets('restringe proporcionalmente na web em tela larga (notebook)', (tester) async {
       final tamanho = await tamanhoDoFilho(
         tester,
         const Size(1400, 900),
@@ -34,7 +34,8 @@ void main() {
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
       );
-      expect(tamanho.width, 700); // 1400 * 0.5
+      // Faixa <=1400 (notebook) usa base 0.65 da escala calibrada em Responsive.dart.
+      expect(tamanho.width, 910); // 1400 * 0.65
     });
 
     testWidgets('respeita fracao customizada na web (video cards a 40%)', (tester) async {
@@ -47,7 +48,22 @@ void main() {
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
       );
-      expect(tamanho.width, 400); // 1000 * 0.4
+      // Faixa <=1000 usa base 0.85; 0.4 pedido escala essa base (0.4/0.5 = 80%).
+      expect(tamanho.width, 680); // 1000 * (0.85 * 0.8)
+    });
+
+    testWidgets('reduz a fracao efetiva conforme a tela fica mais larga (4K)', (tester) async {
+      final tamanho = await tamanhoDoFilho(
+        tester,
+        const Size(3840, 2160),
+        ResponsiveCenter(
+          isWebOverride: true,
+          child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
+        ),
+      );
+      // Faixa >2560 (4K) usa base 0.3, bem mais estreita que em telas menores,
+      // pra evitar cards/formularios esticados demais em monitores grandes.
+      expect(tamanho.width, 1152); // 3840 * 0.3
     });
 
     testWidgets('NAO restringe fora da web, mesmo em tela larga (Android/iOS)', (tester) async {
@@ -78,7 +94,7 @@ void main() {
       expect(tamanho.width, 350); // largura intrinseca do filho, sem teto aplicado
     });
 
-    testWidgets('aplica teto de 50% na web em tela larga mesmo se o filho pedir mais', (tester) async {
+    testWidgets('aplica teto proporcional na web em tela larga mesmo se o filho pedir mais', (tester) async {
       final tamanho = await tamanhoDoFilho(
         tester,
         const Size(1400, 900),
@@ -89,7 +105,7 @@ void main() {
           ),
         ),
       );
-      expect(tamanho.width, 700); // 1400 * 0.5, mesmo o filho pedindo 2000
+      expect(tamanho.width, 910); // 1400 * 0.65, mesmo o filho pedindo 2000
     });
 
     testWidgets('NAO aplica teto fora da web, mesmo em tela larga (Android/iOS)', (tester) async {
