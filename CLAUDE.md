@@ -29,6 +29,17 @@ Co-Authored-By: Marcos Patrick <marcospatrick039474@gmail.com>
 
 em toda mensagem de commit feita neste repositório.
 
+## Tags de release (gatilho de build do Codemagic)
+
+O Codemagic está configurado (27/jul/2026) pra só buildar quando uma tag
+`v*` é criada e enviada ao GitHub (push/PR comuns não disparam build).
+
+**Regra**: eu só crio e envio (`git push origin <tag>`) uma tag `v*` quando
+o usuário pedir isso explicitamente. Se ele só pedir pra commitar/subir/abrir
+PR, sem mencionar tag, eu faço só isso — sem criar tag nenhuma. Nem toda
+atualização do PTK Plays precisa gerar um build de iOS/Android via
+Codemagic.
+
 ## Regras da Google Play Store (Android)
 
 ### Nível desejado da API (target API level)
