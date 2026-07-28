@@ -62,7 +62,11 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file("upload-keystore.jks")
+            // Le o caminho do key.properties em vez de fixar "upload-keystore.jks":
+            // o Android code signing nativo do Codemagic gera o key.properties com
+            // o storeFile apontando pro caminho onde ele proprio colocou o keystore,
+            // que nao e necessariamente esse nome literal.
+            storeFile = file(keystoreProperties["storeFile"] as String)
             storePassword = keystoreProperties["storePassword"] as String
         }
     }
