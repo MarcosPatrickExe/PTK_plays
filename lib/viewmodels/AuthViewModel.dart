@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../data/models/UserModel.dart';
@@ -26,7 +27,8 @@ class AuthViewModel {
     try {
       await _repository.loginComGoogle();
       return null;
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('loginComGoogle falhou: $e\n$stack');
       return mapearErroLoginGoogle(e);
     }
   }
@@ -37,7 +39,8 @@ class AuthViewModel {
     try {
       await _repository.loginComApple();
       return null;
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('loginComApple falhou: $e\n$stack');
       return mapearErroLoginApple(e);
     }
   }
