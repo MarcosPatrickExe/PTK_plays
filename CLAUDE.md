@@ -70,3 +70,20 @@ publicação em produção:
 
 O PTK Plays cumpriu esse requisito em jul/2026 e já pode usar o botão
 "Solicitar a produção" no Play Console.
+
+## Assinatura (signing) do Android no Codemagic
+
+`android/app/build.gradle.kts` lê `storeFile` do `android/key.properties`
+(`file(keystoreProperties["storeFile"] as String)`), em vez de um nome fixo
+tipo `upload-keystore.jks`. Isso foi corrigido em 28/jul/2026 porque o
+recurso nativo "Enable Android code signing" da UI do Codemagic gera o
+próprio `key.properties` do jeito dele, apontando pro caminho onde ele
+mesmo colocou o keystore — um valor fixo no Gradle nunca bate com isso e o
+build falha com `Keystore file '...' not found for signing config
+'release'`, mesmo com o keystore certinho subido na UI.
+
+**Se esse erro voltar a aparecer**: não é falta de configurar o keystore de
+novo na UI — é sinal de que essa leitura dinâmica quebrou (ou o
+`key.properties` gerado pelo Codemagic não tem `storeFile`). Builds locais
+continuam precisando de um `android/key.properties` (gitignored) com a
+linha `storeFile=upload-keystore.jks`.
