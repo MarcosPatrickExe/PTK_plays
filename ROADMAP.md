@@ -36,3 +36,41 @@ da UI. Escopo, quando for feito:
   configurado manualmente na UI.
 - No painel do Codemagic, trocar o app de "Workflow Editor" para
   "codemagic.yaml" (toggle único, feito pelo usuário).
+
+## Login com Apple falhando em build de TestFlight/produção (investigação em aberto)
+
+Em 30/jul/2026 o build iOS no Codemagic falhava na assinatura com o erro
+"Provisioning profile ... doesn't include the Sign In with Apple capability /
+com.apple.developer.applesignin entitlement", mesmo o app já declarando o
+entitlement em `ios/Runner/Runner.entitlements`. Causa raiz: o provisioning
+profile "PTK Plays oficial community app ios_app_store 1783565999" tinha sido
+gerado no Apple Developer Portal antes da capability "Sign In with Apple" ser
+habilitada/propagada pro App ID. **Resolvido pelo usuário** habilitando a
+capability no App ID e regenerando o profile — build seguinte arquivou e
+enviou pra App Store Connect com sucesso.
+
+Com o build já em TestFlight, ao testar o botão "Entrar com a Apple" no
+dispositivo, apareceu o popup genérico "Ops! Não foi possível entrar com a
+Apple. Tente novamente." Essa mensagem vem de `mapearErroLoginApple` em
+`lib/viewmodels/AuthViewModel.dart` (linha ~108): ela cai nesse texto genérico
+sempre que a Apple retorna um `SignInWithAppleAuthorizationException` com
+código diferente de "cancelado" (ou qualquer outra exceção não mapeada). O
+erro real é logado via `debugPrint('loginComApple falhou: ...')`
+(commit `a5138f2`), mas isso só aparece em sessão de debug conectada — não
+aparece em build de TestFlight/produção sem o dispositivo conectado ao Mac
+via Console.app/Xcode.
+
+**Ainda não confirmado / próximos passos, quando o usuário retomar:**
+- Conectar o iPhone de teste ao Mac e capturar o log real
+  (Console.app ou Xcode → Devices and Simulators → View Device Logs,
+  filtrando por "PTK Plays") reproduzindo o erro, pra saber o código exato
+  do `AuthorizationErrorCode` retornado.
+- Conferir se **Firebase Console → Authentication → Sign-in method → Apple**
+  está habilitado (config separada da capability do Xcode/profile).
+- Conferir se o dispositivo de teste está logado numa conta Apple/iCloud
+  válida (com 2FA) — Sign In with Apple exige isso no aparelho.
+- Confirmar que o app instalado via TestFlight é a build nova (pós-fix do
+  profile), não uma cópia antiga já instalada antes do reenvio.
+- Depende de infraestrutura externa (dispositivo físico, Apple Developer
+  Portal, Firebase Console) não disponível neste ambiente — não dá pra
+  cobrir com teste unitário; a validação final é manual pelo usuário.
