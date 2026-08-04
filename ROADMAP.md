@@ -74,3 +74,46 @@ via Console.app/Xcode.
 - Depende de infraestrutura externa (dispositivo físico, Apple Developer
   Portal, Firebase Console) não disponível neste ambiente — não dá pra
   cobrir com teste unitário; a validação final é manual pelo usuário.
+
+## Integração futura com a API do WhatsApp Business (Meta)
+
+Em 04/ago/2026 o usuário começou a configurar o app no painel da Meta for
+Developers, com o caso de uso "Conectar-se com os clientes pelo WhatsApp"
+(WhatsApp Business Platform / Cloud API) já adicionado — os demais casos de
+uso sugeridos por padrão pelo painel (Marketing API, Gerenciador de Anúncios,
+API do Threads) não são necessários pro objetivo atual e podem ser removidos
+pra reduzir o escopo do App Review.
+
+**Motivações identificadas até agora**, quando for priorizado:
+- Autenticação/segurança: OTP no cadastro (template categoria
+  `authentication`), 2FA opcional pra usuários, confirmação de exclusão de
+  conta (`AuthRepository.excluirConta`), alerta de login em novo
+  dispositivo.
+- Engajamento: aviso de novo vídeo publicado no PTK, aviso de nova
+  atividade/mensagem na comunidade (fallback pra quem não usa push
+  notification do app), mensagem de boas-vindas automatizada no cadastro.
+- Suporte: canal de FAQ/suporte pelo número do WhatsApp Business, opção de
+  pedir exclusão de conta por lá.
+- Administração: alertas pro próprio usuário-dono (novo cadastro, denúncia
+  recebida, erro crítico) enquanto o app é pequeno o suficiente pra
+  acompanhar manualmente.
+
+**Peça de arquitetura que falta**: a API do WhatsApp é servidor-a-servidor
+(Graph API), não é algo que o app Flutter chama direto — precisa de um
+token permanente (System User, nunca embutido no client), um webhook HTTPS
+público pra receber eventos da Meta, e templates de mensagem pré-aprovados
+pra qualquer mensagem iniciada pelo app (categorias `authentication`,
+`utility`, `marketing`). Hoje o projeto só tem Firebase (Auth + Firestore)
+como backend, sem servidor próprio — o caminho natural é usar Cloud
+Functions do Firebase como ponte entre o webhook da Meta e o Firestore/app.
+
+Escopo estimado, quando for priorizado:
+- Criar Cloud Function(s) pra receber o webhook da Meta e outra(s) pra
+  chamar a Graph API e enviar mensagens.
+- Cadastrar e verificar o número de telefone comercial no painel da Meta.
+- Submeter os templates de mensagem necessários pra aprovação (OTP primeiro,
+  já que é o caso de uso mais simples de aprovar).
+- Completar a verificação de negócio (Business Verification) na Meta, que é
+  exigida pra escalar além do volume inicial de teste.
+- App Review das permissões `whatsapp_business_messaging` e
+  `whatsapp_business_management`.
