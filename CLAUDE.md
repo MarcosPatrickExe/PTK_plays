@@ -66,10 +66,30 @@ Apps novos (sem histórico de produção) publicados no Google Play precisam
 passar por um período de teste fechado antes de poder solicitar a
 publicação em produção:
 - Pelo menos 12 testadores que aceitaram participar.
-- Testagem contínua por no mínimo 14 dias a partir da data de revisão.
+- Testagem **contínua** por no mínimo 14 dias a partir da data de revisão.
 
-O PTK Plays cumpriu esse requisito em jul/2026 e já pode usar o botão
-"Solicitar a produção" no Play Console.
+O PTK Plays cumpriu esse requisito em jul/2026 e usou o botão "Solicitar a
+produção" no Play Console — mas em 04/ago/2026 o Google recusou com "Seu
+app precisa de mais testes para acessar a produção do Google Play" e
+reiniciou a contagem dos 14 dias do zero.
+
+**Causa raiz (não é bug de código, é operacional)**: a exigência não é "ter
+12 testadores por 14 dias no total" — é ter **pelo menos 12 testadores
+opt-in de forma ininterrupta** durante os 14 dias. Se em qualquer momento
+o número de testadores ativos cai abaixo de 12 (um testador desinstala o
+app, sai do grupo de teste, fica inativo o suficiente pro Google não
+considerar "uso orgânico", ou é filtrado por parecer bot/fake), **a
+contagem zera na hora** e recomeça do zero a partir daquele ponto.
+
+**O que NÃO reinicia a contagem**: subir uma nova versão/build durante o
+teste fechado não afeta o contador — ele rastreia os testadores estarem
+opt-in continuamente, não qual versão eles estão testando. Dá pra seguir
+iterando o app normalmente durante essa janela.
+
+**Como evitar reiniciar de novo**: manter um buffer de testadores acima de
+12 (ex.: 15-16 pessoas), combinar com eles pra não desinstalarem nem
+saírem do teste fechado durante as 2 semanas, e não fechar/pausar o teste
+fechado enquanto a contagem estiver rodando.
 
 ## Assinatura (signing) do Android no Codemagic
 
