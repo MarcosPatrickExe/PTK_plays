@@ -60,9 +60,10 @@ class AuthViewModel {
     required String nickname,
     required String email,
     required String senha,
+    String telefoneWhatsapp = '',
   }) async {
     try {
-      await _repository.cadastrar(nickname: nickname, email: email, senha: senha);
+      await _repository.cadastrar(nickname: nickname, email: email, senha: senha, telefoneWhatsapp: telefoneWhatsapp);
       return null;
     } on FirebaseAuthException catch (e) {
       return traduzirErroDeAuth(e.code);
@@ -102,6 +103,18 @@ String? mapearErroLoginGoogle(Object erro) {
     return traduzirErroDeAuth(erro.code);
   }
   return 'Não foi possível entrar com o Google. Tente novamente.';
+}
+
+/// Valida o numero de WhatsApp opcional informado no cadastro.
+/// Retorna null se for valido (inclusive vazio, ja que o campo e opcional),
+/// ou uma mensagem de erro se o que foi digitado nao parecer um numero valido.
+String? validarTelefoneWhatsapp(String telefone) {
+  final digitos = telefone.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digitos.isEmpty) return null;
+  if (digitos.length < 8 || digitos.length > 15) {
+    return 'Número de WhatsApp inválido. Informe com DDD (ou deixe em branco).';
+  }
+  return null;
 }
 
 /// Mesma ideia de [mapearErroLoginGoogle], mas pro fluxo de Sign in with Apple.

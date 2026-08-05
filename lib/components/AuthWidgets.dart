@@ -20,6 +20,8 @@ const String iconOlhoFechado =
     '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" stroke="#b9bfc9" stroke-width="1.8" fill="none"/><circle cx="12" cy="12" r="2.6" fill="#b9bfc9"/><line x1="3.5" y1="20.5" x2="20.5" y2="3.5" stroke="#b9bfc9" stroke-width="1.8" stroke-linecap="round"/></svg>';
 const String iconEmail =
     '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="#8a2bd0" stroke-width="2"/><path d="M4 6.5l8 6 8-6" stroke="#8a2bd0" stroke-width="2" fill="none"/></svg>';
+const String iconTelefone =
+    '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none"><path d="M6.6 3.5c.6-.2 1.2 0 1.5.5l1.6 2.7c.3.5.2 1.1-.2 1.5L8 9.7c.8 2 2.3 3.5 4.3 4.3l1.5-1.5c.4-.4 1-.5 1.5-.2l2.7 1.6c.5.3.7.9.5 1.5l-.7 2c-.2.6-.8 1-1.5 1-7 0-12.7-5.7-12.7-12.7 0-.7.4-1.3 1-1.5l2-.7z" fill="#8a2bd0"/></svg>';
 
 class LogoPTK extends StatelessWidget {
   final double size;

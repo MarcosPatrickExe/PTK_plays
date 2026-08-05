@@ -27,6 +27,7 @@ class AuthRepository {
     required String nickname,
     required String email,
     required String senha,
+    String telefoneWhatsapp = '',
   }) async {
     final nicknameChave = nickname.trim().toLowerCase();
 
@@ -40,7 +41,12 @@ class AuthRepository {
 
     await credential.user!.updateDisplayName(nickname);
 
-    final novoUsuario = UserModel.novoInscrito(uid: uid, nickname: nickname, email: email);
+    final novoUsuario = UserModel.novoInscrito(
+      uid: uid,
+      nickname: nickname,
+      email: email,
+      telefoneWhatsapp: telefoneWhatsapp,
+    );
     await _firestore.collection('users').doc(uid).set(novoUsuario.toFirestore());
 
     await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).set({
