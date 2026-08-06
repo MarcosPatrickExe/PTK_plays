@@ -79,8 +79,11 @@ class AuthRepository {
       await _auth.currentUser?.updateDisplayName(novoNickname);
     }
 
+    // ultimoAcesso precisa ser tocado em toda escrita: a regra de seguranca
+    // do Firestore exige request.resource.data.ultimoAcesso == request.time
+    // em qualquer update (ver firestore.rules), senao a escrita e recusada.
     await _firestore.collection('users').doc(uid).set(
-      {'nickname': novoNickname, 'telefoneWhatsapp': telefoneWhatsapp},
+      {'nickname': novoNickname, 'telefoneWhatsapp': telefoneWhatsapp, ...UserModel.touchUltimoAcesso()},
       SetOptions(merge: true),
     );
   }

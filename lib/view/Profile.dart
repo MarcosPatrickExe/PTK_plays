@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -6,12 +8,14 @@ import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
+import 'package:ptk_plays/data/models/Conquista.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
+import 'Conquistas.dart';
 import 'EditarPerfil.dart';
 import 'Login.dart';
 
@@ -62,7 +66,7 @@ String _formatarData(DateTime data) {
   return '$dia/$mes/${data.year}';
 }
 
-class Profile extends StatelessWidget {
+class Profile extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
   final String apiKey;
   final AuthViewModel authViewModel;
@@ -74,13 +78,42 @@ class Profile extends StatelessWidget {
     required this.authViewModel,
   });
 
+  @override
+  State<Profile> createState() => _ProfileState();
+}
+
+class _ProfileState extends State<Profile> {
+  // Assinatura propria (em vez de StreamBuilder) porque o botao de editar
+  // fica no cabecalho, fora da area que um StreamBuilder cobriria, e
+  // precisa do usuario atual pra navegar pra EditarPerfil. Feita uma unica
+  // vez em initState: repetir authViewModel.streamUsuarioAtual() a cada
+  // build() recriaria o Stream e reassinaria o listener do Firestore toda
+  // hora.
+  UserModel? _usuarioAtual;
+  late final StreamSubscription<UserModel?> _usuarioSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _usuarioSub = widget.authViewModel.streamUsuarioAtual().listen((usuario) {
+      if (mounted) setState(() => _usuarioAtual = usuario);
+    });
+  }
+
+  @override
+  void dispose() {
+    _usuarioSub.cancel();
+    super.dispose();
+  }
+
   Future<void> _sair(BuildContext context) async {
-    await authViewModel.logout();
+    await widget.authViewModel.logout();
     if (!context.mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (context) => Login(viewmodelYT: viewmodelYT, apiKey: apiKey, authViewModel: authViewModel),
+        builder: (context) =>
+            Login(viewmodelYT: widget.viewmodelYT, apiKey: widget.apiKey, authViewModel: widget.authViewModel),
       ),
       (route) => false,
     );
@@ -91,7 +124,7 @@ class Profile extends StatelessWidget {
       context: context,
       builder: (dialogContext) => _DialogoExcluirConta(
         onConfirmar: (senha) async {
-          final erro = await authViewModel.excluirConta(senha: senha);
+          final erro = await widget.authViewModel.excluirConta(senha: senha);
           if (!context.mounted) return;
 
           if (erro != null) {
@@ -101,7 +134,8 @@ class Profile extends StatelessWidget {
 
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => Login(viewmodelYT: viewmodelYT, apiKey: apiKey, authViewModel: authViewModel),
+              builder: (context) =>
+                  Login(viewmodelYT: widget.viewmodelYT, apiKey: widget.apiKey, authViewModel: widget.authViewModel),
             ),
             (route) => false,
           );
@@ -126,18 +160,26 @@ class Profile extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                buildHeader(title: "Perfil", widgetContext: context),
+                buildHeader(
+                  title: "Perfil",
+                  widgetContext: context,
+                  onEditar: _usuarioAtual == null
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EditarPerfil(usuario: _usuarioAtual!, authViewModel: widget.authViewModel),
+                          ),
+                        ),
+                ),
                 Expanded(
-                  child: StreamBuilder<UserModel?>(
-                    stream: authViewModel.streamUsuarioAtual(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+                  child: _usuarioAtual == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : Builder(
+                          builder: (context) {
+                            final usuario = _usuarioAtual!;
 
-                      final usuario = snapshot.data!;
-
-                      return ResponsiveCenter(
+                            return ResponsiveCenter(
                         child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         children: [
@@ -205,40 +247,30 @@ class Profile extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 10),
-                                usuario.badges.isEmpty
-                                    ? Text(
-                                        'Nenhuma badge conquistada ainda',
-                                        style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
-                                      )
-                                    : Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: usuario.badges.map((b) => _Chip(texto: b)).toList(),
-                                      ),
+                                // Badges sao conquistadas, nao editadas: tocar
+                                // nelas leva pra tela de Conquistas, com o
+                                // progresso pras que ainda faltam.
+                                GestureDetector(
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => Conquistas(authViewModel: widget.authViewModel),
+                                    ),
+                                  ),
+                                  child: usuario.badges.isEmpty
+                                      ? Text(
+                                          'Nenhuma badge conquistada ainda',
+                                          style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+                                        )
+                                      : Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: usuario.badges.map((b) => _Chip(texto: labelConquista(b))).toList(),
+                                        ),
+                                ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 24),
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => EditarPerfil(usuario: usuario, authViewModel: authViewModel),
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(54),
-                              side: BorderSide(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            ),
-                            child: Text(
-                              'Editar perfil',
-                              style: GoogleFonts.outfit(
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
                           OutlinedButton(
                             onPressed: () => _sair(context),
                             style: OutlinedButton.styleFrom(
@@ -286,9 +318,9 @@ class Profile extends StatelessWidget {
                 currentIndex: 2,
                 widgetContext: context,
                 isDark: isDark,
-                apiKey: apiKey,
-                ytViewModel: viewmodelYT,
-                authViewModel: authViewModel,
+                apiKey: widget.apiKey,
+                ytViewModel: widget.viewmodelYT,
+                authViewModel: widget.authViewModel,
               ),
             ),
           ),

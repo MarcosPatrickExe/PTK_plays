@@ -117,3 +117,59 @@ Escopo estimado, quando for priorizado:
   exigida pra escalar além do volume inicial de teste.
 - App Review das permissões `whatsapp_business_messaging` e
   `whatsapp_business_management`.
+
+## Ação pendente do usuário: publicar as novas regras do Firestore
+
+Em 05/ago/2026 `firestore.rules` foi alterado pra permitir que o cadastro já
+crie a conta com a badge `novato` (o `create` agora aceita `badges == []` OU
+`badges == ['novato']`, antes só aceitava lista vazia). **Editar esse arquivo
+no repo
+não atualiza as regras em produção** — precisa ser publicado manualmente
+(Firebase Console → Firestore Database → Regras → colar o conteúdo do
+`firestore.rules` atual → Publicar, ou `firebase deploy --only
+firestore:rules` via CLI local). Enquanto isso não for feito, o cadastro de
+conta nova vai falhar com erro de permissão, porque o app já está enviando
+`badges: ['novato']` mas as regras em produção ainda exigem lista vazia.
+
+## Sistema de conquistas (gamificação): tela criada, mas progresso não avança sozinho
+
+Em 05/ago/2026 foi criada a tela `Conquistas` (acessível tocando numa badge
+no Perfil), com um catálogo inicial de 4 conquistas em
+`lib/data/models/Conquista.dart`: `novato` (automática no cadastro),
+`comentarista` (10 comentários), `popular` (50 curtidas),
+`presencaVip` (5 cliques em lives) — baseadas nos contadores que já existiam
+em `UserModel.contadores` (`comentarios`, `curtidas`, `cliquesLive`), mas que
+nunca eram usados em lugar nenhum do app antes disso.
+
+**Dois gaps de arquitetura, do mesmo tipo do que já foi mapeado pra
+WhatsApp**:
+- **Nada incrementa `contadores` hoje.** Não existe feature de comentário ou
+  curtida implementada ainda (o app tem posts/enquetes/avisos, mas sem
+  comentar/curtir) nem contagem de cliques em live. Enquanto isso não
+  existir, a tela de Conquistas sempre mostra 0% de progresso pra todo mundo
+  — o que é o comportamento correto e esperado até lá, não um bug.
+- **O cliente não pode conceder badges sozinho.** `firestore.rules` trava
+  `badges`/`contadores` contra alteração pelo cliente depois da criação da
+  conta (anti-trapaça: só a `novato` inicial é permitida no create). Então,
+  mesmo quando os contadores existirem de verdade, conceder `comentarista`/
+  `popular`/`presencaVip` automaticamente quando a meta for atingida só pode
+  ser feito por um backend de confiança (Cloud Function com Admin SDK, que
+  ignora as regras de segurança) — a mesma peça de infraestrutura que falta
+  pra WhatsApp. Vale desenhar os dois juntos quando for priorizado.
+
+## Avatares pré-definidos no cadastro (aguardando imagens do usuário)
+
+Combinado em 05/ago/2026: no cadastro, o usuário vai poder escolher 1 de 6
+fotos de perfil pré-definidas (formas ovais, seleção única, estilo visual do
+PTK Plays), representando personas: **Gamer, Streamer, Inscrito do canal PTK
+Plays, Blogueiro, Maratonista de Séries/Filmes e Otaku** (confirmado que
+"Inscrito do canal" e "Otaku" são personas distintas, não devem ser
+mescladas). O usuário ainda vai enviar as 6 imagens.
+
+Decisões já tomadas, pra quando as imagens chegarem:
+- Vai um campo novo (`avatarPreset` ou nome parecido) em `UserModel`,
+  **separado** de `fotoUrl` (que continua reservado pra foto real vinda do
+  Google/Apple Sign-In) — não misturar os dois conceitos.
+- Também editável na tela `EditarPerfil`, mas numa **seção separada** da
+  seção de dados da conta (nickname/WhatsApp), pra manter a organização
+  visual entre os tipos de dado.

@@ -53,7 +53,10 @@ class UserModel {
       status: 'online',
       criadoEm: DateTime.now(),
       ultimoAcesso: null,
-      badges: const [],
+      // Toda conta nova ja nasce com essa badge (gamificacao); qualquer outra
+      // badge so pode ser concedida por um backend de confianca depois (ver
+      // firestore.rules: 'badges' e travada contra update pelo cliente).
+      badges: const ['novato'],
       contadores: const {'comentarios': 0, 'curtidas': 0, 'cliquesLive': 0},
       telefoneWhatsapp: telefoneWhatsapp,
     );

@@ -57,4 +57,11 @@ void main() {
       expect(UserModel.fromFirestore(data).telefoneWhatsapp, '');
     });
   });
+
+  group('UserModel.badges', () {
+    test('novoInscrito ja vem com a badge novato (gamificacao)', () {
+      final user = UserModel.novoInscrito(uid: 'u1', nickname: 'Fulano', email: 'fulano@teste.com');
+      expect(user.badges, ['novato']);
+    });
+  });
 }
