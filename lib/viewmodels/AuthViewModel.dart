@@ -45,6 +45,37 @@ class AuthViewModel {
     }
   }
 
+  /// Atualiza nickname e telefone de WhatsApp do usuario logado.
+  /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
+  ///
+  /// Nao ha teste de ponta a ponta pra esse metodo (assim como cadastrar/
+  /// login/excluirConta): ele depende do Firebase Auth/Firestore reais, que
+  /// nao estao disponiveis neste ambiente de desenvolvimento. A validacao do
+  /// nickname/telefone em si (validarNickname/validarTelefoneWhatsapp) e
+  /// testada isoladamente.
+  Future<String?> atualizarPerfil({
+    required String nicknameAtual,
+    required String novoNickname,
+    required String telefoneWhatsapp,
+  }) async {
+    final uid = uidAtual;
+    final email = _repository.usuarioAtual?.email;
+    if (uid == null || email == null) return 'Você precisa estar logado.';
+
+    try {
+      await _repository.atualizarPerfil(
+        uid: uid,
+        nicknameAtual: nicknameAtual,
+        novoNickname: novoNickname,
+        email: email,
+        telefoneWhatsapp: telefoneWhatsapp,
+      );
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return traduzirErroDeAuth(e.code);
+    }
+  }
+
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
   Future<String?> excluirConta({required String senha}) async {
     try {
@@ -103,6 +134,14 @@ String? mapearErroLoginGoogle(Object erro) {
     return traduzirErroDeAuth(erro.code);
   }
   return 'Não foi possível entrar com o Google. Tente novamente.';
+}
+
+/// Valida o nickname informado na edicao de perfil.
+/// Retorna null se valido, ou uma mensagem de erro.
+String? validarNickname(String nickname) {
+  if (nickname.trim().isEmpty) return 'Preencha o nickname.';
+  if (nickname.contains('@')) return 'O nickname não pode conter @.';
+  return null;
 }
 
 /// Valida o numero de WhatsApp opcional informado no cadastro, ja formatado

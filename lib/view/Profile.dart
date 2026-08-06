@@ -12,6 +12,7 @@ import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
+import 'EditarPerfil.dart';
 import 'Login.dart';
 
 const Color _corExcluir = Color(0xFFE0264F);
@@ -218,6 +219,26 @@ class Profile extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 24),
+                          OutlinedButton(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => EditarPerfil(usuario: usuario, authViewModel: authViewModel),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(54),
+                              side: BorderSide(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            ),
+                            child: Text(
+                              'Editar perfil',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           OutlinedButton(
                             onPressed: () => _sair(context),
                             style: OutlinedButton.styleFrom(

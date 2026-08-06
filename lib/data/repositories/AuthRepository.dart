@@ -55,6 +55,36 @@ class AuthRepository {
     });
   }
 
+  /// Atualiza nickname e/ou telefone de WhatsApp do usuario logado.
+  /// Se o nickname mudou, remapeia nicknamesParaEmail (usado pelo login por
+  /// nickname) pra continuar resolvendo pro email correto.
+  Future<void> atualizarPerfil({
+    required String uid,
+    required String nicknameAtual,
+    required String novoNickname,
+    required String email,
+    required String telefoneWhatsapp,
+  }) async {
+    final chaveAtual = nicknameAtual.trim().toLowerCase();
+    final novaChave = novoNickname.trim().toLowerCase();
+
+    if (novaChave != chaveAtual) {
+      final mapeamentoExistente = await _firestore.collection('nicknamesParaEmail').doc(novaChave).get();
+      if (mapeamentoExistente.exists) {
+        throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+      }
+
+      await _firestore.collection('nicknamesParaEmail').doc(chaveAtual).delete();
+      await _firestore.collection('nicknamesParaEmail').doc(novaChave).set({'uid': uid, 'email': email});
+      await _auth.currentUser?.updateDisplayName(novoNickname);
+    }
+
+    await _firestore.collection('users').doc(uid).set(
+      {'nickname': novoNickname, 'telefoneWhatsapp': telefoneWhatsapp},
+      SetOptions(merge: true),
+    );
+  }
+
   /// Aceita tanto email quanto nickname no campo de login: se tiver "@",
   /// trata como email direto; senao, resolve o email pelo mapeamento
   /// nicknamesParaEmail antes de autenticar.

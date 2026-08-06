@@ -84,7 +84,7 @@ class _CadastroState extends State<Cadastro> {
       nickname: nickname,
       email: email,
       senha: senha,
-      telefoneWhatsapp: _telefoneSemMascara(telefoneWhatsapp),
+      telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(telefoneWhatsapp),
     );
 
     if (!mounted) return;
@@ -100,15 +100,6 @@ class _CadastroState extends State<Cadastro> {
         builder: (context) => HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
       ),
     );
-  }
-
-  /// Extrai so os digitos do DDD+numero digitados na mascara, descartando o
-  /// "+55" fixo do prefixo. Retorna vazio se nada foi preenchido, ou o
-  /// numero em formato "+55DDNNNNNNNNN" pronto pra salvar.
-  String _telefoneSemMascara(String telefoneComMascara) {
-    final todosDigitos = telefoneComMascara.replaceAll(RegExp(r'[^0-9]'), '');
-    final digitos = todosDigitos.length > 2 ? todosDigitos.substring(2) : '';
-    return digitos.isEmpty ? '' : '+55$digitos';
   }
 
   @override
