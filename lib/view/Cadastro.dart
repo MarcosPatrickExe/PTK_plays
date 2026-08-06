@@ -7,6 +7,7 @@ import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -31,15 +32,23 @@ class Cadastro extends StatefulWidget {
 class _CadastroState extends State<Cadastro> {
   final _nicknameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _telefoneController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
   bool _carregando = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _telefoneController.text = MascaraTelefoneWhatsapp.mascaraVazia;
+  }
+
   Future<void> _criarConta() async {
     final nickname = _nicknameController.text.trim();
     final email = _emailController.text.trim();
+    final telefoneWhatsapp = _telefoneController.text.trim();
     final senha = _senhaController.text;
     final confirmarSenha = _confirmarSenhaController.text;
 
@@ -50,6 +59,12 @@ class _CadastroState extends State<Cadastro> {
 
     if (nickname.contains('@')) {
       mostrarErroCustom(context, title: "Ops!", msg: "O nickname não pode conter @.");
+      return;
+    }
+
+    final erroTelefone = validarTelefoneWhatsapp(telefoneWhatsapp);
+    if (erroTelefone != null) {
+      mostrarErroCustom(context, title: "Ops!", msg: erroTelefone);
       return;
     }
 
@@ -65,7 +80,12 @@ class _CadastroState extends State<Cadastro> {
 
     setState(() => _carregando = true);
 
-    final erro = await widget.authViewModel.cadastrar(nickname: nickname, email: email, senha: senha);
+    final erro = await widget.authViewModel.cadastrar(
+      nickname: nickname,
+      email: email,
+      senha: senha,
+      telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(telefoneWhatsapp),
+    );
 
     if (!mounted) return;
     setState(() => _carregando = false);
@@ -86,6 +106,7 @@ class _CadastroState extends State<Cadastro> {
   void dispose() {
     _nicknameController.dispose();
     _emailController.dispose();
+    _telefoneController.dispose();
     _senhaController.dispose();
     _confirmarSenhaController.dispose();
     super.dispose();
@@ -155,6 +176,16 @@ class _CadastroState extends State<Cadastro> {
                                   icone: iconEmail,
                                   hint: 'Digite seu email',
                                   keyboardType: TextInputType.emailAddress,
+                                ),
+                                const SizedBox(height: 16),
+                                CampoTexto(
+                                  isDark: isDark,
+                                  label: 'WhatsApp (opcional)',
+                                  controller: _telefoneController,
+                                  icone: iconTelefone,
+                                  hint: MascaraTelefoneWhatsapp.mascaraVazia,
+                                  keyboardType: TextInputType.phone,
+                                  inputFormatters: [MascaraTelefoneWhatsapp()],
                                 ),
                                 const SizedBox(height: 16),
                                 CampoTexto(

@@ -6,7 +6,7 @@ import "package:ptk_plays/utils/ThemeController.dart";
 import 'package:provider/provider.dart';
 
 
-Widget buildHeader({ required String title, required BuildContext widgetContext }) {
+Widget buildHeader({ required String title, required BuildContext widgetContext, VoidCallback? onEditar }) {
 
   final bool isDark = widgetContext.watch<ThemeController>().isDark;
 
@@ -34,22 +34,46 @@ Widget buildHeader({ required String title, required BuildContext widgetContext 
                   color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
                 ),
               ),
-              GestureDetector(
-                onTap: () => widgetContext.read<ThemeController>().toggleTheme(),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
-                    border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
+              Row(
+                children: [
+                  if (onEditar != null) ...[
+                    GestureDetector(
+                      onTap: onEditar,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
+                          border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
+                        ),
+                        child: Icon(
+                          Icons.edit,
+                          color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  GestureDetector(
+                    onTap: () => widgetContext.read<ThemeController>().toggleTheme(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
+                        border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
+                      ),
+                      child: Icon(
+                        isDark ? Icons.dark_mode : Icons.light_mode,
+                        color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
+                        size: 20,
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    isDark ? Icons.dark_mode : Icons.light_mode,
-                    color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
-                    size: 20,
-                  ),
-                ),
+                ],
               ),
             ],
           ),
