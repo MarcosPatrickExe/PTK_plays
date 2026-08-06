@@ -105,14 +105,18 @@ String? mapearErroLoginGoogle(Object erro) {
   return 'Não foi possível entrar com o Google. Tente novamente.';
 }
 
-/// Valida o numero de WhatsApp opcional informado no cadastro.
-/// Retorna null se for valido (inclusive vazio, ja que o campo e opcional),
-/// ou uma mensagem de erro se o que foi digitado nao parecer um numero valido.
+/// Valida o numero de WhatsApp opcional informado no cadastro, ja formatado
+/// pela mascara "+55 (DD) NNNNN-NNNN" (ver MascaraTelefoneWhatsapp).
+/// Retorna null se for valido (inclusive vazio/so a mascara, ja que o campo
+/// e opcional), ou uma mensagem de erro se o DDD+numero estiver incompleto.
 String? validarTelefoneWhatsapp(String telefone) {
-  final digitos = telefone.replaceAll(RegExp(r'[^0-9]'), '');
+  final todosDigitos = telefone.replaceAll(RegExp(r'[^0-9]'), '');
+  // Os 2 primeiros digitos sao sempre o "55" fixo do prefixo do pais da
+  // mascara, nao contam como informados pelo usuario.
+  final digitos = todosDigitos.length > 2 ? todosDigitos.substring(2) : '';
   if (digitos.isEmpty) return null;
-  if (digitos.length < 8 || digitos.length > 15) {
-    return 'Número de WhatsApp inválido. Informe com DDD (ou deixe em branco).';
+  if (digitos.length < 10 || digitos.length > 11) {
+    return 'Número de WhatsApp incompleto. Preencha o DDD e o número, ou deixe em branco.';
   }
   return null;
 }

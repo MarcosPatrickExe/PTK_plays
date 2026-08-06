@@ -7,6 +7,7 @@ import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -37,6 +38,12 @@ class _CadastroState extends State<Cadastro> {
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
   bool _carregando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _telefoneController.text = MascaraTelefoneWhatsapp.mascaraVazia;
+  }
 
   Future<void> _criarConta() async {
     final nickname = _nicknameController.text.trim();
@@ -77,7 +84,7 @@ class _CadastroState extends State<Cadastro> {
       nickname: nickname,
       email: email,
       senha: senha,
-      telefoneWhatsapp: telefoneWhatsapp,
+      telefoneWhatsapp: _telefoneSemMascara(telefoneWhatsapp),
     );
 
     if (!mounted) return;
@@ -93,6 +100,15 @@ class _CadastroState extends State<Cadastro> {
         builder: (context) => HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
       ),
     );
+  }
+
+  /// Extrai so os digitos do DDD+numero digitados na mascara, descartando o
+  /// "+55" fixo do prefixo. Retorna vazio se nada foi preenchido, ou o
+  /// numero em formato "+55DDNNNNNNNNN" pronto pra salvar.
+  String _telefoneSemMascara(String telefoneComMascara) {
+    final todosDigitos = telefoneComMascara.replaceAll(RegExp(r'[^0-9]'), '');
+    final digitos = todosDigitos.length > 2 ? todosDigitos.substring(2) : '';
+    return digitos.isEmpty ? '' : '+55$digitos';
   }
 
   @override
@@ -176,8 +192,9 @@ class _CadastroState extends State<Cadastro> {
                                   label: 'WhatsApp (opcional)',
                                   controller: _telefoneController,
                                   icone: iconTelefone,
-                                  hint: 'DDD + número, ex: 11999998888',
+                                  hint: MascaraTelefoneWhatsapp.mascaraVazia,
                                   keyboardType: TextInputType.phone,
+                                  inputFormatters: [MascaraTelefoneWhatsapp()],
                                 ),
                                 const SizedBox(height: 16),
                                 CampoTexto(

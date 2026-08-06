@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInputFormatter;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -123,6 +124,7 @@ class CampoTexto extends StatelessWidget {
   final bool obscure;
   final Widget? iconeFinal;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CampoTexto({
     super.key,
@@ -134,6 +136,7 @@ class CampoTexto extends StatelessWidget {
     this.obscure = false,
     this.iconeFinal,
     this.keyboardType,
+    this.inputFormatters,
   });
 
   @override
@@ -172,6 +175,7 @@ class CampoTexto extends StatelessWidget {
                   controller: controller,
                   obscureText: obscure,
                   keyboardType: keyboardType,
+                  inputFormatters: inputFormatters,
                   style: GoogleFonts.outfit(fontSize: 15, color: AuthTheme.inputTextColor),
                   decoration: InputDecoration(
                     border: InputBorder.none,
