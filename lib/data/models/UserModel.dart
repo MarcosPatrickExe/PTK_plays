@@ -20,6 +20,11 @@ class UserModel {
   // Opcional: usuario informa no cadastro se quiser (futuramente usado pra
   // notificacoes/recuperacao de conta/2FA via WhatsApp Business API).
   final String telefoneWhatsapp;
+  // Chave de um dos avatares pre-definidos (ver AvatarPreset.dart), escolhido
+  // no cadastro e trocavel na edicao de perfil. Vazio = sem preset escolhido
+  // (contas criadas antes desse campo existir, ou login social ainda sem
+  // escolha), caindo no fallback de fotoUrl/icone generico na UI.
+  final String avatarPreset;
 
   const UserModel({
     required this.uid,
@@ -34,6 +39,7 @@ class UserModel {
     required this.badges,
     required this.contadores,
     this.telefoneWhatsapp = '',
+    this.avatarPreset = '',
   });
 
   factory UserModel.novoInscrito({
@@ -42,6 +48,7 @@ class UserModel {
     required String email,
     String fotoUrl = '',
     String telefoneWhatsapp = '',
+    String avatarPreset = '',
   }) {
     return UserModel(
       uid: uid,
@@ -59,6 +66,7 @@ class UserModel {
       badges: const ['novato'],
       contadores: const {'comentarios': 0, 'curtidas': 0, 'cliquesLive': 0},
       telefoneWhatsapp: telefoneWhatsapp,
+      avatarPreset: avatarPreset,
     );
   }
 
@@ -77,6 +85,7 @@ class UserModel {
       contadores: Map<String, int>.from(data['contadores'] ?? {}),
       // Contas criadas antes desse campo existir nao tem essa chave no Firestore.
       telefoneWhatsapp: data['telefoneWhatsapp'] ?? '',
+      avatarPreset: data['avatarPreset'] ?? '',
     );
   }
 
@@ -94,6 +103,7 @@ class UserModel {
       'badges': badges,
       'contadores': contadores,
       'telefoneWhatsapp': telefoneWhatsapp,
+      'avatarPreset': avatarPreset,
     };
   }
 

@@ -157,19 +157,29 @@ WhatsApp**:
   ignora as regras de segurança) — a mesma peça de infraestrutura que falta
   pra WhatsApp. Vale desenhar os dois juntos quando for priorizado.
 
-## Avatares pré-definidos no cadastro (aguardando imagens do usuário)
+## Avatares pré-definidos no cadastro (implementado em 14/ago/2026)
 
-Combinado em 05/ago/2026: no cadastro, o usuário vai poder escolher 1 de 6
-fotos de perfil pré-definidas (formas ovais, seleção única, estilo visual do
-PTK Plays), representando personas: **Gamer, Streamer, Inscrito do canal PTK
-Plays, Blogueiro, Maratonista de Séries/Filmes e Otaku** (confirmado que
-"Inscrito do canal" e "Otaku" são personas distintas, não devem ser
-mescladas). O usuário ainda vai enviar as 6 imagens.
+No cadastro, o usuário escolhe 1 de 6 fotos de perfil pré-definidas (seleção
+única, obrigatória, estilo visual do PTK Plays), representando personas:
+**Gamer, Streamer, Inscrito do canal PTK Plays, Blogueiro, Maratonista de
+Séries/Filmes e Otaku**.
 
-Decisões já tomadas, pra quando as imagens chegarem:
-- Vai um campo novo (`avatarPreset` ou nome parecido) em `UserModel`,
+- `UserModel.avatarPreset` (`lib/data/models/UserModel.dart`): campo novo,
   **separado** de `fotoUrl` (que continua reservado pra foto real vinda do
-  Google/Apple Sign-In) — não misturar os dois conceitos.
-- Também editável na tela `EditarPerfil`, mas numa **seção separada** da
-  seção de dados da conta (nickname/WhatsApp), pra manter a organização
-  visual entre os tipos de dado.
+  Google/Apple Sign-In) — os dois conceitos não se misturam.
+- Catálogo em `lib/data/models/AvatarPreset.dart` (chave/label/asset), com as
+  6 imagens em `assets/avatares/avatar_<chave>.png` (fatiadas da arte
+  enviada pelo usuário).
+- Seletor visual reutilizável em `lib/components/SeletorAvatarPreset.dart`
+  (grid 3x2, destaque + check no selecionado).
+- No `Cadastro.dart`: seleção obrigatória, numa `CardVidro` própria acima do
+  formulário de conta (validada por `validarAvatarPreset`).
+- No `EditarPerfil.dart`: seção separada ("Foto de perfil"), abaixo da seção
+  de dados da conta (nickname/WhatsApp), como combinado — mantém a
+  organização visual entre os tipos de dado. Aqui a escolha não é
+  obrigatória (conta antiga sem preset continua válida).
+- Exibido no `Profile.dart` (`_CabecalhoPerfil`), com fallback pra `fotoUrl`
+  e depois pro ícone genérico, na mesma ordem de prioridade.
+- Não exige mudança no `firestore.rules`: é um campo cosmético comum,
+  coberto pela regra genérica de update do dono (`allow update: if
+  ehDono(userId) && ...`), sem trava anti-cheat como `badges`/`contadores`.

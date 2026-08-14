@@ -5,6 +5,7 @@ import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
+import 'package:ptk_plays/components/SeletorAvatarPreset.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
@@ -26,6 +27,8 @@ class _EditarPerfilState extends State<EditarPerfil> {
   late final _telefoneController = TextEditingController(
     text: MascaraTelefoneWhatsapp.aplicarEm(widget.usuario.telefoneWhatsapp),
   );
+  late String? _avatarPresetSelecionado =
+      widget.usuario.avatarPreset.isEmpty ? null : widget.usuario.avatarPreset;
   bool _carregando = false;
 
   Future<void> _salvar() async {
@@ -50,6 +53,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       nicknameAtual: widget.usuario.nickname,
       novoNickname: novoNickname,
       telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(telefoneWhatsapp),
+      avatarPreset: _avatarPresetSelecionado ?? '',
     );
 
     if (!mounted) return;
@@ -123,11 +127,41 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                     keyboardType: TextInputType.phone,
                                     inputFormatters: [MascaraTelefoneWhatsapp()],
                                   ),
-                                  const SizedBox(height: 22),
-                                  BotaoPrimario(label: 'Salvar alterações', carregando: _carregando, onTap: _salvar),
                                 ],
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            // Secao separada da acima (dados da conta): foto
+                            // de perfil e uma categoria de dado diferente,
+                            // por pedido explicito de manter a organizacao
+                            // visual entre os tipos de informacao na tela.
+                            CardVidro(
+                              isDark: isDark,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4, bottom: 12),
+                                    child: Text(
+                                      'Foto de perfil',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: .5,
+                                        color: isDark ? AuthTheme.labelDark : AuthTheme.labelLight,
+                                      ),
+                                    ),
+                                  ),
+                                  SeletorAvatarPreset(
+                                    isDark: isDark,
+                                    selecionado: _avatarPresetSelecionado,
+                                    onSelecionar: (chave) => setState(() => _avatarPresetSelecionado = chave),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 22),
+                            BotaoPrimario(label: 'Salvar alterações', carregando: _carregando, onTap: _salvar),
                           ],
                         ),
                       ),

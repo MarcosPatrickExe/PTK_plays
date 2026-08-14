@@ -6,6 +6,7 @@ import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
+import 'package:ptk_plays/components/SeletorAvatarPreset.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
@@ -38,6 +39,7 @@ class _CadastroState extends State<Cadastro> {
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
   bool _carregando = false;
+  String? _avatarPresetSelecionado;
 
   @override
   void initState() {
@@ -59,6 +61,12 @@ class _CadastroState extends State<Cadastro> {
 
     if (nickname.contains('@')) {
       mostrarErroCustom(context, title: "Ops!", msg: "O nickname não pode conter @.");
+      return;
+    }
+
+    final erroAvatar = validarAvatarPreset(_avatarPresetSelecionado);
+    if (erroAvatar != null) {
+      mostrarErroCustom(context, title: "Ops!", msg: erroAvatar);
       return;
     }
 
@@ -85,6 +93,7 @@ class _CadastroState extends State<Cadastro> {
       email: email,
       senha: senha,
       telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(telefoneWhatsapp),
+      avatarPreset: _avatarPresetSelecionado!,
     );
 
     if (!mounted) return;
@@ -156,6 +165,32 @@ class _CadastroState extends State<Cadastro> {
                             ),
                           ),
                           const SizedBox(height: 30),
+                          CardVidro(
+                            isDark: isDark,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                                  child: Text(
+                                    'Escolha seu avatar',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: .5,
+                                      color: isDark ? AuthTheme.labelDark : AuthTheme.labelLight,
+                                    ),
+                                  ),
+                                ),
+                                SeletorAvatarPreset(
+                                  isDark: isDark,
+                                  selecionado: _avatarPresetSelecionado,
+                                  onSelecionar: (chave) => setState(() => _avatarPresetSelecionado = chave),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           CardVidro(
                             isDark: isDark,
                             child: Column(

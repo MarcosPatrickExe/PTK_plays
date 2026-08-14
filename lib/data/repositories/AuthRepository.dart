@@ -28,6 +28,7 @@ class AuthRepository {
     required String email,
     required String senha,
     String telefoneWhatsapp = '',
+    String avatarPreset = '',
   }) async {
     final nicknameChave = nickname.trim().toLowerCase();
 
@@ -46,6 +47,7 @@ class AuthRepository {
       nickname: nickname,
       email: email,
       telefoneWhatsapp: telefoneWhatsapp,
+      avatarPreset: avatarPreset,
     );
     await _firestore.collection('users').doc(uid).set(novoUsuario.toFirestore());
 
@@ -64,6 +66,7 @@ class AuthRepository {
     required String novoNickname,
     required String email,
     required String telefoneWhatsapp,
+    required String avatarPreset,
   }) async {
     final chaveAtual = nicknameAtual.trim().toLowerCase();
     final novaChave = novoNickname.trim().toLowerCase();
@@ -83,7 +86,12 @@ class AuthRepository {
     // do Firestore exige request.resource.data.ultimoAcesso == request.time
     // em qualquer update (ver firestore.rules), senao a escrita e recusada.
     await _firestore.collection('users').doc(uid).set(
-      {'nickname': novoNickname, 'telefoneWhatsapp': telefoneWhatsapp, ...UserModel.touchUltimoAcesso()},
+      {
+        'nickname': novoNickname,
+        'telefoneWhatsapp': telefoneWhatsapp,
+        'avatarPreset': avatarPreset,
+        ...UserModel.touchUltimoAcesso(),
+      },
       SetOptions(merge: true),
     );
   }
