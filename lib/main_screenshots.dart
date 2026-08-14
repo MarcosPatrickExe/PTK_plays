@@ -71,6 +71,17 @@ class FakeAuthViewModel implements AuthViewModel {
     required String nickname,
     required String email,
     required String senha,
+    String telefoneWhatsapp = '',
+    String avatarPreset = '',
+  }) async =>
+      null;
+
+  @override
+  Future<String?> atualizarPerfil({
+    required String nicknameAtual,
+    required String novoNickname,
+    required String telefoneWhatsapp,
+    required String avatarPreset,
   }) async =>
       null;
 

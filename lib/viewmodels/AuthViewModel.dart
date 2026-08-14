@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../data/models/AvatarPreset.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/AuthRepository.dart';
 import '../utils/AuthErrorTranslator.dart';
@@ -57,6 +58,7 @@ class AuthViewModel {
     required String nicknameAtual,
     required String novoNickname,
     required String telefoneWhatsapp,
+    required String avatarPreset,
   }) async {
     final uid = uidAtual;
     final email = _repository.usuarioAtual?.email;
@@ -69,6 +71,7 @@ class AuthViewModel {
         novoNickname: novoNickname,
         email: email,
         telefoneWhatsapp: telefoneWhatsapp,
+        avatarPreset: avatarPreset,
       );
       return null;
     } on FirebaseAuthException catch (e) {
@@ -92,9 +95,16 @@ class AuthViewModel {
     required String email,
     required String senha,
     String telefoneWhatsapp = '',
+    String avatarPreset = '',
   }) async {
     try {
-      await _repository.cadastrar(nickname: nickname, email: email, senha: senha, telefoneWhatsapp: telefoneWhatsapp);
+      await _repository.cadastrar(
+        nickname: nickname,
+        email: email,
+        senha: senha,
+        telefoneWhatsapp: telefoneWhatsapp,
+        avatarPreset: avatarPreset,
+      );
       return null;
     } on FirebaseAuthException catch (e) {
       return traduzirErroDeAuth(e.code);
@@ -157,6 +167,15 @@ String? validarTelefoneWhatsapp(String telefone) {
   if (digitos.length < 10 || digitos.length > 11) {
     return 'Número de WhatsApp incompleto. Preencha o DDD e o número, ou deixe em branco.';
   }
+  return null;
+}
+
+/// Valida a escolha de avatar pre-definido no cadastro (obrigatoria: o
+/// usuario precisa escolher um dos 6 personas). Retorna null se valido, ou
+/// uma mensagem de erro.
+String? validarAvatarPreset(String? chave) {
+  if (chave == null || chave.isEmpty) return 'Escolha uma foto de perfil.';
+  if (!avatarPresetValido(chave)) return 'Foto de perfil inválida.';
   return null;
 }
 

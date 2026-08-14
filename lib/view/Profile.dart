@@ -8,6 +8,7 @@ import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
+import 'package:ptk_plays/data/models/AvatarPreset.dart';
 import 'package:ptk_plays/data/models/Conquista.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
@@ -337,15 +338,19 @@ class _CabecalhoPerfil extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final assetAvatarPreset = assetDoAvatarPreset(usuario.avatarPreset);
+
     return Column(
       children: [
         Container(
           width: 96,
           height: 96,
           decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AuthTheme.buttonGradient),
-          child: usuario.fotoUrl.isNotEmpty
-              ? ClipOval(child: Image.network(usuario.fotoUrl, fit: BoxFit.cover))
-              : const Icon(Icons.person, color: Colors.white, size: 48),
+          child: assetAvatarPreset != null
+              ? ClipOval(child: Image.asset(assetAvatarPreset, fit: BoxFit.cover))
+              : usuario.fotoUrl.isNotEmpty
+                  ? ClipOval(child: Image.network(usuario.fotoUrl, fit: BoxFit.cover))
+                  : const Icon(Icons.person, color: Colors.white, size: 48),
         ),
         const SizedBox(height: 12),
         Text(
