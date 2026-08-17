@@ -66,7 +66,44 @@ Apps novos (sem histórico de produção) publicados no Google Play precisam
 passar por um período de teste fechado antes de poder solicitar a
 publicação em produção:
 - Pelo menos 12 testadores que aceitaram participar.
-- Testagem contínua por no mínimo 14 dias a partir da data de revisão.
+- Testagem **contínua** por no mínimo 14 dias a partir da data de revisão.
 
-O PTK Plays cumpriu esse requisito em jul/2026 e já pode usar o botão
-"Solicitar a produção" no Play Console.
+O PTK Plays cumpriu esse requisito em jul/2026 e usou o botão "Solicitar a
+produção" no Play Console — mas em 04/ago/2026 o Google recusou com "Seu
+app precisa de mais testes para acessar a produção do Google Play" e
+reiniciou a contagem dos 14 dias do zero.
+
+**Causa raiz (não é bug de código, é operacional)**: a exigência não é "ter
+12 testadores por 14 dias no total" — é ter **pelo menos 12 testadores
+opt-in de forma ininterrupta** durante os 14 dias. Se em qualquer momento
+o número de testadores ativos cai abaixo de 12 (um testador desinstala o
+app, sai do grupo de teste, fica inativo o suficiente pro Google não
+considerar "uso orgânico", ou é filtrado por parecer bot/fake), **a
+contagem zera na hora** e recomeça do zero a partir daquele ponto.
+
+**O que NÃO reinicia a contagem**: subir uma nova versão/build durante o
+teste fechado não afeta o contador — ele rastreia os testadores estarem
+opt-in continuamente, não qual versão eles estão testando. Dá pra seguir
+iterando o app normalmente durante essa janela.
+
+**Como evitar reiniciar de novo**: manter um buffer de testadores acima de
+12 (ex.: 15-16 pessoas), combinar com eles pra não desinstalarem nem
+saírem do teste fechado durante as 2 semanas, e não fechar/pausar o teste
+fechado enquanto a contagem estiver rodando.
+
+## Assinatura (signing) do Android no Codemagic
+
+`android/app/build.gradle.kts` lê `storeFile` do `android/key.properties`
+(`file(keystoreProperties["storeFile"] as String)`), em vez de um nome fixo
+tipo `upload-keystore.jks`. Isso foi corrigido em 28/jul/2026 porque o
+recurso nativo "Enable Android code signing" da UI do Codemagic gera o
+próprio `key.properties` do jeito dele, apontando pro caminho onde ele
+mesmo colocou o keystore — um valor fixo no Gradle nunca bate com isso e o
+build falha com `Keystore file '...' not found for signing config
+'release'`, mesmo com o keystore certinho subido na UI.
+
+**Se esse erro voltar a aparecer**: não é falta de configurar o keystore de
+novo na UI — é sinal de que essa leitura dinâmica quebrou (ou o
+`key.properties` gerado pelo Codemagic não tem `storeFile`). Builds locais
+continuam precisando de um `android/key.properties` (gitignored) com a
+linha `storeFile=upload-keystore.jks`.

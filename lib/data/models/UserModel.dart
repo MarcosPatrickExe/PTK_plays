@@ -17,6 +17,14 @@ class UserModel {
   final DateTime? ultimoAcesso;
   final List<String> badges;
   final Map<String, int> contadores;
+  // Opcional: usuario informa no cadastro se quiser (futuramente usado pra
+  // notificacoes/recuperacao de conta/2FA via WhatsApp Business API).
+  final String telefoneWhatsapp;
+  // Chave de um dos avatares pre-definidos (ver AvatarPreset.dart), escolhido
+  // no cadastro e trocavel na edicao de perfil. Vazio = sem preset escolhido
+  // (contas criadas antes desse campo existir, ou login social ainda sem
+  // escolha), caindo no fallback de fotoUrl/icone generico na UI.
+  final String avatarPreset;
 
   const UserModel({
     required this.uid,
@@ -30,6 +38,8 @@ class UserModel {
     required this.ultimoAcesso,
     required this.badges,
     required this.contadores,
+    this.telefoneWhatsapp = '',
+    this.avatarPreset = '',
   });
 
   factory UserModel.novoInscrito({
@@ -37,6 +47,8 @@ class UserModel {
     required String nickname,
     required String email,
     String fotoUrl = '',
+    String telefoneWhatsapp = '',
+    String avatarPreset = '',
   }) {
     return UserModel(
       uid: uid,
@@ -48,8 +60,13 @@ class UserModel {
       status: 'online',
       criadoEm: DateTime.now(),
       ultimoAcesso: null,
-      badges: const [],
+      // Toda conta nova ja nasce com essa badge (gamificacao); qualquer outra
+      // badge so pode ser concedida por um backend de confianca depois (ver
+      // firestore.rules: 'badges' e travada contra update pelo cliente).
+      badges: const ['novato'],
       contadores: const {'comentarios': 0, 'curtidas': 0, 'cliquesLive': 0},
+      telefoneWhatsapp: telefoneWhatsapp,
+      avatarPreset: avatarPreset,
     );
   }
 
@@ -66,6 +83,9 @@ class UserModel {
       ultimoAcesso: (data['ultimoAcesso'] as Timestamp?)?.toDate(),
       badges: List<String>.from(data['badges'] ?? []),
       contadores: Map<String, int>.from(data['contadores'] ?? {}),
+      // Contas criadas antes desse campo existir nao tem essa chave no Firestore.
+      telefoneWhatsapp: data['telefoneWhatsapp'] ?? '',
+      avatarPreset: data['avatarPreset'] ?? '',
     );
   }
 
@@ -82,6 +102,8 @@ class UserModel {
       'ultimoAcesso': FieldValue.serverTimestamp(),
       'badges': badges,
       'contadores': contadores,
+      'telefoneWhatsapp': telefoneWhatsapp,
+      'avatarPreset': avatarPreset,
     };
   }
 

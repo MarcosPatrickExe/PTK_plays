@@ -27,6 +27,8 @@ class AuthRepository {
     required String nickname,
     required String email,
     required String senha,
+    String telefoneWhatsapp = '',
+    String avatarPreset = '',
   }) async {
     final nicknameChave = nickname.trim().toLowerCase();
 
@@ -40,13 +42,58 @@ class AuthRepository {
 
     await credential.user!.updateDisplayName(nickname);
 
-    final novoUsuario = UserModel.novoInscrito(uid: uid, nickname: nickname, email: email);
+    final novoUsuario = UserModel.novoInscrito(
+      uid: uid,
+      nickname: nickname,
+      email: email,
+      telefoneWhatsapp: telefoneWhatsapp,
+      avatarPreset: avatarPreset,
+    );
     await _firestore.collection('users').doc(uid).set(novoUsuario.toFirestore());
 
     await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).set({
       'uid': uid,
       'email': email,
     });
+  }
+
+  /// Atualiza nickname e/ou telefone de WhatsApp do usuario logado.
+  /// Se o nickname mudou, remapeia nicknamesParaEmail (usado pelo login por
+  /// nickname) pra continuar resolvendo pro email correto.
+  Future<void> atualizarPerfil({
+    required String uid,
+    required String nicknameAtual,
+    required String novoNickname,
+    required String email,
+    required String telefoneWhatsapp,
+    required String avatarPreset,
+  }) async {
+    final chaveAtual = nicknameAtual.trim().toLowerCase();
+    final novaChave = novoNickname.trim().toLowerCase();
+
+    if (novaChave != chaveAtual) {
+      final mapeamentoExistente = await _firestore.collection('nicknamesParaEmail').doc(novaChave).get();
+      if (mapeamentoExistente.exists) {
+        throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+      }
+
+      await _firestore.collection('nicknamesParaEmail').doc(chaveAtual).delete();
+      await _firestore.collection('nicknamesParaEmail').doc(novaChave).set({'uid': uid, 'email': email});
+      await _auth.currentUser?.updateDisplayName(novoNickname);
+    }
+
+    // ultimoAcesso precisa ser tocado em toda escrita: a regra de seguranca
+    // do Firestore exige request.resource.data.ultimoAcesso == request.time
+    // em qualquer update (ver firestore.rules), senao a escrita e recusada.
+    await _firestore.collection('users').doc(uid).set(
+      {
+        'nickname': novoNickname,
+        'telefoneWhatsapp': telefoneWhatsapp,
+        'avatarPreset': avatarPreset,
+        ...UserModel.touchUltimoAcesso(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   /// Aceita tanto email quanto nickname no campo de login: se tiver "@",

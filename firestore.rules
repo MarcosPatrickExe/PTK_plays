@@ -49,7 +49,11 @@ service cloud.firestore {
       // so aceita 'inscrito', e o update trava o cargo contra mudanca pelo cliente.
       allow create: if ehDono(userId)
         && request.resource.data.cargo == 'inscrito'
-        && request.resource.data.badges.size() == 0
+        // 'novato' e concedida automaticamente no cadastro (ver
+        // UserModel.novoInscrito); qualquer outra badge so pode ser
+        // concedida por um backend de confianca (fora do alcance do
+        // cliente), por isso o update abaixo trava 'badges' contra mudanca.
+        && (request.resource.data.badges == [] || request.resource.data.badges == ['novato'])
         && request.resource.data.contadores.comentarios == 0
         && request.resource.data.contadores.curtidas == 0
         && request.resource.data.contadores.cliquesLive == 0
