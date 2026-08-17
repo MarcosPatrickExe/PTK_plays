@@ -1,3 +1,4 @@
+import 'dart:typed_data' show Uint8List;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -13,6 +14,12 @@ class AuthViewModel {
 
   bool get usuarioLogado => _repository.usuarioAtual != null;
   String? get uidAtual => _repository.usuarioAtual?.uid;
+
+  /// Se a conta logada tem senha (email/senha), em vez de so login social
+  /// (Google/Apple) — usado pra so mostrar a secao de trocar senha em
+  /// EditarPerfil quando o usuario realmente tem uma senha pra trocar.
+  bool get temSenhaEmail =>
+      _repository.usuarioAtual?.providerData.any((p) => p.providerId == 'password') ?? false;
 
   Stream<UserModel?> streamUsuarioAtual() {
     final uid = _repository.usuarioAtual?.uid;
@@ -73,6 +80,34 @@ class AuthViewModel {
         telefoneWhatsapp: telefoneWhatsapp,
         avatarPreset: avatarPreset,
       );
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return traduzirErroDeAuth(e.code);
+    }
+  }
+
+  /// Envia uma nova foto de perfil (bytes ja recortados por ModalCropFoto)
+  /// pro Firebase Storage e atualiza o perfil. Retorna a URL em caso de
+  /// sucesso, ou uma mensagem de erro traduzida.
+  Future<({String? erro, String? url})> atualizarFotoPerfil({required Uint8List bytes}) async {
+    final uid = uidAtual;
+    if (uid == null) return (erro: 'Você precisa estar logado.', url: null);
+
+    try {
+      final url = await _repository.atualizarFotoPerfil(uid: uid, bytes: bytes);
+      return (erro: null, url: url);
+    } catch (e, stack) {
+      debugPrint('atualizarFotoPerfil falhou: $e\n$stack');
+      if (e is FirebaseException) return (erro: traduzirErroDeAuth(e.code), url: null);
+      return (erro: 'Não foi possível enviar a foto. Tente novamente.', url: null);
+    }
+  }
+
+  /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
+  /// So chamar quando [temSenhaEmail] for true.
+  Future<String?> alterarSenha({required String senhaAtual, required String novaSenha}) async {
+    try {
+      await _repository.alterarSenha(senhaAtual: senhaAtual, novaSenha: novaSenha);
       return null;
     } on FirebaseAuthException catch (e) {
       return traduzirErroDeAuth(e.code);
@@ -167,6 +202,24 @@ String? validarTelefoneWhatsapp(String telefone) {
   if (digitos.length < 10 || digitos.length > 11) {
     return 'Número de WhatsApp incompleto. Preencha o DDD e o número, ou deixe em branco.';
   }
+  return null;
+}
+
+/// Valida os 3 campos opcionais de troca de senha na edicao de perfil.
+/// Deixar todos vazios (usuario nao quer trocar de senha) e valido. Se
+/// qualquer um for preenchido, todos precisam estar corretos. Retorna null
+/// se valido, ou uma mensagem de erro.
+String? validarTrocaSenha({
+  required String senhaAtual,
+  required String novaSenha,
+  required String confirmarNovaSenha,
+}) {
+  final algumPreenchido = senhaAtual.isNotEmpty || novaSenha.isNotEmpty || confirmarNovaSenha.isNotEmpty;
+  if (!algumPreenchido) return null;
+
+  if (senhaAtual.isEmpty) return 'Informe sua senha atual pra trocar de senha.';
+  if (novaSenha.length < 6) return 'A nova senha precisa ter pelo menos 6 caracteres.';
+  if (novaSenha != confirmarNovaSenha) return 'As senhas não coincidem.';
   return null;
 }
 
