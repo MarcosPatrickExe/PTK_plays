@@ -64,5 +64,20 @@ void main() {
       final erroInesperado = Exception('erro nativo qualquer nao mapeado');
       expect(mapearErroLoginApple(erroInesperado), isNotNull);
     });
+
+    test('codigo "unknown" (tipico de dispositivo sem Apple ID/iCloud) explica a causa provavel', () {
+      // Regressao relatada pelo usuario: popup generico "Ops! Nao foi
+      // possivel entrar com a Apple" ao testar num simulador de iPhone via
+      // Sauce Labs. A Apple retorna AuthorizationErrorCode.unknown quando o
+      // dispositivo nao tem uma conta Apple/iCloud logada, que e o caso
+      // padrao de simuladores/nuvens de teste.
+      final erro = SignInWithAppleAuthorizationException(
+        code: AuthorizationErrorCode.unknown,
+        message: 'unknown',
+      );
+      final mensagem = mapearErroLoginApple(erro);
+      expect(mensagem, contains('conta Apple'));
+      expect(mensagem, contains('iCloud'));
+    });
   });
 }

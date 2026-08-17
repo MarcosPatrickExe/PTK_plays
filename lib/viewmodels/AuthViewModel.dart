@@ -183,6 +183,17 @@ String? validarAvatarPreset(String? chave) {
 String? mapearErroLoginApple(Object erro) {
   if (erro is SignInWithAppleAuthorizationException) {
     if (erro.code == AuthorizationErrorCode.canceled) return null;
+    // O sistema operacional retorna "unknown" (ASAuthorizationError 1000)
+    // sempre que a autorizacao falha antes de chegar a um motivo especifico
+    // (invalidResponse/notHandled/failed/etc.) — na pratica, isso acontece
+    // quase sempre porque o dispositivo/simulador nao esta logado numa conta
+    // Apple (iCloud) com autenticacao de dois fatores, o que o Sign in with
+    // Apple exige no nivel do sistema. E o caso tipico de simuladores/nuvens
+    // de teste (ex: Sauce Labs) sem Apple ID configurado — nao e algo que o
+    // app consiga contornar em codigo.
+    if (erro.code == AuthorizationErrorCode.unknown) {
+      return 'Não foi possível entrar com a Apple. Verifique se este dispositivo está conectado a uma conta Apple (iCloud) com autenticação de dois fatores — dispositivos de teste/simuladores sem conta Apple configurada não conseguem usar esse login.';
+    }
     return 'Não foi possível entrar com a Apple. Tente novamente.';
   }
   if (erro is FirebaseAuthException) {

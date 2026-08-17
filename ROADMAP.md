@@ -75,6 +75,39 @@ via Console.app/Xcode.
   Portal, Firebase Console) não disponível neste ambiente — não dá pra
   cobrir com teste unitário; a validação final é manual pelo usuário.
 
+### Reprodução em 17/ago/2026: emulador de iPhone via Sauce Labs
+
+O usuário testou o botão "Entrar com a Apple" num emulador de iPhone
+rodando através do Sauce Labs (nuvem de dispositivos/emuladores pra teste) e
+recebeu o mesmo popup genérico "Ops! Não foi possível entrar com a Apple.
+Tente novamente.".
+
+**Causa mais provável (ambiental, não é bug de código)**: o
+`SignInWithAppleAuthorizationException` com código `unknown`
+(`ASAuthorizationError` 1000 no lado nativo da Apple) é o que o sistema
+operacional retorna quando a autorização falha antes de chegar a um motivo
+mais específico — na prática, isso acontece quase sempre porque o
+dispositivo/emulador **não está logado numa conta Apple (iCloud) com
+autenticação de dois fatores**, que é uma exigência do Sign In with Apple
+no nível do sistema operacional, independente do app. Emuladores/nuvens de
+teste como o Sauce Labs tipicamente não vêm com uma conta Apple configurada
+por padrão — não é algo que o código do app consiga contornar.
+
+**O que foi feito no código** (`mapearErroLoginApple` em
+`lib/viewmodels/AuthViewModel.dart`): o código `unknown` agora retorna uma
+mensagem mais específica pro usuário, explicando que o dispositivo precisa
+estar conectado a uma conta Apple/iCloud com 2FA, em vez do texto genérico
+de "tente novamente" — evita achar que é sempre um bug quando na maioria
+das vezes é o ambiente de teste que não tem Apple ID configurado. Coberto
+por teste em `test/auth_error_mapping_test.dart`
+(`mapearErroLoginApple codigo "unknown" ...`).
+
+**O que falta pro usuário confirmar**: testar com uma conta Apple/iCloud
+real logada no emulador (se o Sauce Labs permitir configurar isso na
+sessão) ou, preferencialmente, num dispositivo físico próprio já logado no
+iCloud — se o erro sumir nesse cenário, confirma que a causa era mesmo a
+ausência de conta Apple no ambiente de teste, não um bug no app.
+
 ## Integração futura com a API do WhatsApp Business (Meta)
 
 Em 04/ago/2026 o usuário começou a configurar o app no painel da Meta for
