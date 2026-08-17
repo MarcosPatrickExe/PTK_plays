@@ -2,6 +2,49 @@
 
 Itens identificados mas propositalmente adiados por não serem bloqueantes no momento.
 
+## Upload de foto de perfil, troca de senha e avatar padrão (implementado em 17/ago/2026)
+
+Implementado em `lib/view/EditarPerfil.dart` a pedido do usuário:
+
+- **Foto de perfil com upload próprio**: novo componente no topo da tela
+  (`_FotoPerfilEditavel`), com um botão de lápis sobreposto que abre o
+  seletor de imagens do dispositivo (`image_picker`) e depois um modal
+  fullscreen de recorte/zoom (`lib/components/ModalCropFoto.dart` — pan
+  livre com `InteractiveViewer`, zoom por botões +/-, captura via
+  `RenderRepaintBoundary.toImage()`). Os bytes recortados (PNG) são
+  enviados pro Firebase Storage em `fotos_perfil/{uid}/foto.png`
+  (`AuthRepository.atualizarFotoPerfil`), que atualiza `fotoUrl` no
+  Firestore e **limpa `avatarPreset`** — a foto enviada vira o avatar ativo,
+  já que o preset tem prioridade sobre `fotoUrl` na exibição (ver abaixo).
+- **Trocar senha**: nova seção opcional em EditarPerfil (3 campos: senha
+  atual, nova senha, confirmar), só visível pra contas com provider de
+  email/senha (`AuthViewModel.temSenhaEmail`, contas só-Google/só-Apple não
+  veem essa seção). Reautentica com a senha atual antes de trocar
+  (`AuthRepository.alterarSenha`), como já era feito em `excluirConta`.
+- **Avatar padrão pra contas legadas**: contas sem `avatarPreset` escolhido
+  e sem `fotoUrl` (criadas antes do recurso de avatares existir, ou login
+  social sem foto do provedor) agora caem no preset "Inscrito do canal" em
+  vez de um ícone genérico — `AvatarPreset.chavePresetParaExibir` centraliza
+  essa prioridade (preset > fotoUrl > padrão) e é usada tanto em
+  `Profile.dart` quanto no topo de `EditarPerfil.dart`, pra nunca mostrar
+  coisas diferentes nas duas telas.
+- **Bugfix da máscara de WhatsApp**: `MascaraTelefoneWhatsapp.formatEditUpdate`
+  extraía dígitos do texto inteiro, incluindo o "+55" fixo do prefixo (que
+  também contém dígitos '5'), fazendo qualquer edição/apagamento no meio da
+  máscara (não só no final) corromper o número. Corrigido removendo o
+  prefixo fixo antes de extrair dígitos, e reposicionando o cursor com base
+  em quantos dígitos reais existiam antes dele (não sempre no fim).
+
+**Pendência que só o usuário consegue resolver (infraestrutura externa)**:
+o Firebase Storage precisa estar habilitado no Firebase Console pro projeto
+`ptk-plays`, e as regras em `storage.rules` (criado nesse commit, cada
+usuário só escreve na própria pasta `fotos_perfil/{uid}/`, até 5MB, só
+imagens) precisam ser publicadas lá — mesmo processo manual já feito antes
+pro `firestore.rules`. Sem isso, o upload de foto falha com erro de
+permissão. Não dá pra validar o upload de ponta a ponta neste ambiente de
+desenvolvimento (sem acesso ao Firebase real); o fluxo de UI (seleção,
+recorte, zoom, pan) foi validado interativamente num navegador.
+
 ## Suporte a múltiplos idiomas (internacionalização)
 
 Hoje o app tem todas as strings em português hardcoded direto nas telas. Não é

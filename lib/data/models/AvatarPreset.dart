@@ -28,3 +28,18 @@ String? assetDoAvatarPreset(String chave) {
   }
   return null;
 }
+
+/// Avatar padrao aplicado a contas sem preset escolhido e sem fotoUrl (ex:
+/// contas criadas antes desse recurso existir, ou login social sem foto do
+/// provedor) — em vez de cair num icone generico.
+const String avatarPresetPadrao = 'inscrito';
+
+/// Resolve a chave de preset a usar na exibicao: o preset escolhido tem
+/// prioridade (se existir); senao, se a conta ja tem uma fotoUrl (Google/
+/// Apple Sign-In ou upload proprio), retorna vazio pra sinalizar "usar
+/// fotoUrl"; senao, cai no [avatarPresetPadrao].
+String chavePresetParaExibir({required String avatarPreset, required String fotoUrl}) {
+  if (avatarPreset.isNotEmpty) return avatarPreset;
+  if (fotoUrl.isNotEmpty) return '';
+  return avatarPresetPadrao;
+}

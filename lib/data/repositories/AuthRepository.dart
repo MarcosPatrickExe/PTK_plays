@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math';
+import 'dart:typed_data' show Uint8List;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -12,6 +14,7 @@ import '../models/UserModel.dart';
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // "Web client" gerado automaticamente pelo Firebase ao ativar o Google
   // Sign-In (google-services.json / GoogleService-Info.plist). Nao e segredo,
@@ -231,5 +234,35 @@ class AuthRepository {
 
     await _firestore.collection('users').doc(user.uid).delete();
     await user.delete();
+  }
+
+  /// Envia os bytes (ja recortados/redimensionados por ModalCropFoto) pro
+  /// Firebase Storage e grava a fotoUrl resultante no perfil, limpando o
+  /// avatarPreset — a foto enviada passa a ser o avatar ativo, ja que
+  /// chavePresetParaExibir da prioridade ao preset sobre fotoUrl quando os
+  /// dois estao preenchidos.
+  Future<String> atualizarFotoPerfil({required String uid, required Uint8List bytes}) async {
+    final ref = _storage.ref('fotos_perfil/$uid/foto.png');
+    await ref.putData(bytes, SettableMetadata(contentType: 'image/png'));
+    final url = await ref.getDownloadURL();
+
+    await _firestore.collection('users').doc(uid).set(
+      {'fotoUrl': url, 'avatarPreset': '', ...UserModel.touchUltimoAcesso()},
+      SetOptions(merge: true),
+    );
+
+    return url;
+  }
+
+  /// So funciona pra contas com provider de email/senha (ver
+  /// AuthViewModel.temSenhaEmail) — Firebase exige reautenticacao recente
+  /// pra operacoes sensiveis como troca de senha.
+  Future<void> alterarSenha({required String senhaAtual, required String novaSenha}) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final credential = EmailAuthProvider.credential(email: user.email!, password: senhaAtual);
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(novaSenha);
   }
 }
