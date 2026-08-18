@@ -194,6 +194,36 @@ class CampoTexto extends StatelessWidget {
   }
 }
 
+/// Image.network com feedback de carregamento (spinner) e de erro (icone de
+/// pessoa), usado nas fotos de perfil (Profile.dart, EditarPerfil.dart).
+/// Sem isso, uma foto que ainda esta carregando ou que falha em carregar
+/// (ex: bucket do Firebase Storage sem CORS liberado pra Web) fica um
+/// circulo em branco, sem nenhuma pista do que aconteceu.
+class FotoPerfilRede extends StatelessWidget {
+  final String url;
+  final double iconeErroSize;
+  const FotoPerfilRede({super.key, required this.url, this.iconeErroSize = 48});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progresso) {
+        if (progresso == null) return child;
+        return const Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) => Icon(Icons.person, color: Colors.white, size: iconeErroSize),
+    );
+  }
+}
+
 class BotaoPrimario extends StatelessWidget {
   final String label;
   final bool carregando;

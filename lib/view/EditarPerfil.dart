@@ -9,6 +9,7 @@ import 'package:ptk_plays/components/ModalCropFoto.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/components/SeletorAvatarPreset.dart';
+import 'package:ptk_plays/components/Toast.dart';
 import 'package:ptk_plays/data/models/AvatarPreset.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
@@ -63,7 +64,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
     setState(() => _enviandoFoto = false);
 
     if (resultado.erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: resultado.erro!);
+      mostrarToast(context, mensagem: resultado.erro!, erro: true);
       return;
     }
 
@@ -74,6 +75,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       _fotoUrl = resultado.url!;
       _avatarPresetSelecionado = null;
     });
+    mostrarToast(context, mensagem: 'Foto de perfil atualizada!');
   }
 
   Future<void> _salvar() async {
@@ -113,7 +115,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       if (!mounted) return;
       if (erroTrocaSenha != null) {
         setState(() => _carregando = false);
-        mostrarErroCustom(context, title: "Ops!", msg: erroTrocaSenha);
+        mostrarToast(context, mensagem: erroTrocaSenha, erro: true);
         return;
       }
     }
@@ -129,10 +131,11 @@ class _EditarPerfilState extends State<EditarPerfil> {
     setState(() => _carregando = false);
 
     if (erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erro);
+      mostrarToast(context, mensagem: erro, erro: true);
       return;
     }
 
+    mostrarToast(context, mensagem: 'Perfil salvo com sucesso!');
     Navigator.of(context).pop();
   }
 
@@ -383,7 +386,7 @@ class _FotoPerfilEditavel extends StatelessWidget {
               child: assetPreset != null
                   ? ClipOval(child: Image.asset(assetPreset, fit: BoxFit.cover))
                   : fotoUrl.isNotEmpty
-                      ? ClipOval(child: Image.network(fotoUrl, fit: BoxFit.cover))
+                      ? ClipOval(child: FotoPerfilRede(url: fotoUrl, iconeErroSize: 40))
                       : ClipOval(child: Image.asset(assetDoAvatarPreset(avatarPresetPadrao)!, fit: BoxFit.cover)),
             ),
             Positioned(

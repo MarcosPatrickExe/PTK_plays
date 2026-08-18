@@ -17,6 +17,33 @@ refatoração), devo:
    claramente qual é o motivo e o que falta para o usuário validar por conta
    própria.
 
+## Regra permanente: feedback de ações (Toast) e indicador de carregamento
+
+Padrão de UI definido em 18/ago/2026, a ser seguido em toda tela nova ou
+alterada:
+
+- **Resultado de uma ação de salvar/atualizar/enviar dados** (ex: salvar
+  perfil, trocar senha, enviar foto) deve mostrar um **Toast** no topo da
+  tela — `mostrarToast(context, mensagem: '...', erro: true/false)`, em
+  `lib/components/Toast.dart`. É um feedback não-bloqueante que some sozinho
+  (~3s), tanto pra sucesso quanto pra erro dessa ação específica.
+- **Erros de validação de formulário** (campo obrigatório vazio, formato
+  inválido, senhas não coincidem — algo que o usuário precisa corrigir antes
+  de tentar de novo) continuam usando o modal bloqueante
+  `mostrarErroCustom` (`lib/components/ModalMSG.dart`), que exige toque pra
+  fechar — faz mais sentido reter a atenção do usuário nesses casos.
+- **Toda operação assíncrona que demora perceptivelmente** (carregar dados
+  do Firestore/API, enviar uma imagem, etc.) deve mostrar um
+  `CircularProgressIndicator` enquanto isso — usar a cor do tema
+  (`isDark ? AuthTheme.linkDark : AuthTheme.linkLight`) pra loading de tela
+  inteira/seção, ou `CircularProgressIndicator(strokeWidth: 2, color:
+  Colors.white)` dentro de um botão/badge pequeno (padrão já usado em
+  `BotaoPrimario` e no botão de trocar foto em EditarPerfil.dart).
+
+Login.dart, Cadastro.dart e o diálogo de excluir conta em Profile.dart ainda
+usam só `mostrarErroCustom` pros próprios erros (não foram retrofitados pra
+Toast ainda) — ao mexer nessas telas de novo, alinhar com essa regra.
+
 ## Convenção de commits
 
 Meus commits usam o identificador de git configurado no ambiente

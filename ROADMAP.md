@@ -45,6 +45,40 @@ permissão. Não dá pra validar o upload de ponta a ponta neste ambiente de
 desenvolvimento (sem acesso ao Firebase real); o fluxo de UI (seleção,
 recorte, zoom, pan) foi validado interativamente num navegador.
 
+### Foto enviada não aparece na Web (18/ago/2026): provável falta de CORS no bucket
+
+Depois do Storage habilitado e das regras publicadas, o usuário conseguiu
+subir a foto (sem erro), mas ela aparece como um círculo em branco (só o
+gradiente de fundo, sem a imagem) tanto em EditarPerfil quanto em Profile,
+mesmo depois do ícone de carregamento sumir.
+
+**Causa mais provável**: o build Web usa o renderer CanvasKit, que carrega
+imagens de rede via `fetch()` pra decodificar via Skia — isso ativa a
+checagem de CORS do navegador, diferente de uma tag `<img>` comum. Buckets
+do Firebase Storage não vêm com CORS liberado por padrão, então o
+`fetch()` da `fotoUrl` é bloqueado silenciosamente (sem erro visível pro
+usuário, só a imagem não aparece). É um problema conhecido de Flutter Web +
+Firebase Storage, não um bug no código do app — `Image.network` já foi
+trocado por `FotoPerfilRede` (`lib/components/AuthWidgets.dart`), que pelo
+menos mostra um ícone de erro em vez de ficar em branco quando isso
+acontece, mas a causa raiz (CORS do bucket) só se resolve configurando o
+bucket.
+
+**Correção (só o usuário consegue fazer, exige acesso ao bucket real)**:
+aplicar o `cors.json` (criado na raiz do repo) no bucket via `gsutil`,
+rodando pelo **Google Cloud Shell** (console.cloud.google.com → ícone de
+terminal `>_` no topo, não precisa instalar nada):
+
+```
+gsutil cors set cors.json gs://ptk-plays.firebasestorage.app
+```
+
+(precisa subir o `cors.json` pro Cloud Shell antes — tem um botão de upload
+de arquivo lá dentro, ou dá pra colar o conteúdo com um editor de texto tipo
+`nano cors.json` direto no terminal). Depois de rodar, `gsutil cors get
+gs://ptk-plays.firebasestorage.app` confirma que aplicou. Não precisa
+refazer isso a cada deploy — é uma config do bucket, não do código.
+
 ## Suporte a múltiplos idiomas (internacionalização)
 
 Hoje o app tem todas as strings em português hardcoded direto nas telas. Não é

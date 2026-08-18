@@ -175,7 +175,7 @@ class _ProfileState extends State<Profile> {
                 ),
                 Expanded(
                   child: _usuarioAtual == null
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Center(child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight))
                       : Builder(
                           builder: (context) {
                             final usuario = _usuarioAtual!;
@@ -350,7 +350,7 @@ class _CabecalhoPerfil extends StatelessWidget {
           child: assetAvatarPreset != null
               ? ClipOval(child: Image.asset(assetAvatarPreset, fit: BoxFit.cover))
               : usuario.fotoUrl.isNotEmpty
-                  ? ClipOval(child: Image.network(usuario.fotoUrl, fit: BoxFit.cover))
+                  ? ClipOval(child: FotoPerfilRede(url: usuario.fotoUrl))
                   : const Icon(Icons.person, color: Colors.white, size: 48),
         ),
         const SizedBox(height: 12),
