@@ -39,6 +39,54 @@ void main() {
     });
   });
 
+  group('MascaraTelefoneWhatsapp (edicao em cima de um campo ja mascarado)', () {
+    // Regressao relatada pelo usuario: apagar ou alterar um digito dentro da
+    // mascara (nao so no final) nao funcionava. A causa era o formatador
+    // extrair digitos do texto INTEIRO (incluindo o "+55" fixo do prefixo,
+    // que tambem contem os digitos '5' e '5'), absorvendo esses 2 digitos
+    // "de mentira" como se fossem do DDD e deslocando todo o resto.
+    final formatador = MascaraTelefoneWhatsapp();
+
+    test('apagar o primeiro digito do DDD desloca o resto pra esquerda corretamente', () {
+      // Estado anterior real (nao a partir de vazio): "+55 (19) 87654-3210".
+      final oldValue = TextEditingValue(text: '+55 (19) 87654-3210', selection: const TextSelection.collapsed(offset: 6));
+      // Backspace no primeiro digito do DDD ('1' no index 5): o proprio
+      // Flutter ja remove o caractere e reposiciona o cursor antes de chamar
+      // o formatador.
+      final newValue = const TextEditingValue(text: '+55 (9) 87654-3210', selection: TextSelection.collapsed(offset: 5));
+
+      final resultado = formatador.formatEditUpdate(oldValue, newValue);
+
+      // Sem o fix, o "+55" vazava como 2 digitos extras: o DDD virava "55"
+      // (o proprio prefixo, nunca o que o usuario digitou) e o ultimo digito
+      // real era descartado por estourar o limite de 11.
+      expect(resultado.text, '+55 (98) 76543-210 ');
+      expect(resultado.selection.baseOffset, 5);
+    });
+
+    test('apagar um digito do meio do numero desloca so o resto a partir dali', () {
+      final oldValue = TextEditingValue(text: '+55 (11) 98765-4321', selection: const TextSelection.collapsed(offset: 11));
+      // Apaga o '8' logo depois do DDD (mantendo o "+55 (11) " intacto).
+      final newValue = const TextEditingValue(text: '+55 (11) 9765-4321', selection: TextSelection.collapsed(offset: 10));
+
+      final resultado = formatador.formatEditUpdate(oldValue, newValue);
+
+      expect(resultado.text, '+55 (11) 97654-321 ');
+      expect(resultado.selection.baseOffset, 10);
+    });
+
+    test('digitar um digito no meio insere ali, sem confundir com o prefixo fixo', () {
+      final oldValue = TextEditingValue(text: '+55 (11) 9765-4321 ', selection: const TextSelection.collapsed(offset: 10));
+      // Digita '8' de volta na mesma posicao onde foi apagado no teste anterior.
+      final newValue = const TextEditingValue(text: '+55 (11) 89765-4321 ', selection: TextSelection.collapsed(offset: 11));
+
+      final resultado = formatador.formatEditUpdate(oldValue, newValue);
+
+      expect(resultado.text, '+55 (11) 89765-4321');
+      expect(resultado.selection.baseOffset, 11);
+    });
+  });
+
   group('validarTelefoneWhatsapp (recebe o texto ja mascarado)', () {
     test('mascara vazia (nada digitado) e valida, pois o campo e opcional', () {
       expect(validarTelefoneWhatsapp(MascaraTelefoneWhatsapp.mascaraVazia), isNull);

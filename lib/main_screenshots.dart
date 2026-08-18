@@ -1,6 +1,8 @@
 // Harness temporario para gerar screenshots de App Store com dados fake,
 // sem tocar o Firebase de producao (nem inicializa o SDK). Nao faz parte do
 // app publicado.
+import 'dart:typed_data' show Uint8List;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -52,6 +54,9 @@ class FakeAuthViewModel implements AuthViewModel {
   String? get uidAtual => _usuarioFake.uid;
 
   @override
+  bool get temSenhaEmail => true;
+
+  @override
   Stream<UserModel?> streamUsuarioAtual() => Stream.value(_usuarioFake);
 
   @override
@@ -65,6 +70,13 @@ class FakeAuthViewModel implements AuthViewModel {
 
   @override
   Future<String?> excluirConta({required String senha}) async => null;
+
+  @override
+  Future<String?> alterarSenha({required String senhaAtual, required String novaSenha}) async => null;
+
+  @override
+  Future<({String? erro, String? url})> atualizarFotoPerfil({required Uint8List bytes}) async =>
+      (erro: null, url: _mockPhoto('avatar.jpg'));
 
   @override
   Future<String?> cadastrar({

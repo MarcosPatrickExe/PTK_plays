@@ -27,6 +27,32 @@ void main() {
     });
   });
 
+  group('validarTrocaSenha', () {
+    test('todos os campos vazios e valido (usuario nao quer trocar de senha)', () {
+      expect(validarTrocaSenha(senhaAtual: '', novaSenha: '', confirmarNovaSenha: ''), isNull);
+    });
+
+    test('so a senha atual preenchida e invalido', () {
+      expect(validarTrocaSenha(senhaAtual: '123456', novaSenha: '', confirmarNovaSenha: ''), isNotNull);
+    });
+
+    test('senha atual vazia com nova senha preenchida e invalido', () {
+      expect(validarTrocaSenha(senhaAtual: '', novaSenha: '123456', confirmarNovaSenha: '123456'), isNotNull);
+    });
+
+    test('nova senha curta (menos de 6 caracteres) e invalida', () {
+      expect(validarTrocaSenha(senhaAtual: 'antiga1', novaSenha: '123', confirmarNovaSenha: '123'), isNotNull);
+    });
+
+    test('nova senha e confirmacao diferentes e invalido', () {
+      expect(validarTrocaSenha(senhaAtual: 'antiga1', novaSenha: '123456', confirmarNovaSenha: '654321'), isNotNull);
+    });
+
+    test('os 3 campos preenchidos corretamente e valido', () {
+      expect(validarTrocaSenha(senhaAtual: 'antiga1', novaSenha: '123456', confirmarNovaSenha: '123456'), isNull);
+    });
+  });
+
   group('MascaraTelefoneWhatsapp.aplicarEm (pre-preenche o campo de edicao)', () {
     test('telefone vazio salvo vira a mascara vazia', () {
       expect(MascaraTelefoneWhatsapp.aplicarEm(''), MascaraTelefoneWhatsapp.mascaraVazia);
@@ -68,6 +94,21 @@ void main() {
     test('assetDoAvatarPreset retorna null pra chave vazia ou invalida', () {
       expect(assetDoAvatarPreset(''), isNull);
       expect(assetDoAvatarPreset('inexistente'), isNull);
+    });
+  });
+
+  group('chavePresetParaExibir', () {
+    test('preset escolhido tem prioridade sobre fotoUrl', () {
+      expect(chavePresetParaExibir(avatarPreset: 'otaku', fotoUrl: 'https://exemplo.com/foto.jpg'), 'otaku');
+    });
+
+    test('sem preset mas com fotoUrl retorna vazio (sinal pra usar a foto)', () {
+      expect(chavePresetParaExibir(avatarPreset: '', fotoUrl: 'https://exemplo.com/foto.jpg'), '');
+    });
+
+    test('sem preset e sem fotoUrl (conta legada) cai no avatar padrao', () {
+      expect(chavePresetParaExibir(avatarPreset: '', fotoUrl: ''), avatarPresetPadrao);
+      expect(avatarPresetPadrao, 'inscrito');
     });
   });
 

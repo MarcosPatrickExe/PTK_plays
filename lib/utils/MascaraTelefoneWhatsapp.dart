@@ -15,11 +15,26 @@ class MascaraTelefoneWhatsapp extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final todosDigitos = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    // O "+55" fixo do prefixo tambem contem digitos ('5','5'): se extrairmos
+    // digitos do texto inteiro, esses 2 digitos "de mentira" entram na
+    // contagem junto com os digitos reais do DDD/numero, deslocando tudo e
+    // quebrando qualquer edicao/apagamento que nao seja no fim do campo. Por
+    // isso removemos o prefixo fixo antes de extrair os digitos reais.
+    final corpo = newValue.text.startsWith('+55') ? newValue.text.substring(3) : newValue.text;
+    final todosDigitos = corpo.replaceAll(RegExp(r'[^0-9]'), '');
     final digitos = todosDigitos.length > 11 ? todosDigitos.substring(0, 11) : todosDigitos;
 
+    // Reposiciona o cursor com base em quantos digitos reais existiam antes
+    // dele no texto editado, e nao sempre no fim: e o que permite apagar ou
+    // alterar um digito no meio da mascara (ex: um digito do DDD) sem o
+    // cursor pular pro final a cada edicao.
+    final prefixoRemovido = newValue.text.length - corpo.length;
+    final offsetNoCorpo = (newValue.selection.baseOffset - prefixoRemovido).clamp(0, corpo.length);
+    final digitosAntesDoCursor = corpo.substring(0, offsetNoCorpo).replaceAll(RegExp(r'[^0-9]'), '').length;
+    final digitosEfetivos = digitosAntesDoCursor > digitos.length ? digitos.length : digitosAntesDoCursor;
+
     final texto = _montar(digitos);
-    final cursor = digitos.isEmpty ? _posicoesDosDigitos.first : _posicoesDosDigitos[digitos.length - 1] + 1;
+    final cursor = digitosEfetivos == 0 ? _posicoesDosDigitos.first : _posicoesDosDigitos[digitosEfetivos - 1] + 1;
 
     return TextEditingValue(text: texto, selection: TextSelection.collapsed(offset: cursor));
   }

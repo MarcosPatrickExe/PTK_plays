@@ -338,7 +338,8 @@ class _CabecalhoPerfil extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final assetAvatarPreset = assetDoAvatarPreset(usuario.avatarPreset);
+    final chavePreset = chavePresetParaExibir(avatarPreset: usuario.avatarPreset, fotoUrl: usuario.fotoUrl);
+    final assetAvatarPreset = assetDoAvatarPreset(chavePreset);
 
     return Column(
       children: [
