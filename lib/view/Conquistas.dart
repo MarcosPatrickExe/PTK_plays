@@ -32,7 +32,7 @@ class Conquistas extends StatelessWidget {
                       stream: authViewModel.streamUsuarioAtual(),
                       builder: (context, snapshot) {
                         if (snapshot.data == null) {
-                          return const CircularProgressIndicator();
+                          return CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight);
                         }
                         final usuario = snapshot.data!;
                         final conquistadas = catalogoConquistas.where((c) => usuario.badges.contains(c.chave)).toList();
