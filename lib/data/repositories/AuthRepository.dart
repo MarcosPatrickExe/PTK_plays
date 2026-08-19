@@ -225,6 +225,15 @@ class AuthRepository {
     await _auth.signOut();
   }
 
+  /// Envia o email de redefinicao de senha do Firebase Auth (link que leva
+  /// a uma pagina hospedada pelo proprio Firebase pra escolher uma senha
+  /// nova, sem precisar saber a senha atual). Uso: usuario logado que
+  /// esqueceu a senha atual em EditarPerfil, ou (futuramente) a tela de
+  /// login pra quem nao consegue entrar.
+  Future<void> enviarEmailRedefinicaoSenha({required String email}) async {
+    await _auth.sendPasswordResetEmail(email: email);
+  }
+
   Future<void> excluirConta({required String senha}) async {
     final user = _auth.currentUser;
     if (user == null) return;

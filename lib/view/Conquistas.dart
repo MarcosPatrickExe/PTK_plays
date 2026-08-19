@@ -108,23 +108,7 @@ class Conquistas extends StatelessWidget {
                     alignment: Alignment.topLeft,
                     child: Padding(
                       padding: const EdgeInsets.all(22),
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                            color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
-                            border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
-                          ),
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
-                            size: 23,
-                          ),
-                        ),
-                      ),
+                      child: BotaoVoltar(isDark: isDark, onTap: () => Navigator.of(context).pop()),
                     ),
                   ),
                   Align(
