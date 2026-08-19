@@ -61,11 +61,12 @@ class AuthTheme {
   static const ouDark = Color(0x99FFFFFF);
   static const ouLight = Color(0x995A288C);
 
-  // Opacidade elevada (era 0x26/0x24, quase invisivel contra o fundo
-  // gradiente) para o card do botao de trocar de tema se destacar mais.
-  static const themeBtnBgDark = Color(0x59FFFFFF);
+  // Fundo opaco branco (era translucido — Color(0x59...) — e ficava quase
+  // transparente contra o fundo gradiente, dificil de enxergar) pros botoes
+  // circulares de voltar/trocar tema no topo das telas.
+  static const themeBtnBgDark = Colors.white;
   static const themeBtnBorderDark = Color(0x80FFFFFF);
-  static const themeBtnBgLight = Color(0x59A046DC);
+  static const themeBtnBgLight = Colors.white;
   static const themeBtnBorderLight = Color(0x80A046DC);
 
   static const themeIconDark = Color(0xFFFFD24A);
