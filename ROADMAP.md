@@ -2,6 +2,49 @@
 
 Itens identificados mas propositalmente adiados por não serem bloqueantes no momento.
 
+## Recuperação de senha por e-mail/SMS/WhatsApp (18/ago/2026)
+
+Usuário pediu recuperação de senha via código de verificação (email, SMS
+e/ou WhatsApp) em vez de exigir a senha atual. Avaliação de cada canal:
+
+- **Email — implementado.** `AuthRepository.enviarEmailRedefinicaoSenha`
+  usa `FirebaseAuth.sendPasswordResetEmail`, recurso nativo do Firebase
+  Auth: nenhuma infraestrutura nova, nenhuma revisão externa, funciona
+  imediatamente (o projeto já usa Firebase Auth pra tudo). Botão "Esqueceu
+  sua senha atual? Enviar link por e-mail" adicionado dentro do card
+  "Alterar senha (opcional)" em EditarPerfil.dart, usando o email já
+  cadastrado na conta (não precisa digitar de novo). Só aparece pra contas
+  com provider de email/senha (`temSenhaEmail`), mesma regra da seção de
+  troca de senha — Firebase recusa o envio pra contas só-Google/só-Apple.
+- **SMS — não implementado, mas não precisa de biblioteca de terceiros.**
+  O Firebase Auth já tem Phone Authentication (SMS OTP) nativo — não é uma
+  "biblioteca pra mandar SMS" separada, é um provider de login que o
+  próprio `firebase_auth` já suporta. Custo de implementação: habilitar
+  "Phone" em Firebase Console → Authentication → Sign-in method, configurar
+  reCAPTCHA pra Web (`RecaptchaVerifier`), e criar o fluxo de UI (digitar
+  telefone → receber código → confirmar). Tem cota gratuita no Firebase,
+  depois é cobrado por SMS enviado. Bem mais rápido que integrar uma API de
+  SMS de terceiro (Twilio etc.), mas ainda exige configuração no Console e
+  testes com número de telefone real.
+- **WhatsApp — bloqueado em infraestrutura externa já documentada.** Depende
+  da aprovação do app no Meta for Developers (ver seção "Integração futura
+  com a API do WhatsApp Business" abaixo), processo de revisão que não está
+  concluído. É o canal mais lento dos três — nem começa até isso ser
+  resolvido pelo usuário.
+
+**Conclusão: email é de longe o mais rápido** (já está pronto), SMS é
+factível mas exige configuração adicional no Firebase Console + testes com
+telefone real, WhatsApp depende de aprovação externa que já está em
+andamento separadamente. Quando o usuário decidir priorizar SMS, o próximo
+passo é habilitar Phone Authentication no Firebase Console.
+
+**Campo de email no cadastro**: já existe desde sempre (`Cadastro.dart`
+sempre exigiu email pra criar a conta com `createUserWithEmailAndPassword`)
+— nenhuma mudança necessária lá. Só faltava em EditarPerfil.dart, que agora
+mostra o email da conta (somente leitura — trocar o email em si não foi
+pedido, e é uma operação mais delicada: exigiria reautenticação e atualizar
+o mapeamento `nicknamesParaEmail` usado pro login por nickname).
+
 ## Upload de foto de perfil, troca de senha e avatar padrão (implementado em 17/ago/2026)
 
 Implementado em `lib/view/EditarPerfil.dart` a pedido do usuário:

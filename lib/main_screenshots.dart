@@ -79,6 +79,9 @@ class FakeAuthViewModel implements AuthViewModel {
       (erro: null, url: _mockPhoto('avatar.jpg'));
 
   @override
+  Future<String?> enviarEmailRedefinicaoSenha({required String email}) async => null;
+
+  @override
   Future<String?> cadastrar({
     required String nickname,
     required String email,

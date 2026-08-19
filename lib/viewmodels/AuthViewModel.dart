@@ -86,6 +86,16 @@ class AuthViewModel {
     }
   }
 
+  /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
+  Future<String?> enviarEmailRedefinicaoSenha({required String email}) async {
+    try {
+      await _repository.enviarEmailRedefinicaoSenha(email: email);
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return traduzirErroDeAuth(e.code);
+    }
+  }
+
   /// Envia uma nova foto de perfil (bytes ja recortados por ModalCropFoto)
   /// pro Firebase Storage e atualiza o perfil. Retorna a URL em caso de
   /// sucesso, ou uma mensagem de erro traduzida.

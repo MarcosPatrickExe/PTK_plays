@@ -79,6 +79,39 @@ class BotaoTema extends StatelessWidget {
   }
 }
 
+/// Botao circular de voltar, no mesmo padrao visual do BotaoTema (fundo
+/// opaco branco + icone colorido). Extraido daqui em vez de duplicado em
+/// cada tela (EditarPerfil.dart, Conquistas.dart), pra qualquer ajuste
+/// visual futuro valer pra todas de uma vez. onTap e obrigatorio (passe
+/// `() => Navigator.of(context).pop()` pro caso comum, ou null pra
+/// desabilitar o botao enquanto uma acao esta carregando).
+class BotaoVoltar extends StatelessWidget {
+  final bool isDark;
+  final VoidCallback? onTap;
+  const BotaoVoltar({super.key, required this.isDark, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
+          border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
+        ),
+        child: Icon(
+          Icons.arrow_back,
+          color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
+          size: 23,
+        ),
+      ),
+    );
+  }
+}
+
 class CardVidro extends StatelessWidget {
   final bool isDark;
   final Widget child;
@@ -122,6 +155,7 @@ class CampoTexto extends StatelessWidget {
   final String icone;
   final String hint;
   final bool obscure;
+  final bool readOnly;
   final Widget? iconeFinal;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
@@ -134,6 +168,7 @@ class CampoTexto extends StatelessWidget {
     required this.icone,
     required this.hint,
     this.obscure = false,
+    this.readOnly = false,
     this.iconeFinal,
     this.keyboardType,
     this.inputFormatters,
@@ -174,9 +209,13 @@ class CampoTexto extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   obscureText: obscure,
+                  readOnly: readOnly,
                   keyboardType: keyboardType,
                   inputFormatters: inputFormatters,
-                  style: GoogleFonts.outfit(fontSize: 15, color: AuthTheme.inputTextColor),
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    color: readOnly ? AuthTheme.placeholderColor : AuthTheme.inputTextColor,
+                  ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isDense: true,

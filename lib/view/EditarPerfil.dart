@@ -29,6 +29,7 @@ class EditarPerfil extends StatefulWidget {
 
 class _EditarPerfilState extends State<EditarPerfil> {
   late final _nicknameController = TextEditingController(text: widget.usuario.nickname);
+  late final _emailController = TextEditingController(text: widget.usuario.email);
   late final _telefoneController = TextEditingController(
     text: MascaraTelefoneWhatsapp.aplicarEm(widget.usuario.telefoneWhatsapp),
   );
@@ -44,6 +45,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
   }();
   late String _fotoUrl = widget.usuario.fotoUrl;
   bool _enviandoFoto = false;
+  bool _enviandoEmailSenha = false;
   bool _carregando = false;
 
   Future<void> _escolherEEditarFoto() async {
@@ -76,6 +78,21 @@ class _EditarPerfilState extends State<EditarPerfil> {
       _avatarPresetSelecionado = null;
     });
     mostrarToast(context, mensagem: 'Foto de perfil atualizada!');
+  }
+
+  Future<void> _enviarEmailRedefinicaoSenha() async {
+    setState(() => _enviandoEmailSenha = true);
+
+    final erro = await widget.authViewModel.enviarEmailRedefinicaoSenha(email: widget.usuario.email);
+
+    if (!mounted) return;
+    setState(() => _enviandoEmailSenha = false);
+
+    mostrarToast(
+      context,
+      mensagem: erro ?? 'Enviamos um link pro seu e-mail (${widget.usuario.email}) pra redefinir a senha.',
+      erro: erro != null,
+    );
   }
 
   Future<void> _salvar() async {
@@ -142,6 +159,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
   @override
   void dispose() {
     _nicknameController.dispose();
+    _emailController.dispose();
     _telefoneController.dispose();
     _senhaAtualController.dispose();
     _novaSenhaController.dispose();
@@ -198,6 +216,15 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                     controller: _nicknameController,
                                     icone: iconPessoa,
                                     hint: 'Como quer ser chamado',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  CampoTexto(
+                                    isDark: isDark,
+                                    label: 'Email',
+                                    controller: _emailController,
+                                    icone: iconEmail,
+                                    hint: '',
+                                    readOnly: true,
                                   ),
                                   const SizedBox(height: 16),
                                   CampoTexto(
@@ -299,6 +326,30 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                       hint: '••••••••',
                                       obscure: !_novaSenhaVisivel,
                                     ),
+                                    const SizedBox(height: 12),
+                                    Center(
+                                      child: GestureDetector(
+                                        onTap: _enviandoEmailSenha ? null : _enviarEmailRedefinicaoSenha,
+                                        child: _enviandoEmailSenha
+                                            ? SizedBox(
+                                                height: 16,
+                                                width: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+                                                ),
+                                              )
+                                            : Text(
+                                                'Esqueceu sua senha atual? Enviar link por e-mail',
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -314,22 +365,9 @@ class _EditarPerfilState extends State<EditarPerfil> {
                     alignment: Alignment.topLeft,
                     child: Padding(
                       padding: const EdgeInsets.all(22),
-                      child: GestureDetector(
+                      child: BotaoVoltar(
+                        isDark: isDark,
                         onTap: _carregando ? null : () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                            color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
-                            border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
-                          ),
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: isDark ? AuthTheme.themeIconDark : AuthTheme.themeIconLight,
-                            size: 23,
-                          ),
-                        ),
                       ),
                     ),
                   ),
