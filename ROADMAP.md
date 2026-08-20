@@ -38,6 +38,69 @@ telefone real, WhatsApp depende de aprovação externa que já está em
 andamento separadamente. Quando o usuário decidir priorizar SMS, o próximo
 passo é habilitar Phone Authentication no Firebase Console.
 
+## Backend (Cloud Functions) pro WhatsApp Business — webhook implementado (20/ago/2026)
+
+Decisão de arquitetura (dois apps no Meta): o usuário pretende usar o mesmo
+número/canal WhatsApp pra dois projetos diferentes — **PTK Plays**
+(recuperação de senha via código) e **PTK AI Studio** (painel separado, de
+edição/publicação automática de vídeos das lives em Threads/Instagram/
+Facebook). Recomendação dada: **dois apps separados no Meta for
+Developers**, sob o mesmo Portfólio empresarial — evita misturar o escopo
+do App Review (mensageria WhatsApp x publicação de conteúdo são fluxos
+muito diferentes pra justificar na mesma revisão) e isola o risco de uma
+suspensão de um produto derrubar o outro. O usuário já tinha adicionado
+Threads e WhatsApp no mesmo app por engano; como não achou um botão de
+remover o caso de uso do Threads na UI atual do Meta, a decisão foi deixar
+o Threads inerte nesse app (sem configurar nem submeter permissões dele) e
+seguir só com WhatsApp aqui — o app dedicado ao PTK AI Studio (Threads +
+Instagram + Facebook) fica pra quando esse projeto for priorizado.
+
+Arquitetura de backend escolhida: **Cloud Functions (Firebase, 2ª geração)**
+pra receber webhooks (WhatsApp agora; Twitch/Kick no futuro, pro PTK AI
+Studio) e fazer chamadas agendadas (polling do YouTube) — já roda sobre a
+mesma infraestrutura do Cloud Run por baixo, mas com integração pronta com
+Firestore/Auth e gatilhos (`onRequest`/`onSchedule`) sem boilerplate.
+**Cloud Run Jobs** fica reservado pra outra peça, futura, do PTK AI Studio:
+processamento pesado de vídeo (corte/edição automática), que não deve rodar
+dentro do handler de um webhook (precisa responder em segundos).
+
+Implementado nesta etapa (`functions/`, novo diretório na raiz do repo):
+- `functions/index.js`: Cloud Function HTTPS `whatsappWebhook`. No `GET`,
+  responde o handshake de verificação do Meta (`hub.mode`/`hub.verify_token`/
+  `hub.challenge`). No `POST`, valida a assinatura `X-Hub-Signature-256`
+  (HMAC-SHA256 com o App Secret) antes de aceitar qualquer evento — sem
+  isso, qualquer um que descobrisse a URL pública do webhook poderia mandar
+  eventos falsos. Por enquanto só loga o evento e responde 200; a lógica de
+  enviar/verificar código de recuperação de senha é a próxima etapa,
+  depois que o webhook for aceito pelo Meta.
+- `functions/src/webhook.js`: lógica pura (`verificarHandshakeWebhook`,
+  `assinaturaValida`), testada isoladamente em
+  `functions/test/webhook.test.js` (8 testes, `npm test` dentro de
+  `functions/`) sem precisar de um request HTTP real nem do emulador.
+- `firebase.json` ganhou a seção `functions` (aponta pro diretório
+  `functions/`); `.firebaserc` criado apontando o projeto padrão pra
+  `ptk-plays`.
+- Segredos (`WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`) usam
+  `defineSecret` (Secret Manager) — nunca ficam no código. Precisam ser
+  configurados manualmente pelo usuário via `firebase functions:secrets:set`
+  (CLI, rodado no Google Cloud Shell — mesmo lugar usado antes pro
+  `gsutil cors set`), já que este ambiente de desenvolvimento não tem
+  `firebase login` autenticado com a conta do usuário.
+
+**Pendente (ação do usuário, fora deste ambiente):**
+1. Rodar `firebase functions:secrets:set WHATSAPP_VERIFY_TOKEN` e
+   `WHATSAPP_APP_SECRET` no Cloud Shell, depois `firebase deploy --only
+   functions` (projeto `ptk-plays` já no plano Blaze).
+2. Colar a URL da function implantada (formato
+   `https://<região>-ptk-plays.cloudfunctions.net/whatsappWebhook`) e o
+   mesmo valor de `WHATSAPP_VERIFY_TOKEN` no formulário "Configurar
+   webhooks" do Meta for Developers (Etapa 2. Configuração de produção).
+3. Depois do webhook aceito: implementar as próximas Cloud Functions
+   (`enviarCodigoRecuperacaoWhatsapp` / `verificarCodigoRecuperacaoWhatsapp`)
+   e criar/aprovar um template de mensagem categoria "Authentication" no
+   WhatsApp Manager (necessário pra iniciar conversa fora da janela de 24h
+   — não dá pra mandar texto livre pro primeiro contato).
+
 **Campo de email no cadastro**: já existe desde sempre (`Cadastro.dart`
 sempre exigiu email pra criar a conta com `createUserWithEmailAndPassword`)
 — nenhuma mudança necessária lá. Só faltava em EditarPerfil.dart, que agora
