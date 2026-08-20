@@ -1,0 +1,22 @@
+{
+  "name": "functions",
+  "description": "Backend (Cloud Functions) do PTK Plays - webhook e recuperacao de senha via WhatsApp",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
