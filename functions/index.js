@@ -29,7 +29,18 @@ exports.whatsappWebhook = onRequest(
       if (resultado.ok) {
         res.status(200).send(resultado.challenge);
       } else {
-        logger.warn('Handshake do webhook do WhatsApp falhou.', { query: req.query });
+        // Diagnostico temporario: nao loga os valores dos segredos, so
+        // tamanho e se bateria depois de remover espacos/quebras de linha
+        // nas pontas - ajuda a achar espaco/newline invisivel colado junto
+        // do valor do secret sem nunca expor o valor de verdade no log.
+        const tokenEsperado = WHATSAPP_VERIFY_TOKEN.value();
+        const tokenRecebido = req.query['hub.verify_token'];
+        logger.warn('Handshake do webhook do WhatsApp falhou.', {
+          query: req.query,
+          tokenEsperadoLength: tokenEsperado.length,
+          tokenRecebidoLength: typeof tokenRecebido === 'string' ? tokenRecebido.length : null,
+          bateriaAposTrim: typeof tokenRecebido === 'string' && tokenRecebido === tokenEsperado.trim(),
+        });
         res.sendStatus(403);
       }
       return;
