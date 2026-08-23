@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/AvatarPreset.dart';
@@ -16,9 +17,11 @@ import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import '../components/Header.dart';
+import 'Configuracoes.dart';
 import 'Conquistas.dart';
 import 'EditarPerfil.dart';
 import 'Login.dart';
+import 'Privacidade.dart';
 
 const Color _corExcluir = Color(0xFFE0264F);
 
@@ -150,6 +153,18 @@ class _ProfileState extends State<Profile> {
     final bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
+      endDrawer: MenuLateral(
+        isDark: isDark,
+        onRecuperacaoSenha: _usuarioAtual == null
+            ? () {}
+            : () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EditarPerfil(usuario: _usuarioAtual!, authViewModel: widget.authViewModel),
+                ),
+              ),
+        onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
+        onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
+      ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
       // inteiro (body em branco) no CanvasKit web. Em vez disso, ela entra
@@ -164,6 +179,7 @@ class _ProfileState extends State<Profile> {
                 buildHeader(
                   title: "Perfil",
                   widgetContext: context,
+                  menu: BotaoMenuLateral(isDark: isDark),
                   onEditar: _usuarioAtual == null
                       ? null
                       : () => Navigator.of(context).push(

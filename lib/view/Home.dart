@@ -4,10 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/view/Configuracoes.dart';
+import 'package:ptk_plays/view/Privacidade.dart';
+import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -34,6 +38,16 @@ class HomePage extends StatelessWidget {
     final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
     return Scaffold(
+      endDrawer: MenuLateral(
+        isDark: isDark,
+        onRecuperacaoSenha: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => Profile(viewmodelYT: viewmodelYT, apiKey: apiKEY, authViewModel: authViewModel),
+          ),
+        ),
+        onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
+        onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
+      ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
       // inteiro (body em branco) no CanvasKit web. Em vez disso, ela entra
@@ -45,7 +59,7 @@ class HomePage extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                buildHeader(title: "Feed", widgetContext: context),
+                buildHeader(title: "Feed", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
                 Expanded(
                   child: StreamBuilder<List<PostModel>>(
                     stream: postViewModel.streamPostagens(),
