@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 
+void _noop() {}
+
 Widget _telaComMenu({
   required VoidCallback onRecuperacaoSenha,
   required VoidCallback onPrivacidade,
+  VoidCallback onPoliticaPrivacidade = _noop,
   required VoidCallback onConfiguracoes,
 }) {
   return MaterialApp(
@@ -13,6 +16,7 @@ Widget _telaComMenu({
         isDark: false,
         onRecuperacaoSenha: onRecuperacaoSenha,
         onPrivacidade: onPrivacidade,
+        onPoliticaPrivacidade: onPoliticaPrivacidade,
         onConfiguracoes: onConfiguracoes,
       ),
       body: Builder(
@@ -36,7 +40,29 @@ void main() {
     expect(find.text('Menu'), findsOneWidget);
     expect(find.text('Recuperação de senha'), findsOneWidget);
     expect(find.text('Privacidade'), findsOneWidget);
+    expect(find.text('Política de Privacidade'), findsOneWidget);
     expect(find.text('Configurações'), findsOneWidget);
+  });
+
+  testWidgets('tocar em "Política de Privacidade" chama o callback e fecha o painel', (tester) async {
+    var chamado = false;
+    await tester.pumpWidget(
+      _telaComMenu(
+        onRecuperacaoSenha: () {},
+        onPrivacidade: () {},
+        onPoliticaPrivacidade: () => chamado = true,
+        onConfiguracoes: () {},
+      ),
+    );
+
+    await tester.tap(find.byType(BotaoMenuLateral));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Política de Privacidade'));
+    await tester.pumpAndSettle();
+
+    expect(chamado, isTrue);
+    expect(find.text('Menu'), findsNothing);
   });
 
   testWidgets('tocar em "Recuperação de senha" chama o callback e fecha o painel', (tester) async {
