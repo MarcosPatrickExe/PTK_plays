@@ -399,3 +399,31 @@ Séries/Filmes e Otaku**.
 - Não exige mudança no `firestore.rules`: é um campo cosmético comum,
   coberto pela regra genérica de update do dono (`allow update: if
   ehDono(userId) && ...`), sem trava anti-cheat como `badges`/`contadores`.
+
+## Menu lateral (endDrawer) pós-login (21/ago/2026)
+
+Botão de menu (3 linhas horizontais, `lib/components/MenuLateral.dart` →
+`BotaoMenuLateral`) no canto superior direito, ao lado do botão de tema,
+visível **só** em Home/Videos/Profile (as 3 telas que usam `buildHeader`,
+`lib/components/Header.dart`, agora com parâmetro opcional `menu`). Login,
+Cadastro e qualquer futura tela de recuperação de senha continuam usando o
+`BotaoTema` avulso, sem esse parâmetro — nunca mostram o menu.
+
+- Implementado com o mecanismo nativo do Flutter (`Scaffold.endDrawer` +
+  `Scaffold.of(context).openEndDrawer()`), não um overlay customizado — já
+  vem com animação de slide da direita, scrim de fundo e dismissal ao tocar
+  fora, de graça.
+- `MenuLateral` (o painel) tem largura `62%` da tela ("um pouco mais da
+  metade", como pedido) e 3 opções: **Recuperação de senha**,
+  **Privacidade**, **Configurações** — cada uma recebe um `VoidCallback`
+  próprio da tela que a usa, em vez do widget navegar sozinho (evita a
+  dependência de UserModel/AuthViewModel dentro do componente compartilhado).
+- **Recuperação de senha**: em Home/Videos navega pra `Profile` (não tem o
+  `UserModel` carregado ali pra ir direto em `EditarPerfil`); em Profile
+  navega direto pra `EditarPerfil` reaproveitando o mesmo `_usuarioAtual` e
+  callback que o ícone de editar já usa.
+- **Privacidade** (`lib/view/Privacidade.dart`) e **Configurações**
+  (`lib/view/Configuracoes.dart`) são telas novas, só com placeholder
+  visual ("em breve") — ainda não têm conteúdo real definido (texto da
+  política de privacidade, opções de configuração). Preencher quando
+  priorizado.

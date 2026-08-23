@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/view/Configuracoes.dart';
+import 'package:ptk_plays/view/Privacidade.dart';
+import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher_url;
@@ -58,6 +62,16 @@ class _VideoScreenState extends State<Videos> {
     bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
+      endDrawer: MenuLateral(
+        isDark: isDark,
+        onRecuperacaoSenha: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => Profile(viewmodelYT: widget.viewmodelYT, apiKey: widget.apiKEY, authViewModel: widget.authViewModel),
+          ),
+        ),
+        onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
+        onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
+      ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
       // inteiro (body em branco) no CanvasKit web. Em vez disso, ela entra
@@ -69,7 +83,7 @@ class _VideoScreenState extends State<Videos> {
           SafeArea(
             child: Column(
               children: [
-                buildHeader(title: "Vídeos", widgetContext: context),
+                buildHeader(title: "Vídeos", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
                 Expanded(
                   child: ( _VideoScreenState._loadedVideoCards != null)
                       ? ResponsiveCenter(

@@ -6,7 +6,7 @@ import "package:ptk_plays/utils/ThemeController.dart";
 import 'package:provider/provider.dart';
 
 
-Widget buildHeader({ required String title, required BuildContext widgetContext, VoidCallback? onEditar }) {
+Widget buildHeader({ required String title, required BuildContext widgetContext, VoidCallback? onEditar, Widget? menu }) {
 
   final bool isDark = widgetContext.watch<ThemeController>().isDark;
 
@@ -73,6 +73,10 @@ Widget buildHeader({ required String title, required BuildContext widgetContext,
                       ),
                     ),
                   ),
+                  if (menu != null) ...[
+                    const SizedBox(width: 10),
+                    menu,
+                  ],
                 ],
               ),
             ],
