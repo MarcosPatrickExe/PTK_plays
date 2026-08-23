@@ -48,6 +48,7 @@ class MenuLateral extends StatelessWidget {
   final bool isDark;
   final VoidCallback onRecuperacaoSenha;
   final VoidCallback onPrivacidade;
+  final VoidCallback onPoliticaPrivacidade;
   final VoidCallback onConfiguracoes;
 
   const MenuLateral({
@@ -55,6 +56,7 @@ class MenuLateral extends StatelessWidget {
     required this.isDark,
     required this.onRecuperacaoSenha,
     required this.onPrivacidade,
+    required this.onPoliticaPrivacidade,
     required this.onConfiguracoes,
   });
 
@@ -98,6 +100,15 @@ class MenuLateral extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 onPrivacidade();
+              },
+            ),
+            _ItemMenu(
+              isDark: isDark,
+              icone: Icons.policy_outlined,
+              texto: 'Política de Privacidade',
+              onTap: () {
+                Navigator.of(context).pop();
+                onPoliticaPrivacidade();
               },
             ),
             _ItemMenu(

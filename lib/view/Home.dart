@@ -9,6 +9,7 @@ import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/utils/LinkExterno.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
 import 'package:ptk_plays/view/Privacidade.dart';
 import 'package:ptk_plays/view/Profile.dart';
@@ -46,6 +47,7 @@ class HomePage extends StatelessWidget {
           ),
         ),
         onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
+        onPoliticaPrivacidade: () => abrirLinkExterno(context, urlPoliticaPrivacidade),
         onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
