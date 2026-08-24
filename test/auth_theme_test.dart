@@ -22,4 +22,24 @@ void main() {
       expect(AuthTheme.themeBtnBorderLight.a, greaterThan(0));
     });
   });
+
+  group('AuthTheme.themeIcon', () {
+    // O icone amarelo (0xFFFFD24A) ficava com contraste ruim contra o fundo
+    // branco opaco do botao no modo escuro (21/ago/2026) - trocado pra preto.
+    test('icone do card em modo escuro e preto', () {
+      expect(AuthTheme.themeIconDark, Colors.black);
+    });
+  });
+
+  group('AuthTheme.menuBg', () {
+    test('fundo do menu lateral em modo claro e branco totalmente opaco', () {
+      expect(AuthTheme.menuBgLight, Colors.white);
+    });
+
+    test('gradiente do menu lateral em modo escuro comeca e termina totalmente opaco', () {
+      for (final cor in AuthTheme.menuBgGradientDark.colors) {
+        expect(cor.a, 1.0);
+      }
+    });
+  });
 }

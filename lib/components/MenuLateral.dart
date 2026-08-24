@@ -25,8 +25,14 @@ class BotaoMenuLateral extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: isDark ? AuthTheme.themeBtnBgDark : AuthTheme.themeBtnBgLight,
-            border: Border.all(color: isDark ? AuthTheme.themeBtnBorderDark : AuthTheme.themeBtnBorderLight),
+            color: isDark
+                ? AuthTheme.themeBtnBgDark
+                : AuthTheme.themeBtnBgLight,
+            border: Border.all(
+              color: isDark
+                  ? AuthTheme.themeBtnBorderDark
+                  : AuthTheme.themeBtnBorderLight,
+            ),
           ),
           child: Icon(
             Icons.menu,
@@ -66,61 +72,73 @@ class MenuLateral extends StatelessWidget {
 
     return Drawer(
       width: largura * 0.62,
-      backgroundColor: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Menu',
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+      backgroundColor: Colors.transparent,
+      // O conteudo (itens do menu) fica sempre sobre uma faixa branca opaca
+      // no topo, tanto no modo claro (fundo 100% branco) quanto no escuro
+      // (gradiente que so vira roxo perto do rodape) - por isso o texto usa
+      // uma unica cor fixa (titleLight) em vez de alternar com isDark.
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? null : AuthTheme.menuBgLight,
+          gradient: isDark ? AuthTheme.menuBgGradientDark : null,
+        ),
+        // Material transparente entre a decoracao e os ListTile: sem isso,
+        // o Container fica entre o ListTile e o Material mais proximo (o do
+        // proprio Drawer), e o ripple/splash do toque para de aparecer.
+        child: Material(
+          type: MaterialType.transparency,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Menu',
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AuthTheme.titleLight,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                _ItemMenu(
+                  icone: Icons.lock_reset,
+                  texto: 'Recuperação de senha',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onRecuperacaoSenha();
+                  },
+                ),
+                _ItemMenu(
+                  icone: Icons.privacy_tip_outlined,
+                  texto: 'Privacidade',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPrivacidade();
+                  },
+                ),
+                _ItemMenu(
+                  icone: Icons.policy_outlined,
+                  texto: 'Política de Privacidade',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onPoliticaPrivacidade();
+                  },
+                ),
+                _ItemMenu(
+                  icone: Icons.settings_outlined,
+                  texto: 'Configurações',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onConfiguracoes();
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _ItemMenu(
-              isDark: isDark,
-              icone: Icons.lock_reset,
-              texto: 'Recuperação de senha',
-              onTap: () {
-                Navigator.of(context).pop();
-                onRecuperacaoSenha();
-              },
-            ),
-            _ItemMenu(
-              isDark: isDark,
-              icone: Icons.privacy_tip_outlined,
-              texto: 'Privacidade',
-              onTap: () {
-                Navigator.of(context).pop();
-                onPrivacidade();
-              },
-            ),
-            _ItemMenu(
-              isDark: isDark,
-              icone: Icons.policy_outlined,
-              texto: 'Política de Privacidade',
-              onTap: () {
-                Navigator.of(context).pop();
-                onPoliticaPrivacidade();
-              },
-            ),
-            _ItemMenu(
-              isDark: isDark,
-              icone: Icons.settings_outlined,
-              texto: 'Configurações',
-              onTap: () {
-                Navigator.of(context).pop();
-                onConfiguracoes();
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -128,13 +146,11 @@ class MenuLateral extends StatelessWidget {
 }
 
 class _ItemMenu extends StatelessWidget {
-  final bool isDark;
   final IconData icone;
   final String texto;
   final VoidCallback onTap;
 
   const _ItemMenu({
-    required this.isDark,
     required this.icone,
     required this.texto,
     required this.onTap,
@@ -143,13 +159,13 @@ class _ItemMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icone, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+      leading: Icon(icone, color: AuthTheme.titleLight),
       title: Text(
         texto,
         style: GoogleFonts.outfit(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+          color: AuthTheme.titleLight,
         ),
       ),
       onTap: onTap,

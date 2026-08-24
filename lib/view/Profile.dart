@@ -13,7 +13,6 @@ import 'package:ptk_plays/data/models/AvatarPreset.dart';
 import 'package:ptk_plays/data/models/Conquista.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
-import 'package:ptk_plays/utils/LinkExterno.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -23,6 +22,7 @@ import 'Conquistas.dart';
 import 'EditarPerfil.dart';
 import 'Login.dart';
 import 'Privacidade.dart';
+import 'PoliticaPrivacidadeWeb.dart';
 
 const Color _corExcluir = Color(0xFFE0264F);
 
@@ -164,7 +164,8 @@ class _ProfileState extends State<Profile> {
                 ),
               ),
         onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
-        onPoliticaPrivacidade: () => abrirLinkExterno(context, urlPoliticaPrivacidade),
+        onPoliticaPrivacidade: () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PoliticaPrivacidadeWeb())),
         onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
