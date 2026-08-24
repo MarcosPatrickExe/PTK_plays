@@ -476,3 +476,30 @@ Cadastro e qualquer futura tela de recuperação de senha continuam usando o
     `flutter build web` roda sem erros, então a integração compila
     certinho; falta o usuário confirmar visualmente que a página carrega
     e traduz como esperado.
+
+### Correção (21/ago/2026): `translate.goog` recusa ser embutido em iframe na Web
+
+Usuário testou no app publicado (Web) e a página apareceu como "conexão
+recusada" — confirmado: no Flutter Web, `flutter_inappwebview` renderiza
+via `<iframe>`, e o proxy `translate.goog` do Google (e possivelmente o
+próprio Blogger) recusa ser carregado dentro de um iframe de outro site,
+por segurança do lado de quem hospeda a página — isso não é algo que dê
+pra contornar do nosso lado (é o mesmo tipo de proteção X-Frame-Options/
+CSP `frame-ancestors` usada contra clickjacking). Em app nativo
+(Android/iOS) isso não seria problema, porque lá `flutter_inappwebview`
+usa uma WebView nativa de verdade, não um iframe, e essa restrição não se
+aplica a navegação direta (só a embutir dentro de outra página).
+
+**Correção**: `lib/utils/PoliticaPrivacidade.dart` ganhou
+`abrirPoliticaPrivacidade(context)`, que decide o comportamento por
+plataforma (`kIsWeb`):
+- **Fora da Web** (Android/iOS/desktop): continua abrindo
+  `PoliticaPrivacidadeWeb` dentro do app, como antes.
+- **Na Web**: abre a URL numa aba nova do navegador via `url_launcher`
+  (navegação direta, sem iframe — não esbarra na mesma restrição, já que
+  X-Frame-Options só bloqueia ser *embutido*, não uma navegação de topo
+  normal).
+
+As 3 telas (Home/Videos/Profile) agora só chamam
+`abrirPoliticaPrivacidade(context)` em vez de navegar direto pra
+`PoliticaPrivacidadeWeb`.
