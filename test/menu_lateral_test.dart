@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
+import 'package:ptk_plays/utils/AuthTheme.dart';
 
 void _noop() {}
 
@@ -9,11 +10,12 @@ Widget _telaComMenu({
   required VoidCallback onPrivacidade,
   VoidCallback onPoliticaPrivacidade = _noop,
   required VoidCallback onConfiguracoes,
+  bool isDark = false,
 }) {
   return MaterialApp(
     home: Scaffold(
       endDrawer: MenuLateral(
-        isDark: false,
+        isDark: isDark,
         onRecuperacaoSenha: onRecuperacaoSenha,
         onPrivacidade: onPrivacidade,
         onPoliticaPrivacidade: onPoliticaPrivacidade,
@@ -21,7 +23,7 @@ Widget _telaComMenu({
       ),
       body: Builder(
         builder: (context) => Center(
-          child: BotaoMenuLateral(isDark: false),
+          child: BotaoMenuLateral(isDark: isDark),
         ),
       ),
     ),
@@ -122,5 +124,32 @@ void main() {
 
     expect(drawerSize.width, greaterThan(larguraTela / 2));
     expect(drawerSize.width, lessThan(larguraTela));
+  });
+
+  testWidgets('painel usa fundo branco opaco no modo claro', (tester) async {
+    await tester.pumpWidget(
+      _telaComMenu(onRecuperacaoSenha: () {}, onPrivacidade: () {}, onConfiguracoes: () {}, isDark: false),
+    );
+    await tester.tap(find.byType(BotaoMenuLateral));
+    await tester.pumpAndSettle();
+
+    final containerClaro = tester.widget<Container>(
+      find.descendant(of: find.byType(Drawer), matching: find.byType(Container)).first,
+    );
+    expect((containerClaro.decoration as BoxDecoration).color, AuthTheme.menuBgLight);
+    expect((containerClaro.decoration as BoxDecoration).gradient, isNull);
+  });
+
+  testWidgets('painel usa o gradiente branco+roxo opaco no modo escuro', (tester) async {
+    await tester.pumpWidget(
+      _telaComMenu(onRecuperacaoSenha: () {}, onPrivacidade: () {}, onConfiguracoes: () {}, isDark: true),
+    );
+    await tester.tap(find.byType(BotaoMenuLateral));
+    await tester.pumpAndSettle();
+
+    final containerEscuro = tester.widget<Container>(
+      find.descendant(of: find.byType(Drawer), matching: find.byType(Container)).first,
+    );
+    expect((containerEscuro.decoration as BoxDecoration).gradient, AuthTheme.menuBgGradientDark);
   });
 }
