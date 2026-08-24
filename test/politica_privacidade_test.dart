@@ -37,4 +37,13 @@ void main() {
       expect(url, urlPoliticaPrivacidade);
     });
   });
+
+  // abrirPoliticaPrivacidade (lib/utils/PoliticaPrivacidade.dart) nao tem
+  // teste automatizado direto: fora da Web ela navega pra
+  // PoliticaPrivacidadeWeb, que usa InAppWebView - esse widget nao
+  // consegue ser construido no ambiente do `flutter test` (sem os
+  // bindings de plataforma do plugin, o teste trava/falha so de tentar
+  // montar a arvore). Na Web, o ramo abre uma aba nova via url_launcher,
+  // dependente de navegador de verdade. Nenhum dos dois ramos e validavel
+  // neste ambiente - so a logica pura de URL/locale acima e testada.
 }
