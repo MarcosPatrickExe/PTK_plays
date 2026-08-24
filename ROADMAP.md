@@ -427,3 +427,52 @@ Cadastro e qualquer futura tela de recuperação de senha continuam usando o
   visual ("em breve") — ainda não têm conteúdo real definido (texto da
   política de privacidade, opções de configuração). Preencher quando
   priorizado.
+
+## Ajustes visuais do menu lateral + Política de Privacidade dentro do app (21/ago/2026)
+
+- **Fundo do menu lateral opaco**: o `Drawer` reaproveitava `cardBgDark`/
+  `cardBgLight` (translúcidos de propósito, pensados pro `CardVidro` que
+  tem seu próprio `BackdropFilter` de blur) — sem esse blur, o menu ficava
+  com aparência "transparente". Criados `AuthTheme.menuBgLight` (branco
+  100% opaco) e `AuthTheme.menuBgGradientDark` (gradiente branco→roxo,
+  opaco, com o roxo só aparecendo perto do rodapé pra manter os itens do
+  menu legíveis). Texto/ícones do menu usam uma cor fixa (`titleLight`)
+  em vez de alternar com o tema, já que o fundo agora é sempre
+  predominantemente branco nos dois modos.
+  - Bug pego nesse processo: envolver os `ListTile` num `Container` com
+    `decoration` quebra o ripple/ink deles (`Material` mais próximo fica
+    "tapado"). Corrigido envolvendo o conteúdo num `Material(type:
+    MaterialType.transparency)` entre o `Container` decorado e os itens.
+- **Ícones dos botões circulares no modo escuro**: `AuthTheme.themeIconDark`
+  era amarelo (`0xFFFFD24A`), baixo contraste contra o fundo branco opaco
+  desses botões — trocado pra preto (`Colors.black`). Afeta `BotaoTema`,
+  `BotaoVoltar`, `BotaoMenuLateral` e os botões inline de `Header.dart`
+  (fonte única de verdade, `AuthTheme.themeIconDark`).
+- **Política de Privacidade renderizada dentro do app**: antes abria o
+  navegador externo (`abrirLinkExterno`/`LinkExterno.dart`, removidos);
+  agora `lib/view/PoliticaPrivacidadeWeb.dart` usa `flutter_inappwebview`
+  (já era dependência do projeto, sem uso até então) pra mostrar a página
+  dentro do próprio app, com `BotaoVoltar`/`BotaoTema` flutuantes por cima
+  (mesmo padrão visual das outras telas) pro usuário sempre poder sair.
+  - **Tradução automática por localização**: `lib/utils/PoliticaPrivacidade.dart`
+    decide a URL a carregar com base no *locale* do dispositivo/navegador
+    (`WidgetsBinding.instance.platformDispatcher.locale`) — **não é GPS
+    nem IP**, o app não pede permissão de localização pra isso. Locale com
+    região Brasil (`countryCode == 'BR'`) carrega a página através do
+    proxy `translate.goog` do Google Tradutor (`en→pt`); qualquer outra
+    região (mesmo países de língua portuguesa como Portugal) carrega a
+    URL original, em inglês — testado explicitamente com esse caso em
+    `test/politica_privacidade_test.dart`.
+    - **Risco conhecido**: o truque do `translate.goog` é um mecanismo não
+      oficial (embora amplamente usado) do Google Tradutor pra traduzir
+      qualquer página via proxy — pode parar de funcionar se o Google
+      mudar esse comportamento. Não depende de nenhuma chave de API.
+  - **Não validado de ponta a ponta neste ambiente de desenvolvimento**: a
+    renderização real da `InAppWebView` (carregar a página de verdade, seja
+    a original ou via `translate.goog`) depende de bindings de
+    plataforma/rede que não existem no `flutter test` nem foram
+    verificados via browser neste sandbox — só a lógica pura de
+    montagem da URL (`urlPoliticaPrivacidadeParaLocale`) foi testada.
+    `flutter build web` roda sem erros, então a integração compila
+    certinho; falta o usuário confirmar visualmente que a página carrega
+    e traduz como esperado.

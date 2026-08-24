@@ -69,8 +69,24 @@ class AuthTheme {
   static const themeBtnBgLight = Colors.white;
   static const themeBtnBorderLight = Color(0x80A046DC);
 
-  static const themeIconDark = Color(0xFFFFD24A);
+  // Preto (era amarelo) pra ter contraste de verdade contra o fundo branco
+  // opaco desses botoes no modo escuro - o amarelo ficava dificil de ler.
+  static const themeIconDark = Colors.black;
   static const themeIconLight = Color(0xFFFF8A3D);
+
+  // Fundo do menu lateral (endDrawer): opaco de verdade, sem reaproveitar
+  // cardBgDark/Light (que sao translucidos de proposito pro efeito de vidro
+  // do CardVidro, que tem seu proprio BackdropFilter — sem esse blur, o
+  // Drawer so mostrava o fundo por tras, parecendo "transparente").
+  static const menuBgLight = Colors.white;
+  // Fica branco na parte de cima (onde os itens do menu ficam, pra manter
+  // o texto legivel) e vira roxo perto do rodape, so como acabamento visual.
+  static const menuBgGradientDark = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    stops: [0.0, 0.55, 1.0],
+    colors: [Colors.white, Colors.white, Color(0xFF6A1FB0)],
+  );
 
   static const buttonGradient = LinearGradient(
     begin: Alignment.topLeft,
