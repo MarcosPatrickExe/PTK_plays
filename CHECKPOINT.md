@@ -99,6 +99,15 @@ de um trabalho anterior (outra sessão/ferramenta)? Motivo, é
 proposital manter tudo no mesmo projeto GCP? Vale entender antes de
 continuar decidindo arquitetura.
 
+**Resolvido (27/ago/2026)**: sim, era trabalho de uma sessão anterior — o
+código dessas functions existia numa branch `feat/notificacoes-ao-vivo`,
+nunca mergeada, que tinha divergido do `main` antes do webhook do
+WhatsApp. Trazida e mesclada na branch de dev nesta sessão, junto com a
+nova escrita em `transmissoes` no `ptk-ai-studio` (ver `ROADMAP.md`, seção
+"Backend (Cloud Functions) — escrita de transmissoes no Firestore do PTK
+AI Studio"). O backend do AI Studio continua rodando dentro do projeto GCP
+`ptk-plays` mesmo — não foi movido nem duplicado.
+
 ### Setup do WhatsApp Business Platform (Meta for Developers → caso de uso "Conectar-se com clientes pelo WhatsApp")
 
 - **Etapa 1. Experimente** — concluída. Número de teste da Meta:
