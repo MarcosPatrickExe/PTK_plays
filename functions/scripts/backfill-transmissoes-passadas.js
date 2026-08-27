@@ -4,8 +4,20 @@
  * lives passadas do YouTube e da Twitch e grava retroativamente em
  * `transmissoes` no Firestore do ptk-ai-studio, com o mesmo formato que
  * `functions/lib/transmissoes.js` usa pra deteccao em tempo real (id
- * deterministico `${plataforma}_${idDaTransmissao}`, merge:true - seguro
- * rodar de novo sem duplicar nada).
+ * deterministico `${plataforma}_${idDaTransmissao}`, merge:true).
+ *
+ * Rodar de novo e seguro pro YouTube (o id do video e o mesmo em qualquer
+ * chamada, entao um re-run so faz merge nos documentos ja existentes). NAO
+ * e seguro pra Twitch: o `Get Videos` da Helix so devolve `vod.id`, que e
+ * um espaco de id DIFERENTE do id de stream usado pela deteccao em tempo
+ * real (`event.id` do `stream.online`, ver comentario em `backfillTwitch`
+ * abaixo). Por isso, rodar este script de novo no futuro vai gerar um
+ * documento NOVO (duplicado) pra qualquer live da Twitch que, desde a
+ * ultima vez que voce rodou o backfill, ja tenha sido capturada ao vivo
+ * pela deteccao em tempo real - os dois ids nao batem, entao o
+ * `merge: true` nao funde os dois documentos. Antes de rodar de novo,
+ * cheque manualmente no Firestore se ha `twitch_<vod.id>` duplicando algum
+ * `twitch_<stream_id>` mais recente e apague o duplicado se for o caso.
  *
  * A Kick fica de fora: a API publica dela (docs.kick.com) nao documenta
  * nenhum endpoint pra listar videos/VODs passados do canal - so o webhook
