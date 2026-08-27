@@ -644,32 +644,39 @@ Script novo, roda uma vez manualmente (mesmo padrão do
   unidade/lote) filtrando por quem tem `liveStreamingDetails` com
   `actualStartTime`/`actualEndTime` preenchidos — bem mais barato que
   paginar `search.list` pra achar lives antigas.
-- **Twitch**: pagina `Get Videos` (`type=archive`) via Helix. Usa
-  `vod.stream_id` como `idDaTransmissao` (confirmado via busca que esse
-  campo existe no `Get Videos` — é o mesmo id que a detecção em tempo real
-  usa pro `event.id` do `stream.online`, então uma live que já tiver sido
-  gravada ao vivo **não fica duplicada** ao rodar o backfill depois). A
-  duração vem no formato `"6h26m14s"` — `functions/lib/twitchDuracao.js`
-  (`parseDuracaoTwitch`, testado em `twitch_duracao.test.js`) converte pra
-  segundos.
+- **Twitch**: pagina `Get Videos` (`type=archive`) via Helix. **Correção
+  (27/ago/2026)**: a primeira versão deste script usava `vod.stream_id`
+  como `idDaTransmissao`, na suposição de que seria o mesmo id que
+  `event.id` do `stream.online` (deteção em tempo real) — **suposição não
+  confiável o suficiente pra apostar em fusão de documentos**: o `Get
+  Videos` só devolve o id do VOD, um espaço de id diferente do id de
+  stream, sem garantia documentada de equivalência entre os dois. Usar
+  `vod.stream_id` (quando presente) como se fosse o id de stream e confiar
+  no `merge: true` pra fundir com um doc futuro da detecção em tempo real
+  seria uma aposta que, se errada, gera duplicata **silenciosa** (sem
+  erro, só dois documentos distintos pra mesma live). Corrigido pra usar
+  `vod.id` (id do próprio VOD) — aceitando explicitamente que documentos
+  do backfill ficam "congelados": não tentam fundir com nada que a
+  detecção em tempo real grave depois. Isso é seguro porque são eventos
+  **passados** — o pior caso é, numa coincidência (mesma live pega tanto
+  pelo backfill quanto por uma futura reexecução do backfill ou pela
+  detecção ao vivo antes dele rodar), existirem dois documentos pra ela em
+  vez de um, o que não quebra nada no lado do consumidor (PTK AI Studio).
+  A duração vem no formato `"6h26m14s"` —
+  `functions/lib/twitchDuracao.js` (`parseDuracaoTwitch`, testado em
+  `twitch_duracao.test.js`) converte pra segundos.
 - **Kick**: de fora, pelo motivo explicado acima (sem API oficial).
 - Mesmo formato de documento e mesmo id determinístico
   (`${plataforma}_${idDaTransmissao}`, `merge: true`) do fluxo em tempo
   real — seguro rodar mais de uma vez, e seguro rodar depois que a
   detecção em tempo real já estiver ativa (não duplica).
 
-**⚠️ Pré-requisito de credenciais que o usuário precisa resolver antes de
-rodar**: como esse script roda fora do runtime das Cloud Functions, ele
-**não herda automaticamente** a identidade da conta de serviço
-`696548413882-compute@developer.gserviceaccount.com` (só as Functions
-implantadas assumem essa identidade sozinhas). As Application Default
-Credentials do ambiente onde o script rodar (Cloud Shell, por exemplo)
-precisam ter acesso ao Firestore do `ptk-ai-studio` de alguma forma — ou
-concedendo `roles/datastore.user` lá também pra própria conta Google do
-usuário (mais simples, mesmo passo que já foi feito pra conta de
-serviço), ou via
-`gcloud auth application-default login --impersonate-service-account=...`.
-Isso está documentado no cabeçalho do próprio script. **Não testado de
+**Credenciais**: como esse script roda fora do runtime das Cloud
+Functions, ele não herda a identidade da conta de serviço automaticamente.
+Como o usuário é dono (Owner) do projeto `ptk-ai-studio`, basta
+`gcloud auth application-default login` com a própria conta Google — sem
+precisar de chave de service account nem de conceder role adicional
+nenhuma. Documentado no cabeçalho do próprio script. **Não testado de
 ponta a ponta neste sandbox** pelo mesmo motivo de sempre (sem
 gcloud/firebase autenticados aqui) — só a lógica pura de parsing de
 duração tem teste automatizado.

@@ -14,20 +14,14 @@
  *
  * Uso: node functions/scripts/backfill-transmissoes-passadas.js
  *
- * ⚠️ Pre-requisito de credenciais: este script roda FORA do runtime das
- * Cloud Functions, entao NAO herda automaticamente a identidade da conta
- * de servico `696548413882-compute@developer.gserviceaccount.com` (essa
- * so e assumida automaticamente dentro do proprio Cloud Functions). Pras
- * Application Default Credentials daqui funcionarem contra o Firestore do
- * ptk-ai-studio, faca UMA das duas coisas antes de rodar:
- *   a) conceda `roles/datastore.user` no projeto ptk-ai-studio pra sua
- *      propria conta Google (a mesma usada no
- *      `gcloud auth application-default login`) - mais simples, e o mesmo
- *      passo que ja foi feito pra conta de servico; ou
- *   b) rode `gcloud auth application-default login
- *      --impersonate-service-account=696548413882-compute@developer.gserviceaccount.com`
- *      (exige que sua conta tenha `roles/iam.serviceAccountTokenCreator`
- *      nessa conta de servico).
+ * Pre-requisito de credenciais: como isso e um script avulso (nao uma
+ * Function implantada), ele NAO herda a identidade da conta de servico
+ * das Functions automaticamente. A forma mais simples de autenticar e
+ * `gcloud auth application-default login` com a sua propria conta Google
+ * - como voce e dono (Owner) do projeto ptk-ai-studio, isso ja basta pras
+ * Application Default Credentials terem acesso de escrita no Firestore de
+ * la, sem precisar criar chave de service account nem conceder nenhuma
+ * role adicional.
  */
 const { execSync } = require("child_process");
 const { Firestore } = require("@google-cloud/firestore");
@@ -186,12 +180,19 @@ async function backfillTwitch(clientId, clientSecret) {
 
       await gravarTransmissaoPassada({
         plataforma: "twitch",
-        // stream_id (o id da transmissao de verdade) e o mesmo usado pela
-        // deteccao em tempo real (event.id do stream.online) - usar ele
-        // aqui evita criar um documento duplicado se essa mesma live ja
-        // tiver sido gravada ao vivo. Cai pro id do proprio VOD so quando
-        // a Twitch nao associa um stream_id (acontece em VODs antigos).
-        idDaTransmissao: vod.stream_id || vod.id,
+        // O `Get Videos` da Helix so devolve o id do VOD (vod.id) - um
+        // espaco de id DIFERENTE do id de stream que a deteccao em tempo
+        // real usa (event.id do stream.online). Nao da pra recuperar o id
+        // de stream original de uma live passada por essa API, entao usar
+        // vod.id aqui e intencional: o documento gerado pelo backfill fica
+        // "congelado", sem tentativa de bater com o que a Function ao vivo
+        // grave dali pra frente (se tentassemos casar os dois espacos de
+        // id sem uma garantia real de equivalencia, o risco seria pior -
+        // uma duplicata silenciosa por acreditar numa fusao que nao
+        // acontece). So faz diferenca se essa MESMA live acabar sendo
+        // processada tambem pela deteccao ao vivo (ela cria um segundo
+        // documento, com o id de stream) - inofensivo pra dados passados.
+        idDaTransmissao: vod.id,
         titulo: vod.title,
         urlDaLive: `https://twitch.tv/${LOGIN_TWITCH}`,
         iniciadaEm: inicio,
