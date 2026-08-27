@@ -99,11 +99,16 @@ async function registrarFimTransmissao({ plataforma, resolverVod }) {
   }
 
   const { idDaTransmissao, iniciadaEm } = snap.data();
-  await ref.delete();
 
   const agora = new Date();
   const vod = resolverVod ? await resolverVod(idDaTransmissao) : null;
 
+  // So apaga o estado ativo depois de confirmar a escrita em `transmissoes`.
+  // Se `resolverVod` (chamada de rede, ex: Twitch Helix) ou essa escrita
+  // cross-project falharem, o estado ativo continua aqui e o retry do
+  // webhook (ex: novo stream.offline reenviado pela Twitch) consegue tentar
+  // de novo do zero - se o delete rodasse antes, uma falha nesse meio-tempo
+  // deixaria a transmissao presa pra sempre com `encerrada: false`.
   await studio
     .collection("transmissoes")
     .doc(idDocumentoTransmissao(plataforma, idDaTransmissao))
@@ -117,6 +122,8 @@ async function registrarFimTransmissao({ plataforma, resolverVod }) {
       },
       { merge: true },
     );
+
+  await ref.delete();
 }
 
 module.exports = {
