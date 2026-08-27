@@ -9,13 +9,7 @@ const TWITCH_CLIENT_ID = defineSecret("TWITCH_CLIENT_ID");
 const TWITCH_CLIENT_SECRET = defineSecret("TWITCH_CLIENT_SECRET");
 const LOGIN_TWITCH = "patrickson_plays";
 
-/**
- * O evento `stream.offline` do EventSub nao traz o VOD (nem o id da
- * transmissao que acabou de terminar). Busca o video mais recente do tipo
- * "archive" (VOD automatico da live) do canal via Helix - a live que
- * acabou de encerrar deve ser o primeiro resultado.
- */
-async function buscarVodMaisRecente(broadcasterId, clientId, clientSecret) {
+async function obterTokenDeApp(clientId, clientSecret) {
   const tokenResp = await fetch("https://id.twitch.tv/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -26,10 +20,22 @@ async function buscarVodMaisRecente(broadcasterId, clientId, clientSecret) {
     }),
   });
   if (!tokenResp.ok) {
-    console.error("Falha ao obter token de app da Twitch pra buscar VOD:", tokenResp.status, await tokenResp.text());
+    console.error("Falha ao obter token de app da Twitch:", tokenResp.status, await tokenResp.text());
     return null;
   }
   const { access_token: appToken } = await tokenResp.json();
+  return appToken;
+}
+
+/**
+ * O evento `stream.offline` do EventSub nao traz o VOD (nem o id da
+ * transmissao que acabou de terminar). Busca o video mais recente do tipo
+ * "archive" (VOD automatico da live) do canal via Helix - a live que
+ * acabou de encerrar deve ser o primeiro resultado.
+ */
+async function buscarVodMaisRecente(broadcasterId, clientId, clientSecret) {
+  const appToken = await obterTokenDeApp(clientId, clientSecret);
+  if (!appToken) return null;
 
   const videosResp = await fetch(
     `https://api.twitch.tv/helix/videos?user_id=${broadcasterId}&type=archive&first=1`,
@@ -44,6 +50,27 @@ async function buscarVodMaisRecente(broadcasterId, clientId, clientSecret) {
   if (!vod) return null;
 
   return { vodId: vod.id, vodUrl: vod.url };
+}
+
+/**
+ * O evento `stream.online` nao traz titulo (isso so vem no
+ * `channel.update`, que nao assinamos) - busca via Helix "Get Streams",
+ * que retorna o titulo atual de uma stream que esta ao vivo agora.
+ */
+async function buscarTituloAoVivo(broadcasterId, clientId, clientSecret) {
+  const appToken = await obterTokenDeApp(clientId, clientSecret);
+  if (!appToken) return null;
+
+  const streamsResp = await fetch(`https://api.twitch.tv/helix/streams?user_id=${broadcasterId}`, {
+    headers: { Authorization: `Bearer ${appToken}`, "Client-Id": clientId },
+  });
+  if (!streamsResp.ok) {
+    console.error("Falha ao consultar stream ao vivo da Twitch:", streamsResp.status, await streamsResp.text());
+    return null;
+  }
+  const { data } = await streamsResp.json();
+  const stream = data && data[0];
+  return (stream && stream.title) || null;
 }
 
 function assinaturaValida(req, segredo) {
@@ -86,7 +113,17 @@ exports.twitchWebhook = onRequest(
       if (tipoEvento === "stream.online") {
         const urlDaLive = `https://twitch.tv/${LOGIN_TWITCH}`;
         await atualizarStatusPlataforma("twitch", true, urlDaLive);
-        await registrarInicioTransmissao({ plataforma: "twitch", idDaTransmissao: req.body.event.id, urlDaLive });
+        const titulo = await buscarTituloAoVivo(
+          req.body.event.broadcaster_user_id,
+          TWITCH_CLIENT_ID.value(),
+          TWITCH_CLIENT_SECRET.value(),
+        );
+        await registrarInicioTransmissao({
+          plataforma: "twitch",
+          idDaTransmissao: req.body.event.id,
+          urlDaLive,
+          titulo,
+        });
       } else if (tipoEvento === "stream.offline") {
         const resultado = await atualizarStatusPlataforma("twitch", false, null);
         if (resultado.tipo === "encerrada") {

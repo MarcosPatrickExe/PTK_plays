@@ -608,3 +608,68 @@ mencionado acima. `npm test` cobre só a lógica pura. Falta o usuário
 fazer o deploy (`firebase deploy --only functions`, como sempre, a partir
 do Cloud Shell) e confirmar numa live de teste em cada plataforma que os
 documentos aparecem certinho em `transmissoes` no projeto `ptk-ai-studio`.
+
+### Campo `titulo` + backfill de lives passadas (27/ago/2026)
+
+Pesquisado na documentação **oficial** antes de codar (não chutado):
+
+- **`docs.kick.com/events/event-types`**: confirma que o payload do
+  `livestream.status.updated` traz `broadcaster`, `is_live`, `title`,
+  `started_at` e `ended_at` — **sem** nenhum id de transmissão dedicado.
+  Isso valida a decisão anterior de derivar o id do `started_at`
+  (`extrairIdDaTransmissaoKick`, `functions/lib/kick.js`) e resolve a
+  incerteza que tinha ficado documentada antes — não é mais "não
+  verificado", é confirmado que o campo não existe mesmo. `title` passou a
+  ser gravado (`titulo`) direto desse payload.
+- Também confirmado: a Kick **não tem nenhum endpoint público documentado**
+  pra listar vídeos/VODs passados do canal (só o webhook em tempo real) —
+  por isso o backfill histórico (abaixo) cobre só YouTube e Twitch.
+- **`dev.twitch.tv/docs/eventsub/eventsub-reference`**: confirma que o
+  evento `stream.online` **não traz título** (isso só vem no
+  `channel.update`, que não assinamos). `functions/lib/twitch.js` ganhou
+  `buscarTituloAoVivo`, que consulta a Helix `GET /streams?user_id=...`
+  no momento do `stream.online` pra obter o título da live em andamento.
+- **YouTube**: `titulo` sai de graça do próprio `search.list` que a
+  checagem agendada já faz (`item.snippet.title`).
+
+### Backfill de lives passadas (`functions/scripts/backfill-transmissoes-passadas.js`)
+
+Script novo, roda uma vez manualmente (mesmo padrão do
+`setup-twitch-eventsub.js`), grava retroativamente em `transmissoes` no
+`ptk-ai-studio` as lives que já aconteceram antes dessa feature existir:
+
+- **YouTube**: em vez de `search.list` (100 unidades de cota por chamada),
+  usa a playlist de uploads do canal (`channels.list` + `playlistItems.list`,
+  1 unidade/página) e depois `videos.list` em lotes de 50 ids (1
+  unidade/lote) filtrando por quem tem `liveStreamingDetails` com
+  `actualStartTime`/`actualEndTime` preenchidos — bem mais barato que
+  paginar `search.list` pra achar lives antigas.
+- **Twitch**: pagina `Get Videos` (`type=archive`) via Helix. Usa
+  `vod.stream_id` como `idDaTransmissao` (confirmado via busca que esse
+  campo existe no `Get Videos` — é o mesmo id que a detecção em tempo real
+  usa pro `event.id` do `stream.online`, então uma live que já tiver sido
+  gravada ao vivo **não fica duplicada** ao rodar o backfill depois). A
+  duração vem no formato `"6h26m14s"` — `functions/lib/twitchDuracao.js`
+  (`parseDuracaoTwitch`, testado em `twitch_duracao.test.js`) converte pra
+  segundos.
+- **Kick**: de fora, pelo motivo explicado acima (sem API oficial).
+- Mesmo formato de documento e mesmo id determinístico
+  (`${plataforma}_${idDaTransmissao}`, `merge: true`) do fluxo em tempo
+  real — seguro rodar mais de uma vez, e seguro rodar depois que a
+  detecção em tempo real já estiver ativa (não duplica).
+
+**⚠️ Pré-requisito de credenciais que o usuário precisa resolver antes de
+rodar**: como esse script roda fora do runtime das Cloud Functions, ele
+**não herda automaticamente** a identidade da conta de serviço
+`696548413882-compute@developer.gserviceaccount.com` (só as Functions
+implantadas assumem essa identidade sozinhas). As Application Default
+Credentials do ambiente onde o script rodar (Cloud Shell, por exemplo)
+precisam ter acesso ao Firestore do `ptk-ai-studio` de alguma forma — ou
+concedendo `roles/datastore.user` lá também pra própria conta Google do
+usuário (mais simples, mesmo passo que já foi feito pra conta de
+serviço), ou via
+`gcloud auth application-default login --impersonate-service-account=...`.
+Isso está documentado no cabeçalho do próprio script. **Não testado de
+ponta a ponta neste sandbox** pelo mesmo motivo de sempre (sem
+gcloud/firebase autenticados aqui) — só a lógica pura de parsing de
+duração tem teste automatizado.

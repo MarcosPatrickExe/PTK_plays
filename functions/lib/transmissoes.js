@@ -48,7 +48,7 @@ function refEstadoAtivo(plataforma) {
  * inventamos um - so avisamos no log e nao gravamos nada (nem estado
  * ativo, nem documento).
  */
-async function registrarInicioTransmissao({ plataforma, idDaTransmissao, urlDaLive }) {
+async function registrarInicioTransmissao({ plataforma, idDaTransmissao, urlDaLive, titulo }) {
   if (!idDaTransmissao) {
     console.warn(`[transmissoes] inicio de "${plataforma}" sem idDaTransmissao reconhecido - nada gravado.`);
     return;
@@ -71,6 +71,10 @@ async function registrarInicioTransmissao({ plataforma, idDaTransmissao, urlDaLi
         urlDaLive,
         idDaTransmissao,
         encerrada: false,
+        // Nem toda plataforma expoe titulo no momento da detecção (ex:
+        // stream.online da Twitch nao traz - ver twitch.js); quando nao
+        // vier, so nao grava o campo em vez de gravar undefined/vazio.
+        ...(titulo ? { titulo } : {}),
       },
       { merge: true },
     );

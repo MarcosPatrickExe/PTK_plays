@@ -6,20 +6,17 @@ const { atualizarStatusPlataforma } = require("./postAoVivo");
 const { registrarInicioTransmissao, registrarFimTransmissao } = require("./transmissoes");
 
 /**
- * A Kick nao documenta um id de transmissao dedicado no payload do
- * `livestream.status.updated` (so o canal/broadcaster e o horario). Sem um
- * id de verdade nao da pra formar `${plataforma}_${idDaTransmissao}` sem
- * chutar - entao usamos o `started_at` (quando presente) como parte do id:
- * e um dado real do payload, unico por transmissao, so nao e um "id"
- * oficial da plataforma. Se nem isso vier, retorna null e quem chamar nao
- * grava nada (ver `transmissoes.js`).
- *
- * ⚠️ Nao verificado contra um payload real de producao - revisar contra os
- * logs da function quando a Kick disparar o webhook de verdade.
+ * Confirmado na documentacao oficial (docs.kick.com/events/event-types):
+ * o payload do `livestream.status.updated` traz `broadcaster`, `is_live`,
+ * `title`, `started_at` e `ended_at` - **nao existe** um id de transmissao/
+ * sessao dedicado. Sem um id de verdade nao da pra formar
+ * `${plataforma}_${idDaTransmissao}` sem chutar - entao usamos o
+ * `started_at` como parte do id: e um dado real do payload, unico por
+ * transmissao, so nao e um "id" oficial da plataforma. Se nem isso vier
+ * (o que nao deveria acontecer, dado o payload documentado), retorna null
+ * e quem chamar nao grava nada (ver `transmissoes.js`).
  */
 function extrairIdDaTransmissaoKick(body) {
-  if (body && body.livestream && body.livestream.id) return String(body.livestream.id);
-  if (body && body.id) return String(body.id);
   if (body && body.started_at) return String(body.started_at).replace(/[^0-9]/g, "");
   return null;
 }
@@ -87,6 +84,7 @@ exports.kickWebhook = onRequest({ region: "southamerica-east1" }, async (req, re
         plataforma: "kick",
         idDaTransmissao: extrairIdDaTransmissaoKick(req.body),
         urlDaLive,
+        titulo: req.body.title,
       });
     } else {
       const resultado = await atualizarStatusPlataforma("kick", false, null);
