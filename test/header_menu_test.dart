@@ -23,26 +23,23 @@ void main() {
     expect(find.byType(BotaoMenuLateral), findsNothing);
   });
 
-  // O painel de vidro que existia atras do titulo (ClipRRect +
-  // BackdropFilter + Container com cor/borda) foi removido: era a faixa
-  // fixa que aparecia por baixo do cabecalho. Quem faz esse papel agora e o
-  // DegradeTopo, desenhado no Stack de cada tela.
-  testWidgets('buildHeader nao desenha nenhum painel de fundo atras do titulo', (tester) async {
+  // O cabecalho mantem o painel de vidro (BackdropFilter), e ele precisa
+  // caber em `alturaCabecalho` - constante que as telas usam como padding
+  // superior da lista pra que o conteudo comece abaixo do cabecalho e role
+  // por baixo dele, em vez de ser cortado numa linha reta ali.
+  testWidgets('buildHeader mantem o painel de vidro e respeita alturaCabecalho', (tester) async {
     await tester.pumpWidget(
-      _comTema(Builder(builder: (context) => Scaffold(body: buildHeader(title: 'Feed', widgetContext: context)))),
+      _comTema(
+        Builder(
+          builder: (context) => Scaffold(
+            body: Align(alignment: Alignment.topCenter, child: buildHeader(title: 'Feed', widgetContext: context)),
+          ),
+        ),
+      ),
     );
 
-    expect(find.byType(BackdropFilter), findsNothing);
-
-    // Sobram so os Containers dos botoes redondos de acao (tema/editar/menu),
-    // nenhum ocupando a largura toda como painel de fundo.
-    final larguraTela = tester.view.physicalSize.width / tester.view.devicePixelRatio;
-    for (final container in tester.widgetList<Container>(find.byType(Container))) {
-      final decoracao = container.decoration;
-      if (decoracao is BoxDecoration && decoracao.color != null) {
-        expect(tester.getSize(find.byWidget(container)).width, lessThan(larguraTela / 2));
-      }
-    }
+    expect(find.byType(BackdropFilter), findsOneWidget);
+    expect(tester.getSize(find.byType(BackdropFilter)).height, lessThanOrEqualTo(alturaCabecalho));
   });
 
   testWidgets('buildHeader mostra o botao de menu quando o parametro menu e passado', (tester) async {

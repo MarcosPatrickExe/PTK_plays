@@ -72,11 +72,13 @@ class HomePage extends StatelessWidget {
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
           Positioned.fill(child: AuthBackground(isDark: isDark)),
-          const DegradeTopo(),
+          // O conteudo ocupa a tela inteira (sem Column com o cabecalho
+          // acima) pra poder rolar POR BAIXO do cabecalho e do scrim - se
+          // ficasse numa Column, a area rolavel comecaria embaixo do
+          // cabecalho e os cards seriam cortados numa linha reta ali.
           SafeArea(
             child: Column(
               children: [
-                buildHeader(title: "Feed", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
                 Expanded(
                   child: StreamBuilder<List<PostModel>>(
                     stream: postViewModel.streamPostagens(),
@@ -109,7 +111,9 @@ class HomePage extends StatelessWidget {
 
                       return ResponsiveCenter(
                         child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                          // O topo abre espaco pro cabecalho flutuante: a
+                          // lista comeca abaixo dele, mas rola por baixo.
+                          padding: const EdgeInsets.fromLTRB(16, alturaCabecalho + 16, 16, 100),
                           itemCount: postagens.length,
                           separatorBuilder: (context, index) => const SizedBox(height: 16),
                           itemBuilder: (context, index) => PostCard(
@@ -128,6 +132,15 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Scrim e cabecalho ficam DEPOIS do conteudo no Stack: o conteudo
+          // rolado passa por baixo dos dois em vez de ser cortado.
+          const DegradeTopo(),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: buildHeader(title: "Feed", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
             ),
           ),
           Positioned(

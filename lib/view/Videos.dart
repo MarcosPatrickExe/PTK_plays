@@ -94,17 +94,17 @@ class _VideoScreenState extends State<Videos> {
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
           Positioned.fill(child: AuthBackground(isDark: isDark)),
-          const DegradeTopo(),
+          // O conteudo ocupa a tela inteira pra poder rolar POR BAIXO do
+          // cabecalho e do scrim (ver comentario em Header.dart).
           SafeArea(
             child: Column(
               children: [
-                buildHeader(title: "Vídeos", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
                 Expanded(
                   child: ( _VideoScreenState._loadedVideoCards != null)
                       ? ResponsiveCenter(
                           maxWidthFraction: 0.4,
                           child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                            padding: const EdgeInsets.fromLTRB(16, alturaCabecalho + 16, 16, 100),
                             itemCount: _VideoScreenState._loadedVideoCards?.length ,
                             itemBuilder: (ctx, index) {
 
@@ -137,7 +137,7 @@ class _VideoScreenState extends State<Videos> {
                               return ResponsiveCenter(
                                 maxWidthFraction: 0.4,
                                 child: ListView.builder(
-                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                                  padding: const EdgeInsets.fromLTRB(16, alturaCabecalho + 16, 16, 100),
                                   itemCount: snapshot.data!.length,
                                   itemBuilder: (context, index) {
                                     final notification = snapshot.data![index];
@@ -159,6 +159,15 @@ class _VideoScreenState extends State<Videos> {
                         ),
                 ),
               ],
+            ),
+          ),
+          // Scrim e cabecalho ficam DEPOIS do conteudo no Stack: o conteudo
+          // rolado passa por baixo dos dois em vez de ser cortado.
+          const DegradeTopo(),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: buildHeader(title: "Vídeos", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
             ),
           ),
           Positioned(
