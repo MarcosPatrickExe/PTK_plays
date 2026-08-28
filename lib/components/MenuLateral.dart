@@ -58,6 +58,12 @@ class MenuLateral extends StatelessWidget {
   final VoidCallback onConfiguracoes;
   final VoidCallback onSairDaConta;
 
+  /// So aparece pra quem tem `cargo == 'admin'` (ver UserModel.ehAdmin).
+  /// Esconder na UI e conveniencia: quem realmente barra um nao-admin de
+  /// mexer nos dados e o `firestore.rules`.
+  final bool ehAdmin;
+  final VoidCallback? onPainelAdmin;
+
   const MenuLateral({
     super.key,
     required this.isDark,
@@ -66,6 +72,8 @@ class MenuLateral extends StatelessWidget {
     required this.onPoliticaPrivacidade,
     required this.onConfiguracoes,
     required this.onSairDaConta,
+    this.ehAdmin = false,
+    this.onPainelAdmin,
   });
 
   @override
@@ -130,6 +138,16 @@ class MenuLateral extends StatelessWidget {
                     onPoliticaPrivacidade();
                   },
                 ),
+                if (ehAdmin)
+                  _ItemMenu(
+                    icone: Icons.admin_panel_settings_outlined,
+                    texto: 'Painel ADM',
+                    cor: const Color(0xFFA12EE0),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onPainelAdmin?.call();
+                    },
+                  ),
                 _ItemMenu(
                   icone: Icons.settings_outlined,
                   texto: 'Configurações',

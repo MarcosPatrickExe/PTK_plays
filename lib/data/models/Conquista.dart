@@ -26,6 +26,11 @@ class Conquista {
 
 const List<Conquista> catalogoConquistas = [
   Conquista(
+    chave: 'admin',
+    titulo: 'Administrador',
+    descricao: 'Cuida do PTK Plays por dentro: modera a comunidade e publica os avisos do canal.',
+  ),
+  Conquista(
     chave: 'novato',
     titulo: 'Novato',
     descricao: 'Toda conta criada no PTK Plays já começa com essa conquista.',

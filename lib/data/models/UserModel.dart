@@ -26,6 +26,19 @@ class UserModel {
   // escolha), caindo no fallback de fotoUrl/icone generico na UI.
   final String avatarPreset;
 
+  /// Estado de moderacao, definido pelo Painel ADM: 'ativo', 'suspenso' ou
+  /// 'banido'. Contas antigas (sem o campo) contam como 'ativo'. Quem grava
+  /// isso e so o admin (ver firestore.rules).
+  final String estadoModeracao;
+
+  /// Ate quando a suspensao vale. Nulo em conta ativa ou banida (banimento
+  /// nao tem prazo).
+  final DateTime? suspensoAte;
+
+  static const List<String> estadosModeracaoValidos = ['ativo', 'suspenso', 'banido'];
+
+  bool get ehAdmin => cargo == 'admin';
+
   const UserModel({
     required this.uid,
     required this.nickname,
@@ -40,6 +53,8 @@ class UserModel {
     required this.contadores,
     this.telefoneWhatsapp = '',
     this.avatarPreset = '',
+    this.estadoModeracao = 'ativo',
+    this.suspensoAte,
   });
 
   factory UserModel.novoInscrito({
@@ -86,6 +101,8 @@ class UserModel {
       // Contas criadas antes desse campo existir nao tem essa chave no Firestore.
       telefoneWhatsapp: data['telefoneWhatsapp'] ?? '',
       avatarPreset: data['avatarPreset'] ?? '',
+      estadoModeracao: data['estadoModeracao'] ?? 'ativo',
+      suspensoAte: (data['suspensoAte'] as Timestamp?)?.toDate(),
     );
   }
 

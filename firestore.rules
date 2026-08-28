@@ -69,6 +69,16 @@ service cloud.firestore {
         && statusValido(request.resource.data.status)
         && request.resource.data.ultimoAcesso == request.time;
 
+      // O Painel ADM (lib/view/PainelAdmin.dart) precisa banir/suspender
+      // outras contas. Isso e uma escrita num documento que NAO e do
+      // proprio usuario, entao precisa de uma regra separada da de cima —
+      // e restrita: o admin so mexe nos campos de moderacao, nunca em
+      // badges/contadores/cargo por essa via.
+      allow update: if ehAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['estadoModeracao', 'suspensoAte', 'motivoModeracao'])
+        && request.resource.data.estadoModeracao in ['ativo', 'suspenso', 'banido'];
+
       allow delete: if ehDono(userId);
     }
 

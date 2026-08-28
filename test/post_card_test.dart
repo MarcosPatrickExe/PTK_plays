@@ -63,9 +63,26 @@ void main() {
       expect(ordemDosTextos, ['YouTube', 'Kick']);
     });
 
-    testWidgets('sem thumbnail em nenhuma plataforma, nao tenta renderizar nenhuma imagem', (tester) async {
+    testWidgets('sem preview possivel em nenhuma plataforma, nao renderiza imagem', (tester) async {
       final post = PostModel(
         id: 'p3',
+        tipo: PostModel.tipoAoVivo,
+        autorUid: 'sistema',
+        autorNickname: 'PTK Plays',
+        criadoEm: DateTime.now(),
+        // Kick sem thumbnail: o link nao carrega id de video nenhum, entao
+        // nao ha de onde deduzir uma miniatura.
+        plataformasAoVivo: {'kick': const PostPlataformaAoVivo(link: 'https://kick.com/patrickson_plays')},
+      );
+
+      await tester.pumpWidget(_comPost(post));
+
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('live do YouTube ganha preview mesmo sem thumbnail vinda da API', (tester) async {
+      final post = PostModel(
+        id: 'p3b',
         tipo: PostModel.tipoAoVivo,
         autorUid: 'sistema',
         autorNickname: 'PTK Plays',
@@ -75,7 +92,7 @@ void main() {
 
       await tester.pumpWidget(_comPost(post));
 
-      expect(find.byType(Image), findsNothing);
+      expect(find.byType(Image), findsOneWidget);
     });
 
     testWidgets('sem nenhuma plataforma ativa (post legado), cai no texto generico', (tester) async {
@@ -151,6 +168,28 @@ void main() {
       expect(find.text('AO VIVO'), findsOneWidget);
       expect(find.text('Começou às 27/08 às 21:05'), findsOneWidget);
       expect(post.plataformasAoVivo['kick']!.linkParaAbrir, 'https://kick.com/patrickson_plays');
+    });
+  });
+
+  group('PostPlataformaAoVivo.previewUrl', () {
+    test('usa a thumbnail da plataforma quando ela manda uma (Twitch/Kick)', () {
+      const dados = PostPlataformaAoVivo(
+        link: 'https://twitch.tv/patrickson_plays',
+        thumbnailUrl: 'https://cdn/preview.jpg',
+      );
+      expect(dados.previewUrl, 'https://cdn/preview.jpg');
+    });
+
+    // O YouTube nao manda thumbnail nenhuma, mas o id do video ja esta no
+    // proprio link da live - a miniatura sai dai, sem chamada extra a API.
+    test('deduz a miniatura do YouTube a partir do id no link', () {
+      const dados = PostPlataformaAoVivo(link: 'https://www.youtube.com/watch?v=abc123');
+      expect(dados.previewUrl, 'https://i.ytimg.com/vi/abc123/hqdefault.jpg');
+    });
+
+    test('retorna null quando nao da pra deduzir nada (ex: link da Kick)', () {
+      const dados = PostPlataformaAoVivo(link: 'https://kick.com/patrickson_plays');
+      expect(dados.previewUrl, isNull);
     });
   });
 

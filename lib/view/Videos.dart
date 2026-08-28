@@ -9,7 +9,9 @@ import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/PoliticaPrivacidade.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
+import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/view/Login.dart';
+import 'package:ptk_plays/view/PainelAdmin.dart';
 import 'package:ptk_plays/view/Privacidade.dart';
 import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
@@ -65,8 +67,16 @@ class _VideoScreenState extends State<Videos> {
     bool isDark = context.watch<ThemeController>().isDark;
 
     return Scaffold(
-      endDrawer: MenuLateral(
+      // Ver comentario equivalente em Home.dart: o drawer e a unica parte
+      // da tela que depende do cargo do usuario.
+      endDrawer: StreamBuilder<UserModel?>(
+        stream: widget.authViewModel.streamUsuarioAtual(),
+        builder: (context, snapshot) => MenuLateral(
         isDark: isDark,
+        ehAdmin: snapshot.data?.ehAdmin ?? false,
+        onPainelAdmin: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PainelAdmin()),
+        ),
         onRecuperacaoSenha: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => Profile(viewmodelYT: widget.viewmodelYT, apiKey: widget.apiKEY, authViewModel: widget.authViewModel),
@@ -85,6 +95,7 @@ class _VideoScreenState extends State<Videos> {
             (route) => false,
           );
         },
+        ),
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame

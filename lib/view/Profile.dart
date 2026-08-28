@@ -23,6 +23,7 @@ import 'Configuracoes.dart';
 import 'Conquistas.dart';
 import 'EditarPerfil.dart';
 import 'Login.dart';
+import 'PainelAdmin.dart';
 import 'Privacidade.dart';
 
 const Color _corExcluir = Color(0xFFE0264F);
@@ -157,6 +158,10 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       endDrawer: MenuLateral(
         isDark: isDark,
+        ehAdmin: _usuarioAtual?.ehAdmin ?? false,
+        onPainelAdmin: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PainelAdmin()),
+        ),
         onRecuperacaoSenha: _usuarioAtual == null
             ? () {}
             : () => Navigator.of(context).push(
