@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
+import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/Conquista.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
@@ -24,6 +25,7 @@ class Conquistas extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(child: AuthBackground(isDark: isDark)),
+            const DegradeTopo(),
             SafeArea(
               child: Stack(
                 children: [

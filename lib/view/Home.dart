@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
@@ -11,12 +12,15 @@ import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/PoliticaPrivacidade.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
+import 'package:ptk_plays/view/Login.dart';
 import 'package:ptk_plays/view/Privacidade.dart';
 import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher_url;
 import '../components/Header.dart';
+import '../components/ModalMSG.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
 
 class HomePage extends StatelessWidget {
@@ -49,6 +53,16 @@ class HomePage extends StatelessWidget {
         onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
         onPoliticaPrivacidade: () => abrirPoliticaPrivacidade(context),
         onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
+        onSairDaConta: () async {
+          await authViewModel.logout();
+          if (!context.mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => Login(viewmodelYT: viewmodelYT, apiKey: apiKEY, authViewModel: authViewModel),
+            ),
+            (route) => false,
+          );
+        },
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
@@ -58,6 +72,7 @@ class HomePage extends StatelessWidget {
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
           Positioned.fill(child: AuthBackground(isDark: isDark)),
+          const DegradeTopo(),
           SafeArea(
             child: Column(
               children: [
@@ -180,15 +195,37 @@ class PostCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _conteudoPorTipo(),
+          _conteudoPorTipo(context),
         ],
       ),
     );
   }
 
-  Widget _conteudoPorTipo() {
+  // Ordem fixa de exibicao das plataformas nos cards aoVivo - so entram as
+  // que estiverem realmente ativas no post (post.plataformasAoVivo).
+  static const _ordemPlataformas = ['youtube', 'twitch', 'kick'];
+
+  Widget _conteudoPorTipo(BuildContext context) {
     switch (post.tipo) {
       case PostModel.tipoAoVivo:
+        final ativas = _ordemPlataformas.where((p) => post.plataformasAoVivo.containsKey(p)).toList();
+        final detalhes = ativas.map((p) => post.plataformasAoVivo[p]!).toList();
+
+        String? primeiroNaoVazio(Iterable<String?> valores) {
+          for (final valor in valores) {
+            if (valor != null && valor.isNotEmpty) return valor;
+          }
+          return null;
+        }
+
+        final tituloLive = primeiroNaoVazio(detalhes.map((d) => d.titulo));
+        final jogo = primeiroNaoVazio(detalhes.map((d) => d.jogo));
+        final thumbnailUrl = primeiroNaoVazio(detalhes.map((d) => d.thumbnailUrl));
+        final iniciadaEm = detalhes
+            .map((d) => d.iniciadaEm)
+            .whereType<DateTime>()
+            .fold<DateTime?>(null, (menor, atual) => (menor == null || atual.isBefore(menor)) ? atual : menor);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -200,18 +237,44 @@ class PostCard extends StatelessWidget {
                 style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
-            if (post.texto != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                post.texto!,
-                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+            if (thumbnailUrl != null) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  thumbnailUrl,
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 160,
+                    color: Colors.grey.shade800,
+                    child: const Center(child: Icon(Icons.image, color: Colors.white54)),
+                  ),
+                ),
               ),
             ],
-            if (post.plataformas != null && post.plataformas!.isNotEmpty) ...[
-              const SizedBox(height: 8),
+            const SizedBox(height: 8),
+            Text(
+              tituloLive ?? post.texto ?? 'Corre pra assistir agora!',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+            ),
+            if (jogo != null || iniciadaEm != null) ...[
+              const SizedBox(height: 4),
               Text(
-                post.plataformas!.map(_labelPlataforma).join(' • '),
-                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+                [
+                  if (jogo != null) jogo,
+                  if (iniciadaEm != null) 'começou às ${_formatarHorario(iniciadaEm)}',
+                ].join(' • '),
+                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight, fontSize: 13),
+              ),
+            ],
+            if (ativas.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ativas.map((p) => _badgePlataforma(context, p, post.plataformasAoVivo[p]!.link)).toList(),
               ),
             ],
           ],
@@ -392,5 +455,63 @@ class PostCard extends StatelessWidget {
     if (diff.inMinutes < 60) return 'há ${diff.inMinutes}min';
     if (diff.inHours < 24) return 'há ${diff.inHours}h';
     return 'há ${diff.inDays}d';
+  }
+
+  String _formatarHorario(DateTime data) {
+    final local = data.toLocal();
+    final hora = local.hour.toString().padLeft(2, '0');
+    final minuto = local.minute.toString().padLeft(2, '0');
+    final dia = local.day.toString().padLeft(2, '0');
+    final mes = local.month.toString().padLeft(2, '0');
+    return '$hora:$minuto ($dia/$mes)';
+  }
+
+  Color _corPlataforma(String p) {
+    switch (p) {
+      case 'youtube':
+        return const Color(0xFFFF0000);
+      case 'twitch':
+        return const Color(0xFF9146FF);
+      case 'kick':
+        return const Color(0xFF53FC18);
+      default:
+        return _corVotacao;
+    }
+  }
+
+  // Cor de texto/icone sobre o fundo de _corPlataforma - Kick e um verde
+  // claro demais pra texto branco ficar legivel em cima.
+  Color _corTextoPlataforma(String p) => p == 'kick' ? Colors.black : Colors.white;
+
+  Widget _badgePlataforma(BuildContext context, String plataforma, String link) {
+    final cor = _corPlataforma(plataforma);
+    final corTexto = _corTextoPlataforma(plataforma);
+    return GestureDetector(
+      onTap: () => _abrirLink(context, link),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _labelPlataforma(plataforma),
+              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: corTexto),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.open_in_new, size: 13, color: corTexto),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirLink(BuildContext context, String link) async {
+    final url = Uri.parse(link);
+    if (await launcher_url.canLaunchUrl(url)) {
+      await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir a live :/");
+    }
   }
 }

@@ -1,0 +1,238 @@
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
+const crypto = require("crypto");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { atualizarStatusPlataforma } = require("./postAoVivo");
+const { registrarInicioTransmissao, registrarFimTransmissao } = require("./transmissoes");
+
+/**
+ * Confirmado na documentacao oficial (docs.kick.com/events/event-types):
+ * o payload do `livestream.status.updated` traz `broadcaster`, `is_live`,
+ * `title`, `started_at` e `ended_at` - **nao existe** um id de transmissao/
+ * sessao dedicado. Sem um id de verdade nao da pra formar
+ * `${plataforma}_${idDaTransmissao}` sem chutar - entao usamos o
+ * `started_at` como parte do id: e um dado real do payload, unico por
+ * transmissao, so nao e um "id" oficial da plataforma. Se nem isso vier
+ * (o que nao deveria acontecer, dado o payload documentado), retorna null
+ * e quem chamar nao grava nada (ver `transmissoes.js`).
+ */
+function extrairIdDaTransmissaoKick(body) {
+  if (body && body.started_at) return String(body.started_at).replace(/[^0-9]/g, "");
+  return null;
+}
+exports.extrairIdDaTransmissaoKick = extrairIdDaTransmissaoKick;
+
+async function obterTokenDeAppKick(clientId, clientSecret) {
+  const resp = await fetch("https://id.kick.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
+  });
+  if (!resp.ok) {
+    console.error("Falha ao obter token de app da Kick:", resp.status, await resp.text());
+    return null;
+  }
+  const { access_token: appToken } = await resp.json();
+  return appToken;
+}
+
+/**
+ * O webhook `livestream.status.updated` (ver `extrairIdDaTransmissaoKick`
+ * acima) nao traz categoria/jogo nem thumbnail - confirmado na
+ * documentacao oficial, esses dados so vem no `livestream.metadata.updated`,
+ * que nao assinamos. Busca via `GET /public/v1/users/livestreams`, que
+ * aceita App Access Token (dado publico do canal, sem exigir o OAuth do
+ * dono feito em /kickAuthStart).
+ */
+async function buscarDadosAoVivoKick(broadcasterUserId, clientId, clientSecret) {
+  const appToken = await obterTokenDeAppKick(clientId, clientSecret);
+  if (!appToken) return null;
+
+  const resp = await fetch(`https://api.kick.com/public/v1/users/livestreams?user_id=${broadcasterUserId}`, {
+    headers: { Authorization: `Bearer ${appToken}` },
+  });
+  if (!resp.ok) {
+    console.error("Falha ao consultar livestream da Kick:", resp.status, await resp.text());
+    return null;
+  }
+  const { data } = await resp.json();
+  const live = data && data[0];
+  if (!live) return null;
+
+  // Defensivo quanto ao formato exato de `thumbnail` (string ou {url}) - a
+  // documentacao publica da Kick e menos estavel que a da Twitch/YouTube.
+  const thumbnailUrl = typeof live.thumbnail === "string" ? live.thumbnail : live.thumbnail && live.thumbnail.url;
+  const jogo = live.category && live.category.name;
+  return { jogo: jogo || null, thumbnailUrl: thumbnailUrl || null };
+}
+exports.buscarDadosAoVivoKick = buscarDadosAoVivoKick;
+
+const KICK_CLIENT_ID = defineSecret("KICK_CLIENT_ID");
+const KICK_CLIENT_SECRET = defineSecret("KICK_CLIENT_SECRET");
+const SLUG_KICK = "patrickson_plays";
+const REDIRECT_URI = "https://southamerica-east1-ptk-plays.cloudfunctions.net/kickOAuthCallback";
+const CHAVE_PUBLICA_URL = "https://api.kick.com/public/v1/public-key";
+
+let chavePublicaCache = null;
+
+async function obterChavePublicaKick() {
+  if (chavePublicaCache) return chavePublicaCache;
+  const resp = await fetch(CHAVE_PUBLICA_URL);
+  const dados = await resp.json();
+  chavePublicaCache = dados.data.public_key;
+  return chavePublicaCache;
+}
+
+function assinaturaValida(mensagemId, timestamp, rawBody, assinaturaBase64, chavePublica) {
+  const mensagem = `${mensagemId}.${timestamp}.${rawBody}`;
+  const verificador = crypto.createVerify("RSA-SHA256");
+  verificador.update(mensagem);
+  verificador.end();
+  return verificador.verify(chavePublica, assinaturaBase64, "base64");
+}
+
+/**
+ * Recebe o evento "livestream.status.updated" da Kick em tempo real. A
+ * entrega so comeca a funcionar depois da autorizacao unica feita em
+ * /kickAuthStart (o app precisa do consentimento do dono do canal).
+ */
+exports.kickWebhook = onRequest(
+  { secrets: [KICK_CLIENT_ID, KICK_CLIENT_SECRET], region: "southamerica-east1" },
+  async (req, res) => {
+    const mensagemId = req.header("Kick-Event-Message-Id");
+    const timestamp = req.header("Kick-Event-Message-Timestamp");
+    const assinatura = req.header("Kick-Event-Signature");
+    const tipoEvento = req.header("Kick-Event-Type");
+
+    if (!mensagemId || !timestamp || !assinatura) {
+      res.status(400).send("Cabecalhos ausentes");
+      return;
+    }
+
+    try {
+      const chavePublica = await obterChavePublicaKick();
+      const valido = assinaturaValida(mensagemId, timestamp, req.rawBody, assinatura, chavePublica);
+      if (!valido) {
+        res.status(403).send("Assinatura invalida");
+        return;
+      }
+    } catch (e) {
+      console.error("Erro verificando assinatura da Kick:", e);
+      res.status(403).send("Assinatura invalida");
+      return;
+    }
+
+    if (tipoEvento === "livestream.status.updated") {
+      const aoVivo = !!req.body.is_live;
+      if (aoVivo) {
+        const urlDaLive = `https://kick.com/${SLUG_KICK}`;
+        const dadosAoVivo = await buscarDadosAoVivoKick(
+          req.body.broadcaster && req.body.broadcaster.user_id,
+          KICK_CLIENT_ID.value(),
+          KICK_CLIENT_SECRET.value(),
+        );
+        await atualizarStatusPlataforma("kick", true, urlDaLive, { titulo: req.body.title, ...(dadosAoVivo || {}) });
+        await registrarInicioTransmissao({
+          plataforma: "kick",
+          idDaTransmissao: extrairIdDaTransmissaoKick(req.body),
+          urlDaLive,
+          titulo: req.body.title,
+        });
+      } else {
+        const resultado = await atualizarStatusPlataforma("kick", false, null);
+        if (resultado.tipo === "encerrada") {
+          // A Kick nao expoe VOD nesse webhook - vodId/vodUrl ficam ausentes
+          // (nao inventamos), como o pedido pede explicitamente.
+          await registrarFimTransmissao({ plataforma: "kick" });
+        }
+      }
+    }
+
+    res.status(200).send();
+  },
+);
+
+function base64url(buffer) {
+  return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
+ * Passo 1 da autorizacao unica: gera o par PKCE, guarda o verifier num
+ * documento temporario e redireciona pra tela de login/consentimento da
+ * Kick. So precisa ser visitado uma vez (o dono do canal clica e aprova).
+ */
+exports.kickAuthStart = onRequest({ secrets: [KICK_CLIENT_ID], region: "southamerica-east1" }, async (req, res) => {
+  const verifier = base64url(crypto.randomBytes(32));
+  const challenge = base64url(crypto.createHash("sha256").update(verifier).digest());
+  const state = base64url(crypto.randomBytes(16));
+
+  await getFirestore().collection("_privado").doc("kickPkce").collection("estados").doc(state).set({
+    verifier,
+    criadoEm: FieldValue.serverTimestamp(),
+  });
+
+  const url = new URL("https://id.kick.com/oauth/authorize");
+  url.searchParams.set("client_id", KICK_CLIENT_ID.value());
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("redirect_uri", REDIRECT_URI);
+  url.searchParams.set("state", state);
+  url.searchParams.set("scope", "channel:read events:subscribe");
+  url.searchParams.set("code_challenge", challenge);
+  url.searchParams.set("code_challenge_method", "S256");
+
+  res.redirect(url.toString());
+});
+
+/**
+ * Passo 2: recebe o retorno da Kick com o "code", troca por um token de
+ * acesso e guarda o resultado em _privado/kickAuth (colecao bloqueada pras
+ * regras do Firestore, so acessivel pelo Admin SDK).
+ */
+exports.kickOAuthCallback = onRequest(
+  { secrets: [KICK_CLIENT_ID, KICK_CLIENT_SECRET], region: "southamerica-east1" },
+  async (req, res) => {
+    const { code, state } = req.query;
+    if (!code || !state) {
+      res.status(400).send("Faltou code ou state na resposta da Kick.");
+      return;
+    }
+
+    const estadoRef = getFirestore().collection("_privado").doc("kickPkce").collection("estados").doc(String(state));
+    const estadoSnap = await estadoRef.get();
+    if (!estadoSnap.exists) {
+      res.status(400).send("State invalido ou expirado. Tente autorizar de novo.");
+      return;
+    }
+    const { verifier } = estadoSnap.data();
+    await estadoRef.delete();
+
+    const tokenResp = await fetch("https://id.kick.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: String(code),
+        client_id: KICK_CLIENT_ID.value(),
+        client_secret: KICK_CLIENT_SECRET.value(),
+        redirect_uri: REDIRECT_URI,
+        code_verifier: verifier,
+      }),
+    });
+
+    const tokenDados = await tokenResp.json();
+    if (!tokenResp.ok) {
+      console.error("Falha ao trocar code por token na Kick:", tokenResp.status, tokenDados);
+      res.status(500).send("Falha ao autorizar com a Kick. Veja os logs da function.");
+      return;
+    }
+
+    await getFirestore().collection("_privado").doc("kickAuth").set({
+      accessToken: tokenDados.access_token,
+      refreshToken: tokenDados.refresh_token,
+      expiresEm: Date.now() + tokenDados.expires_in * 1000,
+      atualizadoEm: FieldValue.serverTimestamp(),
+    });
+
+    res.status(200).type("text/html").send("<h2>Autorizado! Pode fechar essa aba.</h2>");
+  }
+);

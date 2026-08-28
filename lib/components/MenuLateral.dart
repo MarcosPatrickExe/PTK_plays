@@ -56,6 +56,7 @@ class MenuLateral extends StatelessWidget {
   final VoidCallback onPrivacidade;
   final VoidCallback onPoliticaPrivacidade;
   final VoidCallback onConfiguracoes;
+  final VoidCallback onSairDaConta;
 
   const MenuLateral({
     super.key,
@@ -64,6 +65,7 @@ class MenuLateral extends StatelessWidget {
     required this.onPrivacidade,
     required this.onPoliticaPrivacidade,
     required this.onConfiguracoes,
+    required this.onSairDaConta,
   });
 
   @override
@@ -136,6 +138,19 @@ class MenuLateral extends StatelessWidget {
                     onConfiguracoes();
                   },
                 ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Divider(color: Color(0x33000000), height: 1),
+                ),
+                _ItemMenu(
+                  icone: Icons.logout,
+                  texto: 'Sair da conta',
+                  cor: const Color(0xFFE0264F),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onSairDaConta();
+                  },
+                ),
               ],
             ),
           ),
@@ -149,23 +164,26 @@ class _ItemMenu extends StatelessWidget {
   final IconData icone;
   final String texto;
   final VoidCallback onTap;
+  final Color? cor;
 
   const _ItemMenu({
     required this.icone,
     required this.texto,
     required this.onTap,
+    this.cor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final corEfetiva = cor ?? AuthTheme.titleLight;
     return ListTile(
-      leading: Icon(icone, color: AuthTheme.titleLight),
+      leading: Icon(icone, color: corEfetiva),
       title: Text(
         texto,
         style: GoogleFonts.outfit(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          color: AuthTheme.titleLight,
+          color: corEfetiva,
         ),
       ),
       onTap: onTap,

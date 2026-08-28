@@ -1,5 +1,35 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Dados de uma plataforma dentro de um post do tipo aoVivo (ver
+/// [PostModel.plataformasAoVivo]). [jogo] e [thumbnailUrl] so vem
+/// preenchidos pra Twitch e Kick hoje - o YouTube nao busca esses dados
+/// (ver `functions/lib/youtube.js`).
+class PostPlataformaAoVivo {
+  final String link;
+  final String? titulo;
+  final String? jogo;
+  final String? thumbnailUrl;
+  final DateTime? iniciadaEm;
+
+  const PostPlataformaAoVivo({
+    required this.link,
+    this.titulo,
+    this.jogo,
+    this.thumbnailUrl,
+    this.iniciadaEm,
+  });
+
+  factory PostPlataformaAoVivo.fromMap(Map<String, dynamic> data) {
+    return PostPlataformaAoVivo(
+      link: data['link'] ?? '',
+      titulo: data['titulo'],
+      jogo: data['jogo'],
+      thumbnailUrl: data['thumbnailUrl'],
+      iniciadaEm: (data['iniciadaEm'] as Timestamp?)?.toDate(),
+    );
+  }
+}
+
 /// Uma opcao de resposta dentro de uma postagem do tipo "enquete".
 class PostOpcaoEnquete {
   final String texto;
@@ -42,9 +72,9 @@ class PostModel {
   /// avisoFoto.
   final String? fotoUrl;
 
-  /// aoVivo: subset de 'youtube', 'twitch', 'kick'.
-  final List<String>? plataformas;
-  final String? linkAoVivo;
+  /// aoVivo: uma entrada por plataforma ativa ('youtube', 'twitch', 'kick'),
+  /// com link + dados extras (titulo/jogo/thumbnail) de cada uma.
+  final Map<String, PostPlataformaAoVivo> plataformasAoVivo;
 
   /// enquete.
   final String? titulo;
@@ -66,8 +96,7 @@ class PostModel {
     this.comentariosCount = 0,
     this.texto,
     this.fotoUrl,
-    this.plataformas,
-    this.linkAoVivo,
+    this.plataformasAoVivo = const {},
     this.titulo,
     this.opcoes,
     this.votantes = const [],
@@ -85,8 +114,14 @@ class PostModel {
       comentariosCount: data['comentariosCount'] ?? 0,
       texto: data['texto'],
       fotoUrl: data['fotoUrl'],
-      plataformas: data['plataformas'] != null ? List<String>.from(data['plataformas']) : null,
-      linkAoVivo: data['linkAoVivo'],
+      plataformasAoVivo: data['linksPorPlataforma'] != null
+          ? (data['linksPorPlataforma'] as Map<String, dynamic>).map(
+              (plataforma, detalhes) => MapEntry(
+                plataforma,
+                PostPlataformaAoVivo.fromMap(Map<String, dynamic>.from(detalhes as Map)),
+              ),
+            )
+          : const {},
       titulo: data['titulo'],
       opcoes: data['opcoes'] != null
           ? (data['opcoes'] as List).map((o) => PostOpcaoEnquete.fromMap(Map<String, dynamic>.from(o))).toList()

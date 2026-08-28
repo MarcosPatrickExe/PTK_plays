@@ -113,7 +113,10 @@ class FakePostRepository implements PostRepository {
       autorNickname: 'PTK Plays',
       criadoEm: DateTime.now().subtract(const Duration(minutes: 8)),
       texto: 'Bora de Elden Ring hoje! Chega lá pra jogar junto 🎮',
-      plataformas: const ['youtube', 'twitch'],
+      plataformasAoVivo: const {
+        'youtube': PostPlataformaAoVivo(link: 'https://www.youtube.com/watch?v=exemplo'),
+        'twitch': PostPlataformaAoVivo(link: 'https://twitch.tv/patrickson_plays', jogo: 'Elden Ring'),
+      },
     ),
     PostModel(
       id: 'p2',

@@ -503,3 +503,180 @@ plataforma (`kIsWeb`):
 As 3 telas (Home/Videos/Profile) agora só chamam
 `abrirPoliticaPrivacidade(context)` em vez de navegar direto pra
 `PoliticaPrivacidadeWeb`.
+
+## Backend (Cloud Functions) — escrita de `transmissoes` no Firestore do PTK AI Studio
+
+### Contexto: código de detecção de live estava numa branch nunca mergeada
+
+Ao executar esse pedido, descobrimos que as Functions de detecção de live
+(`verificarYoutubeAoVivo`, `twitchWebhook`, `kickWebhook`, `kickAuthStart`,
+`kickOAuthCallback`, `notificarAoVivo`) — já **implantadas em produção**
+desde 15/jul/2026 (ver `CHECKPOINT.md`) — só existiam no repositório numa
+branch antiga `feat/notificacoes-ao-vivo`, **nunca mergeada** e que
+divergiu do `main` antes de todo o trabalho recente (webhook do WhatsApp,
+menu lateral, política de privacidade). Isso resolve o ponto em aberto do
+`CHECKPOINT.md` ("esse backend já existia de um trabalho anterior?"): sim,
+é exatamente esse código, só que fora de sincronia com o git.
+
+**O que foi feito**: trouxemos `functions/lib/{youtube,twitch,kick,
+postAoVivo}.js` e `functions/scripts/setup-twitch-eventsub.js` dessa
+branch pra dentro da branch de desenvolvimento atual, e mesclamos:
+- `functions/index.js`: um único `initializeApp()`, exports do webhook do
+  WhatsApp **inalterados** (continuam sem região explícita, ou seja
+  `us-central1` — não usamos `setGlobalOptions` global pra região porque
+  isso teria mudado também a região do `whatsappWebhook` já cadastrado no
+  Meta for Developers, quebrando a URL do webhook). `notificarAoVivo`
+  ganhou `region: "southamerica-east1"` explícita no lugar disso.
+- `functions/package.json`: mantidas as dependências/scripts do webhook
+  (`firebase-admin ^12.7.0`, `firebase-functions ^6.1.0`, jest), com
+  `@google-cloud/firestore ^7.11.0` adicionado (compatível com a versão
+  que o próprio `firebase-admin` já usa internamente — `npm install`
+  fez o hoist certinho, sem duplicar).
+
+### O pedido em si: `functions/lib/transmissoes.js`
+
+Novo módulo que escreve em `transmissoes` no Firestore do projeto
+**separado** `ptk-ai-studio`, via Application Default Credentials
+(`new Firestore({ projectId: 'ptk-ai-studio' })` do pacote
+`@google-cloud/firestore` — **sem** criar/baixar chave de service account,
+como pedido; o IAM `roles/datastore.user` já foi concedido no console
+pelo usuário). Não altera nada do que as Functions já escrevem em
+`ptk-plays` (a lógica de `posts`/notificação em `postAoVivo.js` continua
+igual — a escrita em `transmissoes` é só uma chamada adicional).
+
+- **ID determinístico** `${plataforma}_${idDaTransmissao}`, sempre com
+  `{ merge: true }`.
+- **Como sabemos qual documento fechar no fim**: nem todo evento de "fim"
+  traz o id da transmissão (o `stream.offline` da Twitch só traz dados do
+  broadcaster, sem id da stream) — então `registrarInicioTransmissao`
+  também guarda um estado ativo em `_privado/transmissoesAtivas/
+  porPlataforma/{plataforma}` no Firestore do próprio `ptk-plays`,
+  lido e apagado por `registrarFimTransmissao` (que também calcula o
+  `duracaoSegundos` a partir daí).
+- **`registrarFimTransmissao` só é chamado quando a checagem realmente
+  detectou a transição ao_vivo → offline** (usa o retorno de
+  `atualizarStatusPlataforma`, que diferencia `"encerrada"` de
+  `"semMudanca"`) — evita logs de aviso toda vez que a checagem agendada
+  do YouTube roda e o canal já estava offline (a maior parte do fim de
+  semana).
+
+**`vodId`/`vodUrl` por plataforma**:
+- **YouTube**: de graça — o próprio `videoId` da live (que a checagem
+  agendada já usa pro link) continua sendo o id do vídeo depois que a
+  live vira gravação.
+- **Twitch**: `stream.online` traz `event.id` (id da transmissão) pro
+  início. No fim, como o `stream.offline` não traz VOD nenhum, adicionamos
+  uma chamada à Helix `GET /videos?user_id=...&type=archive&first=1`
+  (usando um token de app via `client_credentials`, com os secrets
+  `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` — os mesmos já usados pelo
+  script `setup-twitch-eventsub.js`, agora também declarados como secrets
+  da própria function `twitchWebhook`) pra pegar o VOD mais recente do
+  canal — assumindo que é o que acabou de terminar.
+- **Kick**: **sem VOD** — o webhook `livestream.status.updated` não expõe
+  isso, então `vodId`/`vodUrl` ficam ausentes, como pedido explicitamente
+  ("se não der pra obter, deixe o campo ausente — não invente e não
+  chute").
+
+**⚠️ Ponto não verificado contra produção real — revisar quando a Kick
+disparar o webhook de verdade**: não temos documentação/payload de exemplo
+confiável do evento `livestream.status.updated` da Kick além do campo
+`is_live` (já usado antes desta mudança). Como a Kick não expõe um "id de
+transmissão" dedicado nesse payload, `extrairIdDaTransmissaoKick`
+(`functions/lib/kick.js`) tenta, nessa ordem, `body.livestream.id`,
+`body.id` e por fim deriva um id a partir de `body.started_at` (dado real
+do payload, não inventado, só não é um id oficial da plataforma); se nada
+disso vier, **não grava nada** e só loga um aviso — em vez de chutar um
+campo que pode nem existir. Recomendo conferir isso nos logs
+(`firebase functions:log`) na próxima vez que uma live da Kick abrir/
+fechar, e ajustar `extrairIdDaTransmissaoKick` se o payload real trouxer
+outro formato.
+
+**Testado** (`functions/test/`, `npm test`, 15 testes Jest):
+- `transmissoes.test.js`: `idDocumentoTransmissao` (formato do id) e
+  `calcularDuracaoSegundos` (diferença em segundos, nunca negativa).
+- `kick_transmissao_id.test.js`: `extrairIdDaTransmissaoKick` — todos os
+  ramos (id via `livestream.id`, via `body.id`, derivado de `started_at`,
+  e o caso "não inventa nada" quando não há nenhum campo usável).
+
+**Não testado de ponta a ponta neste ambiente** (sem gcloud/firebase
+autenticados, sem emulador do Firestore rodando, sem as credenciais reais
+da Twitch/Kick/YouTube): as escritas de verdade em
+`registrarInicioTransmissao`/`registrarFimTransmissao` (dependem de ADC
+real pro projeto `ptk-ai-studio` e de um app do `firebase-admin`
+inicializado), a chamada Helix de VOD da Twitch, e o payload real da Kick
+mencionado acima. `npm test` cobre só a lógica pura. Falta o usuário
+fazer o deploy (`firebase deploy --only functions`, como sempre, a partir
+do Cloud Shell) e confirmar numa live de teste em cada plataforma que os
+documentos aparecem certinho em `transmissoes` no projeto `ptk-ai-studio`.
+
+### Campo `titulo` + backfill de lives passadas (27/ago/2026)
+
+Pesquisado na documentação **oficial** antes de codar (não chutado):
+
+- **`docs.kick.com/events/event-types`**: confirma que o payload do
+  `livestream.status.updated` traz `broadcaster`, `is_live`, `title`,
+  `started_at` e `ended_at` — **sem** nenhum id de transmissão dedicado.
+  Isso valida a decisão anterior de derivar o id do `started_at`
+  (`extrairIdDaTransmissaoKick`, `functions/lib/kick.js`) e resolve a
+  incerteza que tinha ficado documentada antes — não é mais "não
+  verificado", é confirmado que o campo não existe mesmo. `title` passou a
+  ser gravado (`titulo`) direto desse payload.
+- Também confirmado: a Kick **não tem nenhum endpoint público documentado**
+  pra listar vídeos/VODs passados do canal (só o webhook em tempo real) —
+  por isso o backfill histórico (abaixo) cobre só YouTube e Twitch.
+- **`dev.twitch.tv/docs/eventsub/eventsub-reference`**: confirma que o
+  evento `stream.online` **não traz título** (isso só vem no
+  `channel.update`, que não assinamos). `functions/lib/twitch.js` ganhou
+  `buscarTituloAoVivo`, que consulta a Helix `GET /streams?user_id=...`
+  no momento do `stream.online` pra obter o título da live em andamento.
+- **YouTube**: `titulo` sai de graça do próprio `search.list` que a
+  checagem agendada já faz (`item.snippet.title`).
+
+### Backfill de lives passadas (`functions/scripts/backfill-transmissoes-passadas.js`)
+
+Script novo, roda uma vez manualmente (mesmo padrão do
+`setup-twitch-eventsub.js`), grava retroativamente em `transmissoes` no
+`ptk-ai-studio` as lives que já aconteceram antes dessa feature existir:
+
+- **YouTube**: em vez de `search.list` (100 unidades de cota por chamada),
+  usa a playlist de uploads do canal (`channels.list` + `playlistItems.list`,
+  1 unidade/página) e depois `videos.list` em lotes de 50 ids (1
+  unidade/lote) filtrando por quem tem `liveStreamingDetails` com
+  `actualStartTime`/`actualEndTime` preenchidos — bem mais barato que
+  paginar `search.list` pra achar lives antigas.
+- **Twitch**: pagina `Get Videos` (`type=archive`) via Helix. **Correção
+  (27/ago/2026)**: a primeira versão deste script usava `vod.stream_id`
+  como `idDaTransmissao`, na suposição de que seria o mesmo id que
+  `event.id` do `stream.online` (deteção em tempo real) — **suposição não
+  confiável o suficiente pra apostar em fusão de documentos**: o `Get
+  Videos` só devolve o id do VOD, um espaço de id diferente do id de
+  stream, sem garantia documentada de equivalência entre os dois. Usar
+  `vod.stream_id` (quando presente) como se fosse o id de stream e confiar
+  no `merge: true` pra fundir com um doc futuro da detecção em tempo real
+  seria uma aposta que, se errada, gera duplicata **silenciosa** (sem
+  erro, só dois documentos distintos pra mesma live). Corrigido pra usar
+  `vod.id` (id do próprio VOD) — aceitando explicitamente que documentos
+  do backfill ficam "congelados": não tentam fundir com nada que a
+  detecção em tempo real grave depois. Isso é seguro porque são eventos
+  **passados** — o pior caso é, numa coincidência (mesma live pega tanto
+  pelo backfill quanto por uma futura reexecução do backfill ou pela
+  detecção ao vivo antes dele rodar), existirem dois documentos pra ela em
+  vez de um, o que não quebra nada no lado do consumidor (PTK AI Studio).
+  A duração vem no formato `"6h26m14s"` —
+  `functions/lib/twitchDuracao.js` (`parseDuracaoTwitch`, testado em
+  `twitch_duracao.test.js`) converte pra segundos.
+- **Kick**: de fora, pelo motivo explicado acima (sem API oficial).
+- Mesmo formato de documento e mesmo id determinístico
+  (`${plataforma}_${idDaTransmissao}`, `merge: true`) do fluxo em tempo
+  real — seguro rodar mais de uma vez, e seguro rodar depois que a
+  detecção em tempo real já estiver ativa (não duplica).
+
+**Credenciais**: como esse script roda fora do runtime das Cloud
+Functions, ele não herda a identidade da conta de serviço automaticamente.
+Como o usuário é dono (Owner) do projeto `ptk-ai-studio`, basta
+`gcloud auth application-default login` com a própria conta Google — sem
+precisar de chave de service account nem de conceder role adicional
+nenhuma. Documentado no cabeçalho do próprio script. **Não testado de
+ponta a ponta neste sandbox** pelo mesmo motivo de sempre (sem
+gcloud/firebase autenticados aqui) — só a lógica pura de parsing de
+duração tem teste automatizado.

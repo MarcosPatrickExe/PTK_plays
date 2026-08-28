@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
+import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/ModalCropFoto.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
@@ -177,6 +178,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
         child: Stack(
           children: [
             Positioned.fill(child: AuthBackground(isDark: isDark)),
+            const DegradeTopo(),
             SafeArea(
               child: Stack(
                 children: [

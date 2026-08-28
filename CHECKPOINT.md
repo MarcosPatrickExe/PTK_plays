@@ -1,213 +1,218 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **20/ago/2026**, escrito pra retomar o
-trabalho numa sessão nova do Claude sem perder contexto. Ver também
-`ROADMAP.md` (pendências e decisões técnicas mais detalhadas) e `CLAUDE.md`
-(regras permanentes: testes unitários, Toast/loading, commits, tags,
-Google Play, signing).
+Snapshot do estado do projeto em **27/ago/2026**, escrito pra retomar o
+trabalho numa sessão nova do Claude sem perder contexto (esta sessão vai
+passar por um `/clear`). Ver também `ROADMAP.md` (pendências e decisões
+técnicas mais detalhadas, principalmente do backend) e `CLAUDE.md` (regras
+permanentes: testes unitários, Toast/loading, commits, tags, Google Play,
+signing).
+
+## ⚠️ O que precisa de atenção AGORA (nesta ordem)
+
+1. **App Store — aguardando revisão da Apple.** Build **1.2.1 (17)**
+   submetido pra revisão oficial em 25/ago/2026 23:48 (ID do envio
+   `6db9576f-1f55-4ba0-aa62-6d06009a9495`), status **"Aguardando
+   revisão"** na última checagem. TestFlight externo foi **pulado de
+   propósito** (usuário não tem testadores com iPhone) — Apple não exige
+   isso pra revisão oficial, diferente do Google Play. Só falta esperar a
+   resposta (aprovação ou rejeição com motivo) — não fazer nada até lá.
+2. **Branch de dev com 3 commits não mergeados em `main`**:
+   `claude/ptk-plays-setup-2q86aw` está em `e1c156e`, `main` em `49e8e2f`
+   (3 commits atrás: `cef29b6`, `0780210`, `e1c156e` — todo o trabalho de
+   detecção de live + `transmissoes` do PTK AI Studio, ver seção
+   dedicada abaixo). Já foi **deployado direto da dev branch** via Cloud
+   Shell (não depende de merge pra funcionar), mas os commits ainda não
+   viraram PR pra `main`. Perguntar ao usuário se quer abrir/mergear esse
+   PR (não fazer sem pedir).
+3. **PTK AI Studio: escrita confirmada, leitura não verificada.** O
+   Firestore do projeto `ptk-ai-studio` já tem a coleção `transmissoes`
+   populada (127 documentos: 124 lives do YouTube + 3 VODs da Twitch via
+   backfill, mais o que a detecção em tempo real for gravando dali pra
+   frente) — confirmado visualmente no Console pelo usuário. **Não
+   verificado**: se o código do próprio app/dashboard do PTK AI Studio já
+   lê essa coleção — isso está num repositório separado que esta sessão
+   nunca viu. Se o usuário quiser essa ponta conferida, anexar o repo do
+   PTK AI Studio (`add_repo`).
 
 ## Estado do git
 
-- Branch principal de dev: `claude/ptk-plays-setup-2q86aw`.
-- `main` (deploy automático via Vercel, `plays.vercel.app`) está em sincronia
-  com a dev branch — HEAD atual: `cfae63a` ("Merge pull request #34").
-- Fluxo usado o tempo todo: feature branch → PR pra `claude/ptk-plays-setup-2q86aw`
-  → merge → PR pra `main` → merge → sync do `main` local.
+- Branch de dev: `claude/ptk-plays-setup-2q86aw` — commit atual `e1c156e`.
+- `main` (deploy automático via Vercel, `plays.vercel.app`) em `49e8e2f`,
+  3 commits atrás da dev branch (ver item 2 acima).
+- Fluxo usado: feature branch → PR pra `claude/ptk-plays-setup-2q86aw` →
+  merge → PR pra `main` → merge.
 - iOS/Android buildam via Codemagic só quando uma tag `v*` é criada e
-  enviada — **nunca criar tag sem o usuário pedir explicitamente**.
+  enviada — **nunca criar/enviar tag sem o usuário pedir explicitamente**,
+  e mesmo assim **esta sessão (CCR) não consegue dar `git push` de tags**
+  — quem faz isso é o usuário, da própria máquina dele.
+- `pubspec.yaml`: `version: 1.2.1+17` (build já enviado pra Apple, ver
+  acima).
 
-## O que já está implementado e funcionando (sessões anteriores)
+## Funcionalidades implementadas recentemente (já mergeadas em `main`)
 
-- **Avatares pré-definidos** (6 personas) no cadastro/edição de perfil —
-  `lib/data/models/AvatarPreset.dart`, `lib/components/SeletorAvatarPreset.dart`.
-- **Máscara de telefone WhatsApp** corrigida (editar/apagar dígito no meio
-  sem quebrar) — `lib/utils/MascaraTelefoneWhatsapp.dart`.
-- **Troca de senha** dentro de Editar Perfil (reautenticação + nova senha) —
-  `AuthRepository.alterarSenha` / `AuthViewModel.alterarSenha`.
-- **Avatar padrão** ("Inscrito do canal") pra contas legadas sem preset/foto —
-  `chavePresetParaExibir` em `AvatarPreset.dart`, usado tanto em `Profile.dart`
-  quanto em `EditarPerfil.dart` (mesma prioridade nos dois lugares).
-- **Upload de foto de perfil** com crop/zoom (`ModalCropFoto.dart`) →
-  Firebase Storage (`fotos_perfil/{uid}/foto.png`). Exigiu configurar
-  `storage.rules` (publicado manualmente pelo usuário no Console) e CORS do
-  bucket via `gsutil cors set cors.json gs://ptk-plays.firebasestorage.app`
-  no Cloud Shell (resolvido — a foto não aparecia na Web por causa do
-  CanvasKit usando `fetch()`, que respeita CORS diferente de uma `<img>`
-  comum).
-- **Feedback de Toast** (não-bloqueante, ~3s, topo da tela) — regra
-  permanente documentada em `CLAUDE.md`. `mostrarErroCustom` (modal
-  bloqueante) continua só pra erro de validação de formulário.
-  **Pendente/gap conhecido**: Login.dart, Cadastro.dart e o diálogo de
-  excluir conta em Profile.dart ainda não foram retrofitados pra Toast.
-- **Loading spinners** padronizados (cor do tema em tela cheia, branco
-  `strokeWidth: 2` dentro de botão/badge).
-- **Botões circulares com fundo opaco branco** (voltar / alternar tema) —
-  `AuthTheme.themeBtnBgDark/Light = Colors.white`, extraídos pro componente
-  compartilhado `BotaoVoltar` em `lib/components/AuthWidgets.dart`.
-- **Recuperação de senha por e-mail** — `AuthRepository.enviarEmailRedefinicaoSenha`
-  usa `FirebaseAuth.sendPasswordResetEmail` (zero infra nova). Botão
-  "Esqueceu sua senha atual? Enviar link por e-mail" dentro do card "Alterar
-  senha" em `EditarPerfil.dart`. Campo de e-mail (somente leitura) também
-  adicionado em Editar Perfil.
+- **Menu lateral pós-login** (`lib/components/MenuLateral.dart`):
+  `Drawer` deslizante (62% da largura), fundo branco opaco no claro,
+  gradiente branco→roxo opaco no escuro, atalhos pra Recuperação de
+  Senha, Privacidade, Política de Privacidade e Configurações.
+- **Política de Privacidade dentro do app** (`lib/utils/PoliticaPrivacidade.dart`,
+  `lib/view/PoliticaPrivacidadeWeb.dart`): renderiza a página num
+  `InAppWebView` com botões flutuantes de voltar/tema, **exceto na Web**
+  (o proxy de tradução `translate.goog` recusa ser embutido em iframe —
+  corrigido abrindo em aba nova via `url_launcher` só nesse caso,
+  `kIsWeb`).
+- **Tradução automática por localização**: Brasil → português (via
+  `translate.goog`), qualquer outro país → inglês, decidido pelo
+  `countryCode` do locale do dispositivo/navegador (não por IP/GPS —
+  Portugal, por exemplo, fica em inglês mesmo sendo `pt`).
+- Ícones dos botões voltar/tema corrigidos pra preto no modo escuro
+  (estavam amarelos sobre fundo branco).
 
-Todos os itens acima têm teste unitário/widget cobrindo (78 testes Flutter
-passando, `flutter analyze` com 50 issues — baseline conhecida e antiga, sem
-problemas novos).
+Tudo isso com teste unitário/widget cobrindo, `flutter test` (78+ testes)
+e `flutter analyze` rodados sem regressão.
 
-## Recuperação de senha — decisão de canais (18-19/ago/2026)
+## Backend — WhatsApp (webhook de recuperação de senha)
 
-- **E-mail**: implementado (ver acima).
-- **SMS**: não implementado. Não precisa de biblioteca de terceiros — o
-  Firebase Auth já tem Phone Authentication nativo. Exige habilitar "Phone"
-  em Firebase Console → Authentication → Sign-in method + reCAPTCHA pra Web.
-- **WhatsApp**: em andamento (ver seção abaixo) — é o canal mais lento dos
-  três, mas o usuário decidiu priorizar ele agora porque a aprovação no Meta
-  for Developers leva alguns dias, e dá pra seguir trabalhando em outras
-  coisas nesse meio tempo.
+- `functions/index.js` (`whatsappWebhook`) implementado, deployado no
+  projeto `ptk-plays`, **região `us-central1`** (sem região explícita —
+  importante não mudar isso num deploy futuro, ver nota abaixo).
+- Bug de deploy já resolvido: o secret `WHATSAPP_VERIFY_TOKEN` tinha 2
+  caracteres a mais (parênteses perdidos ao colar) causando 403 — corrigido
+  e confirmado via `curl` retornando 200/challenge corretamente.
+- **Não confirmado nesta sessão**: se a URL da function + o verify token
+  já foram colados no formulário "Configurar webhooks" do Meta for
+  Developers (Etapa 2), e se o número de telefone de produção já foi
+  registrado lá. Perguntar ao usuário antes de assumir que essa etapa
+  está fechada.
+- Próximo passo, depois do webhook aceito pelo Meta: implementar
+  `enviarCodigoRecuperacaoWhatsapp`/`verificarCodigoRecuperacaoWhatsapp` +
+  criar um template de mensagem categoria "Authentication" no WhatsApp
+  Manager (não dá pra mandar texto livre sem isso).
 
-## WhatsApp — arquitetura e progresso (19-20/ago/2026)
+## Backend — detecção de live + `transmissoes` no PTK AI Studio (27/ago/2026)
 
-### Decisão: apps separados no Meta for Developers
+### Descoberta importante
 
-O usuário pretende usar o mesmo número/canal WhatsApp pra **dois projetos
-diferentes**: **PTK Plays** (recuperação de senha) e **PTK AI Studio**
-(painel separado de edição/publicação automática de vídeos de lives em
-Threads/Instagram/Facebook). Recomendação dada: **dois apps separados no
-Meta for Developers**, sob o mesmo Portfólio empresarial ("PTK soluções
-digitais") — evita misturar escopo de App Review e isola risco de suspensão.
+As Functions de detecção de live (`verificarYoutubeAoVivo`, `twitchWebhook`,
+`kickWebhook`, `kickAuthStart`, `kickOAuthCallback`, `notificarAoVivo`) já
+estavam **implantadas em produção** desde 15/jul/2026, mas o código só
+existia numa branch antiga `feat/notificacoes-ao-vivo`, **nunca
+mergeada**, que tinha divergido do `main` antes do webhook do WhatsApp.
+Trazido pra dev branch e mesclado nesta sessão — resolve o "ponto em
+aberto" que ficava documentado aqui antes sobre o backend do AI Studio
+estar rodando dentro do projeto GCP `ptk-plays` (continua lá, não foi
+movido).
 
-**Detalhe pendente**: o usuário já tinha adicionado os casos de uso
-**Threads** e **WhatsApp** no mesmo app (`PTK Plays`, App ID
-`1581341000249480`) por engano, e não achamos um botão de remover o Threads
-na UI atual do Meta. Decisão: deixar o Threads inerte nesse app (sem
-configurar nem submeter permissões dele) e seguir só com WhatsApp aqui. O
-app dedicado ao PTK AI Studio (Threads + Instagram + Facebook) fica pra
-quando esse projeto for priorizado.
+**Cuidado ao mexer em `functions/index.js` de novo**: não usar
+`setGlobalOptions` global pra região — isso mudaria também a região do
+`whatsappWebhook` (que fica sem região explícita, logo `us-central1`) e
+quebraria a URL cadastrada no Meta. As functions de live usam
+`region: "southamerica-east1"` explícita cada uma.
 
-**⚠️ Ponto em aberto, não resolvido**: durante a configuração do webhook,
-apareceu no Cloud Shell (projeto GCP `ptk-plays`) uma lista de Cloud
-Functions/Cloud Run **já existentes e implantadas**, aparentemente do PTK AI
-Studio: `twitchWebhook`, `kickOAuthCallback`, `kickAuthStart`,
-`verificarYoutubeAoVivo`, `notificarAoVivo` (gatilho Firestore), e o serviço
-`ptk-ai-studio-dashboard` no Cloud Run — implantado em 15/jul/2026. Isso
-**contradiz** a recomendação de projetos totalmente separados: o backend do
-AI Studio já está rodando dentro do projeto Firebase/GCP do `ptk-plays`, não
-num projeto `ptk-ai-studio` separado (que existe como projeto Firebase
-próprio, visto na tela de billing/Storage, mas parece não ser onde esse
-backend está hospedado). **Perguntar ao usuário**: esse backend já existia
-de um trabalho anterior (outra sessão/ferramenta)? Motivo, é
-proposital manter tudo no mesmo projeto GCP? Vale entender antes de
-continuar decidindo arquitetura.
+### O que foi implementado
 
-### Setup do WhatsApp Business Platform (Meta for Developers → caso de uso "Conectar-se com clientes pelo WhatsApp")
+`functions/lib/transmissoes.js` escreve em `transmissoes` no Firestore do
+projeto **separado** `ptk-ai-studio`, via Application Default Credentials
+(`@google-cloud/firestore`, `projectId: 'ptk-ai-studio'` — **sem** chave
+de service account; IAM `roles/datastore.user` concedido no console pra
+conta de serviço `696548413882-compute@developer.gserviceaccount.com`).
+ID determinístico `${plataforma}_${idDaTransmissao}`, sempre
+`merge: true`. Campos: `plataforma`, `iniciadaEm`, `urlDaLive`,
+`idDaTransmissao`, `titulo`, `encerrada`, `encerradaEm`,
+`duracaoSegundos`, `vodId`, `vodUrl`.
 
-- **Etapa 1. Experimente** — concluída. Número de teste da Meta:
-  `+1 (555) 198-5430` (Phone Number ID `1320793181110892`, WABA ID
-  `1919413515403458`). Número de destinatário de teste cadastrado e
-  verificado: `+55 (85) 99131-4881`. Mensagens de teste trafegando (visível
-  no log de webhooks de teste da própria tela do Meta).
-- **Etapa 2. Configuração da produção** — em andamento, no passo
-  **"Configurar webhooks"**.
+- **YouTube**: `vodId` de graça (é o próprio `videoId`). `titulo` vem do
+  `search.list` que a checagem agendada já faz.
+- **Twitch**: id da transmissão vem do `event.id` do `stream.online`. VOD
+  buscado via Helix `GET /videos?type=archive` depois do `stream.offline`
+  (o evento em si não traz VOD). Título via Helix `GET /streams` no
+  momento do `stream.online` (`stream.online` não traz título — só o
+  `channel.update`, que não assinamos — confirmado em
+  `dev.twitch.tv/docs/eventsub`).
+- **Kick**: confirmado em `docs.kick.com/events/event-types` que o
+  payload do `livestream.status.updated` traz `title` mas **não** tem
+  nenhum id de transmissão dedicado — o id é derivado do `started_at`
+  (`extrairIdDaTransmissaoKick`, `functions/lib/kick.js`). **Sem VOD**: a
+  Kick não expõe isso nesse webhook, campo fica ausente (não inventado).
 
-### Backend (Cloud Functions) — criado e mergeado, deploy real pendente
+### Backfill de lives passadas
 
-Novo diretório `functions/` (Node.js, Firebase Functions 2ª geração,
-`engines.node: 20`), PR #33 (→ dev) e PR #34 (dev → `main`), ambos
-mergeados:
+`functions/scripts/backfill-transmissoes-passadas.js` — script avulso
+(não Function implantada), já **rodado com sucesso** pelo usuário via
+Cloud Shell: **124 lives do YouTube + 3 VODs da Twitch** gravados,
+confirmados no Console do Firestore do `ptk-ai-studio`.
 
-- `functions/index.js`: HTTPS function `whatsappWebhook`.
-  - `GET`: responde o handshake de verificação do Meta
-    (`hub.mode`/`hub.verify_token`/`hub.challenge`).
-  - `POST`: valida a assinatura `X-Hub-Signature-256` (HMAC-SHA256 com o App
-    Secret) antes de aceitar qualquer evento; por enquanto só loga e
-    responde 200 — a lógica de enviar/verificar código ainda não foi
-    escrita (próxima etapa, depois do webhook aceito).
-- `functions/src/webhook.js`: lógica pura (`verificarHandshakeWebhook`,
-  `assinaturaValida`), testada em `functions/test/webhook.test.js` (8
-  testes Jest, `npm test` dentro de `functions/`, passando).
-- `firebase.json` ganhou a seção `functions`; `.firebaserc` criado
-  apontando o projeto padrão pra `ptk-plays`.
-- Segredos via Secret Manager (`defineSecret`, nunca no código):
-  `WHATSAPP_VERIFY_TOKEN` e `WHATSAPP_APP_SECRET`.
+- **YouTube**: usa a playlist de uploads do canal + `videos.list` em
+  lote filtrando `liveStreamingDetails` (bem mais barato em cota que
+  `search.list`).
+- **Twitch**: pagina `Get Videos` (`type=archive`). Usa `vod.id` (id do
+  próprio VOD) como `idDaTransmissao` — **não** `vod.stream_id`: esse
+  campo existe mas não há garantia documentada de que seja o mesmo espaço
+  de id do `event.id` do `stream.online` em tempo real, então apostar
+  nisso com `merge: true` arriscava uma duplicata **silenciosa**.
+  Documentos do backfill ficam "congelados" de propósito, sem tentar
+  fundir com o que a detecção ao vivo grava depois — seguro porque são
+  eventos passados.
+- **Kick**: de fora do backfill — confirmado em `docs.kick.com` que não
+  existe nenhum endpoint oficial pra listar VODs/lives passadas do canal.
+- **Credenciais do script**: `gcloud auth application-default login` com
+  a própria conta do usuário (Owner do `ptk-ai-studio`) — não precisa de
+  chave de service account nem role adicional.
 
-**⚠️ Cuidado já aprendido**: o App Secret que aparece dentro da
-configuração do caso de uso "Acessar a API do Threads" é **específico da
-Threads API**, diferente do App Secret principal do app. O correto pro
-webhook do WhatsApp é o App Secret em **Configurações do app → Básico**
-("Chave Secreta do Aplicativo", ao lado do "ID do Aplicativo"
-`1581341000249480`, nome de exibição "PTK Plays").
+### Deploy confirmado (27/ago/2026)
 
-### Progresso do deploy (Google Cloud Shell)
+Deploy rodado com sucesso via Cloud Shell (`firebase deploy --only
+functions`, projeto `ptk-plays`) — as 8 functions aparecem íntegras no
+Console (`kickWebhook`, `notificarAoVivo`, `twitchWebhook`,
+`kickOAuthCallback`, `kickAuthStart`, `verificarYoutubeAoVivo` em
+`southamerica-east1`; `whatsappWebhook` em `us-central1`, região
+preservada; `ptk-ai-studio-dashboard` no Cloud Run, pré-existente e
+intocado). Secrets `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` já existiam
+no Secret Manager do `ptk-plays` (usados antes só pelo script
+`setup-twitch-eventsub.js`, agora também pela própria `twitchWebhook` em
+runtime pra buscar VOD/título).
 
-Repositório já clonado em `~/PTK_plays` no Cloud Shell do usuário
-(`marcospatrick039474@cloudshell`), projeto Firebase ativo confirmado
-(`firebase use ptk-plays` → "Now using project ptk-plays").
+**Não testado de ponta a ponta** (sem credenciais reais nesta sessão de
+dev): payload real de produção da Kick, resposta real da Helix da Twitch
+em uso — só a lógica pura tem teste automatizado (`functions/test/`, 18
+testes Jest). Ver `ROADMAP.md` pra detalhes completos de cada decisão e
+teste.
 
-- ✅ `WHATSAPP_VERIFY_TOKEN` — segredo criado com sucesso
-  (`projects/696548413882/secrets/WHATSAPP_VERIFY_TOKEN/versions/1`). O
-  valor não é repetido aqui por boa prática (não duplicar segredo em texto
-  puro versionado no git) — já está salvo no Secret Manager; se precisar
-  ver de novo pra colar no formulário do Meta, rodar
-  `firebase functions:secrets:access WHATSAPP_VERIFY_TOKEN` no Cloud Shell.
-- ❌ `WHATSAPP_APP_SECRET` — **pendente**. O usuário encontrou o campo certo
-  (Configurações do app → Básico → "Chave Secreta do Aplicativo") mas não
-  conseguiu copiar o valor completo (32 caracteres hex) pelo navegador
-  mobile — o menu de seleção de texto não mostrou a opção "Copiar" depois
-  de "Selecionar tudo". Vai terminar isso no computador.
-- ❌ `firebase deploy --only functions` — ainda não rodado (depende do
-  segredo acima).
-- ❌ Colar a URL da function + o verify token no formulário "Configurar
-  webhooks" do Meta — ainda não feito.
+## Recuperação de senha — decisão de canais
 
-## Próximos passos exatos (retomar por aqui)
+- **E-mail**: implementado (`AuthRepository.enviarEmailRedefinicaoSenha`,
+  `FirebaseAuth.sendPasswordResetEmail`).
+- **SMS**: não implementado (Firebase Phone Auth nativo, precisa habilitar
+  "Phone" em Authentication → Sign-in method + reCAPTCHA pra Web).
+- **WhatsApp**: em andamento, ver seção do backend acima.
 
-1. **No computador do usuário**: abrir
-   `developers.facebook.com/apps/1581341000249480/settings/basic/`, copiar
-   a "Chave Secreta do Aplicativo" completa (Ctrl+A / Ctrl+C no campo, ou
-   clicar em "Mostrar" se disponível na versão desktop).
-2. No Cloud Shell (`~/PTK_plays`, projeto `ptk-plays` já ativo):
-   ```
-   firebase functions:secrets:set WHATSAPP_APP_SECRET
-   ```
-   Digitar o comando **sem** o valor colado junto (aprender com o erro que
-   já aconteceu com o `WHATSAPP_VERIFY_TOKEN` — esperar o prompt separado
-   `Enter a value for WHATSAPP_APP_SECRET:` antes de colar).
-3. Deploy:
-   ```
-   firebase deploy --only functions
-   ```
-   Vai imprimir a URL, algo como
-   `https://us-central1-ptk-plays.cloudfunctions.net/whatsappWebhook` (ou
-   região `southamerica-east1`, que é a usada pelas outras functions do
-   projeto — confirmar qual região o deploy realmente usa).
-4. No formulário "Configurar webhooks" do Meta (Etapa 2): colar a URL em
-   "URL de callback", o valor do `WHATSAPP_VERIFY_TOKEN` em "Verificar
-   token", clicar "Verificar e salvar".
-5. Continuar Etapa 2: "Registre seu número de telefone do WhatsApp" (número
-   de produção real, que **não pode** estar ativo no WhatsApp normal/Business
-   App), "Adicione informações de pagamento", testar "Enviar mensagem".
-6. Etapa 3 (Verificação da empresa) — upload de documentos, aprovação leva
-   alguns dias.
-7. **Depois do webhook aceito**: implementar as Cloud Functions
-   `enviarCodigoRecuperacaoWhatsapp` / `verificarCodigoRecuperacaoWhatsapp`
-   (gerar código, salvar no Firestore com expiração, chamar a Graph API pra
-   enviar, validar depois) — e criar/aprovar um **template de mensagem
-   categoria "Authentication"** no WhatsApp Manager, porque não dá pra
-   mandar texto livre pro primeiro contato (janela de 24h fechada).
-8. Resolver a pergunta em aberto sobre o backend do PTK AI Studio já estar
-   no projeto GCP `ptk-plays` (ver seção acima).
+## O que já está implementado e funcionando (sessões mais antigas, resumido)
 
-## Notas úteis de ambiente
+- Avatares pré-definidos (6 personas), máscara de telefone WhatsApp
+  corrigida, troca de senha em Editar Perfil, avatar padrão pra contas
+  legadas, upload de foto de perfil com crop/zoom (Firebase Storage +
+  CORS configurado), Toast não-bloqueante pra feedback de ação (regra
+  permanente em `CLAUDE.md` — Login/Cadastro/exclusão de conta ainda não
+  retrofitados), loading spinners padronizados, botões circulares com
+  fundo opaco branco.
+- Todos com teste cobrindo. `flutter analyze` tem uma baseline conhecida
+  de ~55 issues antigas (nomes de arquivo em PascalCase, `withOpacity`
+  deprecated, etc.) — não são regressão, não mexer nisso sem pedir.
 
-- Neste sandbox de dev, o Flutter fica em `/opt/flutter/bin`, **fora do
-  PATH por padrão** — rodar `export PATH="$PATH:/opt/flutter/bin"` antes de
-  qualquer comando `flutter`.
-- `flutter analyze`/`flutter build` costumam sujar `analysis_options.yaml`
-  automaticamente (injeta um bloco `analyzer: exclude:`) — sempre conferir
-  `git status` e reverter esse arquivo (`git checkout -- analysis_options.yaml`)
-  antes de commitar, se não for uma mudança intencional.
-- Projeto Firebase `ptk-plays` está no plano **Blaze** (confirmado
-  20/ago/2026, R$ 1.537,58 de crédito restante no teste sem custo). O
-  projeto Firebase separado `ptk-ai-studio` também está no Blaze (confirmado
-  antes, mas ver ponto em aberto acima sobre onde o backend realmente está
-  implantado).
+## Notas úteis de ambiente (sandbox de dev)
+
+- Flutter fica em `/opt/flutter/bin`, fora do PATH — rodar
+  `export PATH="$PATH:/opt/flutter/bin"` antes de comandos `flutter`.
+- `flutter analyze`/`flutter build` sujam `analysis_options.yaml`
+  automaticamente — conferir `git status` e `git checkout --
+  analysis_options.yaml` antes de commitar, se não for intencional.
+- Este sandbox **não tem** `firebase`/`gcloud` CLI — todo deploy
+  (Functions, tags de release) é feito pelo usuário na própria máquina
+  ou no Cloud Shell, nunca por esta sessão diretamente.
+- `node`/`npm` disponíveis aqui (`/opt/node22`) — dá pra rodar
+  `npm test`/`npm install` dentro de `functions/` normalmente.
+- Projeto Firebase `ptk-plays` está no plano Blaze. Projeto separado
+  `ptk-ai-studio` também está no Blaze e tem Firestore ativo (confirmado
+  via Console, coleção `transmissoes` populada).
+- Pasta local `appstore_screenshots/` (só na máquina do usuário) **não**
+  deve ser commitada — decisão explícita do usuário, é só material de
+  referência visual, não faz parte do repositório.
