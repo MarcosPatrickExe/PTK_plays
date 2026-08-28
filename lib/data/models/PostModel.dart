@@ -38,6 +38,18 @@ class PostPlataformaAoVivo {
   /// senao a propria live.
   String get linkParaAbrir => (!aoVivo && vodUrl != null && vodUrl!.isNotEmpty) ? vodUrl! : link;
 
+  /// Preview do card. Twitch e Kick mandam `thumbnailUrl` pronto; o YouTube
+  /// nao manda nenhum, mas a miniatura dele e deduzivel do proprio id do
+  /// video que ja esta no link (`watch?v=<id>`), num endereco publico e
+  /// estavel. Retorna null quando nao da pra deduzir nada.
+  String? get previewUrl {
+    if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) return thumbnailUrl;
+
+    final videoId = Uri.tryParse(link)?.queryParameters['v'];
+    if (videoId == null || videoId.isEmpty) return null;
+    return 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+  }
+
   /// Le uma entrada de `linksPorPlataforma`. Aceita os dois formatos que
   /// existem no Firestore hoje:
   /// - **atual**: um mapa com `link` + os extras (titulo/jogo/thumbnailUrl/

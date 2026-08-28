@@ -680,3 +680,106 @@ nenhuma. Documentado no cabeçalho do próprio script. **Não testado de
 ponta a ponta neste sandbox** pelo mesmo motivo de sempre (sem
 gcloud/firebase autenticados aqui) — só a lógica pura de parsing de
 duração tem teste automatizado.
+
+---
+
+# Painel ADM e enriquecimento dos cards (28/ago/2026)
+
+## Já entregue (Etapa 1)
+
+- **Cards de Vídeos com paridade ao Feed**: data de publicação + badge
+  clicável do YouTube (`lib/components/VideoCard.dart`).
+- **Preview nos cards de live do Feed**: Twitch e Kick já mandavam
+  `thumbnailUrl`; o YouTube não manda nenhuma, mas a miniatura é deduzida
+  do id do vídeo que já está no próprio link
+  (`PostPlataformaAoVivo.previewUrl`), sem chamada extra de API.
+- **Badge "Administrador"** no catálogo de conquistas — aparece no perfil
+  de quem tem `cargo == 'admin'`.
+- **"Painel ADM" no menu lateral**, visível só pra `cargo == 'admin'`.
+- **Tela `PainelAdmin`** com as 5 seções previstas. Só **Usuários** está
+  funcional: lista todos os usuários, com menu de 3 pontos → ver perfil,
+  suspender (7 dias), banir e reativar. As demais seções aparecem
+  explicando o que falta pra cada uma, em vez de sumirem da navegação.
+- **`firestore.rules`**: regra nova permitindo que o admin altere
+  `estadoModeracao`/`suspensoAte`/`motivoModeracao` de outras contas — e
+  **só** esses campos (nunca cargo, badges ou contadores por essa via).
+
+## Pendências, do mais fácil ao mais difícil
+
+### Etapa 2 — barrar quem foi banido/suspenso (fácil)
+Hoje o Painel ADM **marca** o estado, mas nada no app usa essa marcação: um
+usuário banido continua entrando normalmente. Falta bloquear no login e
+numa checagem em tempo real (o usuário já logado precisa cair fora quando é
+banido). Uma tela de "conta suspensa até dd/MM" resolve a UX.
+
+### Etapa 3 — mensagem privada do admin (médio)
+Coleção `conversas` + regras (só os dois participantes leem/escrevem) +
+tela de chat. Hoje a opção existe no menu de 3 pontos e avisa que ainda não
+está pronta.
+
+### Etapa 4 — preview com autoplay na aba Vídeos (médio/difícil)
+Reproduzir o vídeo automaticamente no card conforme ele entra na tela.
+Precisa de um detector de visibilidade (`visibility_detector`) + o
+`youtube_player_flutter` (já é dependência) por card, com só **um** player
+ativo por vez pra não derrubar a performance. Complicações reais:
+- Na Web, autoplay com som é bloqueado pelo navegador — tem que começar
+  mudo, como Instagram/TikTok fazem.
+- Vários players simultâneos travam o app em celular mais fraco; a
+  reciclagem do `ListView` precisa liberar o player ao sair da tela.
+
+### Etapa 5 — Badges pelo painel (médio/difícil)
+Conceder badge a um usuário escolhido na lista. `badges` é **travado**
+contra escrita do cliente no `firestore.rules` (de propósito — é
+gamificação, não pode ser auto-concedida). Precisa de uma Cloud Function
+com o Admin SDK, chamada pelo painel.
+
+### Etapa 6 — Notificações por cargo (médio/difícil)
+Enviar push com título e descrição pra todos ou pra um cargo específico.
+Já existe FCM no projeto (`functions/lib/postAoVivo.js` dispara pro tópico
+`ao_vivo`). Falta: uma Function que receba o envio do painel, e inscrever
+cada usuário num tópico por cargo no login (`cargo_admin`, `cargo_vip`,
+`cargo_inscrito`) pra poder segmentar.
+
+### Etapa 7 — Cargos customizados com permissões (difícil)
+Criar cargos além de inscrito/vip/admin e definir o que cada um pode. É o
+mais invasivo: o `firestore.rules` hoje compara `cargo == 'admin'` numa
+string fixa; passaria a ler uma coleção `cargos` com o mapa de permissões,
+o que reescreve boa parte das regras e precisa de teste com o emulador.
+
+### Etapa 8 — Aviso no WhatsApp (bloqueado por terceiros)
+Mesmo formato das notificações, mas pelo número do bot do canal.
+**Bloqueado** até a compra do número virtual e a verificação na Meta. O
+webhook do WhatsApp Business já existe (`functions/src/webhook.js`), então
+o trabalho restante é o disparo de mensagem (template aprovado pela Meta) e
+a tela do painel.
+
+## Ideias que podem valer a pena (não pedidas ainda)
+
+- **Log de moderação**: registrar quem baniu/suspendeu quem e quando. Sem
+  isso não há como auditar nem desfazer com contexto — barato de fazer
+  junto da Etapa 2.
+- **Busca e filtro na lista de usuários**: hoje ela carrega todo mundo de
+  uma vez, sem paginação. Funciona com dezenas de contas; com centenas,
+  vira problema de custo de leitura e de usabilidade.
+- **Confirmação antes de banir**: hoje o clique bane direto. Um diálogo de
+  confirmação com campo de motivo evita acidente e já alimenta o log acima.
+- **Aba "Posts" no painel**: criar aviso/enquete pelo app em vez de pelo
+  Console do Firebase. As regras já permitem (`ehAdmin()` em `posts`), é só
+  UI — provavelmente a coisa mais útil por menos esforço da lista toda.
+
+## Verificação pendente do usuário: cargo da conta admin
+
+**Não consegui checar** se `marcospatrick039474@gmail.com` já está com
+`cargo: 'admin'` no Firestore: este ambiente não tem credencial nenhuma do
+Firebase (é o mesmo motivo pelo qual os deploys de Function são feitos por
+você no Cloud Shell). Como conferir e corrigir:
+
+1. Firebase Console → Firestore → coleção `users`.
+2. Achar o documento cujo campo `email` é `marcospatrick039474@gmail.com`.
+3. Conferir o campo `cargo`. Se estiver `inscrito` (o padrão de toda conta
+   nova — ver `UserModel.novoInscrito`), editar pra `admin` e salvar.
+4. Opcional: adicionar `'admin'` ao array `badges` do mesmo documento, pra
+   a badge de Administrador aparecer no perfil.
+
+Isso é feito pelo Console de propósito: o `firestore.rules` trava `cargo`
+contra escrita do cliente justamente pra ninguém se auto-promover.

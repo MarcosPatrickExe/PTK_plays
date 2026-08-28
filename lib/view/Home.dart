@@ -8,11 +8,13 @@ import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
+import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/PoliticaPrivacidade.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
 import 'package:ptk_plays/view/Login.dart';
+import 'package:ptk_plays/view/PainelAdmin.dart';
 import 'package:ptk_plays/view/Privacidade.dart';
 import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
@@ -43,8 +45,17 @@ class HomePage extends StatelessWidget {
     final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
     return Scaffold(
-      endDrawer: MenuLateral(
+      // StreamBuilder so em volta do drawer: o cargo do usuario decide se a
+      // opcao "Painel ADM" aparece, e o drawer e a unica parte da tela que
+      // depende disso.
+      endDrawer: StreamBuilder<UserModel?>(
+        stream: authViewModel.streamUsuarioAtual(),
+        builder: (context, snapshot) => MenuLateral(
         isDark: isDark,
+        ehAdmin: snapshot.data?.ehAdmin ?? false,
+        onPainelAdmin: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PainelAdmin()),
+        ),
         onRecuperacaoSenha: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => Profile(viewmodelYT: viewmodelYT, apiKey: apiKEY, authViewModel: authViewModel),
@@ -63,6 +74,7 @@ class HomePage extends StatelessWidget {
             (route) => false,
           );
         },
+        ),
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
@@ -236,7 +248,7 @@ class PostCard extends StatelessWidget {
 
         final tituloLive = primeiroNaoVazio(detalhes.map((d) => d.titulo));
         final jogo = primeiroNaoVazio(detalhes.map((d) => d.jogo));
-        final thumbnailUrl = primeiroNaoVazio(detalhes.map((d) => d.thumbnailUrl));
+        final thumbnailUrl = primeiroNaoVazio(detalhes.map((d) => d.previewUrl));
         final iniciadaEm = detalhes
             .map((d) => d.iniciadaEm)
             .whereType<DateTime>()

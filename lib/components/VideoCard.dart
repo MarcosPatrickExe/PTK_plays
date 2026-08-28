@@ -17,6 +17,39 @@ class VideoCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// `publishedAt` vem em ISO-8601 do YouTube. Formata pra dd/MM/aaaa, ou
+  /// devolve null quando o campo vier vazio/invalido (o card so nao mostra
+  /// essa linha nesse caso, em vez de exibir lixo).
+  String? _dataPublicacao() {
+    final data = DateTime.tryParse(notification.publishedAt);
+    if (data == null) return null;
+    final local = data.toLocal();
+    final dia = local.day.toString().padLeft(2, '0');
+    final mes = local.month.toString().padLeft(2, '0');
+    return '$dia/$mes/${local.year}';
+  }
+
+  Widget _badgeYoutube() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(color: const Color(0xFFFF0000), borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'YouTube',
+              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.play_arrow, size: 13, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build( BuildContext context ) {
 
@@ -94,6 +127,31 @@ class VideoCard extends StatelessWidget {
                                     fontSize: 13,
                                   ),
                                 ),
+                                // Mesmos detalhes dos cards de live no Feed:
+                                // data de publicacao e uma badge clicavel da
+                                // plataforma, que leva pro video.
+                                if (_dataPublicacao() != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.event_outlined,
+                                        size: 15,
+                                        color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Publicado em ${_dataPublicacao()}',
+                                        style: GoogleFonts.outfit(
+                                          color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
+                                _badgeYoutube(),
                               ],
                             ),
                           ),
