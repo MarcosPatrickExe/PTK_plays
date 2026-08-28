@@ -94,6 +94,47 @@ void main() {
     });
   });
 
+  group('PostPlataformaAoVivo.fromDynamic', () {
+    test('le o formato atual (mapa com link + extras)', () {
+      final dados = PostPlataformaAoVivo.fromDynamic({
+        'link': 'https://twitch.tv/patrickson_plays',
+        'titulo': 'Rankeada',
+        'jogo': 'Valorant',
+        'thumbnailUrl': 'https://cdn/preview.jpg',
+      });
+
+      expect(dados.link, 'https://twitch.tv/patrickson_plays');
+      expect(dados.jogo, 'Valorant');
+      expect(dados.thumbnailUrl, 'https://cdn/preview.jpg');
+    });
+
+    // Posts criados antes dos extras existirem gravam o link como texto
+    // puro - sem esse ramo, um unico post antigo quebrava o Feed inteiro.
+    test('le o formato legado (link como texto puro), sem quebrar', () {
+      final dados = PostPlataformaAoVivo.fromDynamic('https://twitch.tv/patrickson_plays');
+
+      expect(dados.link, 'https://twitch.tv/patrickson_plays');
+      expect(dados.jogo, isNull);
+      expect(dados.thumbnailUrl, isNull);
+    });
+  });
+
+  testWidgets('PostCard renderiza um post legado (linksPorPlataforma com texto puro) sem erro', (tester) async {
+    final post = PostModel.fromFirestore('p5', {
+      'tipo': PostModel.tipoAoVivo,
+      'autorUid': 'sistema',
+      'autorNickname': 'PTK Plays',
+      'texto': 'Corre pra assistir agora!',
+      'linksPorPlataforma': {'twitch': 'https://twitch.tv/patrickson_plays'},
+    });
+
+    await tester.pumpWidget(_comPost(post));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Twitch'), findsOneWidget);
+    expect(find.text('Corre pra assistir agora!'), findsOneWidget);
+  });
+
   // O toque nas badges (abre a live via url_launcher) nao tem teste
   // automatizado: assim como em test/politica_privacidade_test.dart, o
   // url_launcher depende do canal de plataforma nativo, que nao existe

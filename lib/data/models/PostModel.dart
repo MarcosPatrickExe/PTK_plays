@@ -19,14 +19,27 @@ class PostPlataformaAoVivo {
     this.iniciadaEm,
   });
 
-  factory PostPlataformaAoVivo.fromMap(Map<String, dynamic> data) {
-    return PostPlataformaAoVivo(
-      link: data['link'] ?? '',
-      titulo: data['titulo'],
-      jogo: data['jogo'],
-      thumbnailUrl: data['thumbnailUrl'],
-      iniciadaEm: (data['iniciadaEm'] as Timestamp?)?.toDate(),
-    );
+  /// Le uma entrada de `linksPorPlataforma`. Aceita os dois formatos que
+  /// existem no Firestore hoje:
+  /// - **atual**: um mapa com `link` + os extras (titulo/jogo/thumbnailUrl/
+  ///   iniciadaEm), gravado por `functions/lib/postAoVivo.js`;
+  /// - **legado**: o link como texto puro, formato usado pelos posts
+  ///   criados antes dos extras existirem. Sem esse ramo, os posts antigos
+  ///   quebrariam a leitura do Feed inteiro (um `String` sendo lido como
+  ///   `Map` lanca excecao dentro do stream).
+  factory PostPlataformaAoVivo.fromDynamic(dynamic data) {
+    if (data is String) return PostPlataformaAoVivo(link: data);
+    if (data is Map) {
+      final mapa = Map<String, dynamic>.from(data);
+      return PostPlataformaAoVivo(
+        link: mapa['link'] ?? '',
+        titulo: mapa['titulo'],
+        jogo: mapa['jogo'],
+        thumbnailUrl: mapa['thumbnailUrl'],
+        iniciadaEm: (mapa['iniciadaEm'] as Timestamp?)?.toDate(),
+      );
+    }
+    return const PostPlataformaAoVivo(link: '');
   }
 }
 
@@ -114,12 +127,9 @@ class PostModel {
       comentariosCount: data['comentariosCount'] ?? 0,
       texto: data['texto'],
       fotoUrl: data['fotoUrl'],
-      plataformasAoVivo: data['linksPorPlataforma'] != null
-          ? (data['linksPorPlataforma'] as Map<String, dynamic>).map(
-              (plataforma, detalhes) => MapEntry(
-                plataforma,
-                PostPlataformaAoVivo.fromMap(Map<String, dynamic>.from(detalhes as Map)),
-              ),
+      plataformasAoVivo: data['linksPorPlataforma'] is Map
+          ? Map<String, dynamic>.from(data['linksPorPlataforma'] as Map).map(
+              (plataforma, detalhes) => MapEntry(plataforma, PostPlataformaAoVivo.fromDynamic(detalhes)),
             )
           : const {},
       titulo: data['titulo'],

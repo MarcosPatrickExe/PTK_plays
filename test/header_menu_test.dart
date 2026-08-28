@@ -23,6 +23,28 @@ void main() {
     expect(find.byType(BotaoMenuLateral), findsNothing);
   });
 
+  // O painel de vidro que existia atras do titulo (ClipRRect +
+  // BackdropFilter + Container com cor/borda) foi removido: era a faixa
+  // fixa que aparecia por baixo do cabecalho. Quem faz esse papel agora e o
+  // DegradeTopo, desenhado no Stack de cada tela.
+  testWidgets('buildHeader nao desenha nenhum painel de fundo atras do titulo', (tester) async {
+    await tester.pumpWidget(
+      _comTema(Builder(builder: (context) => Scaffold(body: buildHeader(title: 'Feed', widgetContext: context)))),
+    );
+
+    expect(find.byType(BackdropFilter), findsNothing);
+
+    // Sobram so os Containers dos botoes redondos de acao (tema/editar/menu),
+    // nenhum ocupando a largura toda como painel de fundo.
+    final larguraTela = tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    for (final container in tester.widgetList<Container>(find.byType(Container))) {
+      final decoracao = container.decoration;
+      if (decoracao is BoxDecoration && decoracao.color != null) {
+        expect(tester.getSize(find.byWidget(container)).width, lessThan(larguraTela / 2));
+      }
+    }
+  });
+
   testWidgets('buildHeader mostra o botao de menu quando o parametro menu e passado', (tester) async {
     await tester.pumpWidget(
       _comTema(
