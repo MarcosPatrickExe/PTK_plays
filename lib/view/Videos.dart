@@ -163,13 +163,16 @@ class _VideoScreenState extends State<Videos> {
           ),
           // Scrim e cabecalho ficam DEPOIS do conteudo no Stack: o conteudo
           // rolado passa por baixo dos dois em vez de ser cortado.
-          const DegradeTopo(),
+          DegradeTopo(isDark: isDark),
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
               child: buildHeader(title: "Vídeos", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
             ),
           ),
+          // Scrim do rodape: escurece o conteudo que passa por baixo da
+          // barra de navegacao, espelhando o do topo.
+          DegradeRodape(isDark: isDark),
           Positioned(
             left: 0,
             right: 0,

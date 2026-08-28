@@ -124,6 +124,10 @@ async function registrarFimTransmissao({ plataforma, resolverVod }) {
     );
 
   await ref.delete();
+
+  // Devolvido pra quem chamou poder anexar o VOD tambem ao post do Feed
+  // (ver `anexarVodAoPost` em postAoVivo.js), sem resolver o VOD duas vezes.
+  return vod;
 }
 
 module.exports = {
