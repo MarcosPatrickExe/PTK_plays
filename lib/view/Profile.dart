@@ -177,23 +177,11 @@ class _ProfileState extends State<Profile> {
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
           Positioned.fill(child: AuthBackground(isDark: isDark)),
-          const DegradeTopo(),
+          // O conteudo ocupa a tela inteira pra poder rolar POR BAIXO do
+          // cabecalho e do scrim (ver comentario em Header.dart).
           SafeArea(
             child: Column(
               children: [
-                buildHeader(
-                  title: "Perfil",
-                  widgetContext: context,
-                  menu: BotaoMenuLateral(isDark: isDark),
-                  onEditar: _usuarioAtual == null
-                      ? null
-                      : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                EditarPerfil(usuario: _usuarioAtual!, authViewModel: widget.authViewModel),
-                          ),
-                        ),
-                ),
                 Expanded(
                   child: _usuarioAtual == null
                       ? Center(child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight))
@@ -203,7 +191,7 @@ class _ProfileState extends State<Profile> {
 
                             return ResponsiveCenter(
                         child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                        padding: const EdgeInsets.fromLTRB(16, alturaCabecalho + 16, 16, 100),
                         children: [
                           _CabecalhoPerfil(usuario: usuario, isDark: isDark),
                           const SizedBox(height: 16),
@@ -328,6 +316,27 @@ class _ProfileState extends State<Profile> {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Scrim e cabecalho ficam DEPOIS do conteudo no Stack: o conteudo
+          // rolado passa por baixo dos dois em vez de ser cortado.
+          const DegradeTopo(),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: buildHeader(
+                title: "Perfil",
+                widgetContext: context,
+                menu: BotaoMenuLateral(isDark: isDark),
+                onEditar: _usuarioAtual == null
+                    ? null
+                    : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EditarPerfil(usuario: _usuarioAtual!, authViewModel: widget.authViewModel),
+                        ),
+                      ),
+              ),
             ),
           ),
           Positioned(
