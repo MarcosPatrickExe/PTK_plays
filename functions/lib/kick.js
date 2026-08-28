@@ -22,6 +22,51 @@ function extrairIdDaTransmissaoKick(body) {
 }
 exports.extrairIdDaTransmissaoKick = extrairIdDaTransmissaoKick;
 
+async function obterTokenDeAppKick(clientId, clientSecret) {
+  const resp = await fetch("https://id.kick.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
+  });
+  if (!resp.ok) {
+    console.error("Falha ao obter token de app da Kick:", resp.status, await resp.text());
+    return null;
+  }
+  const { access_token: appToken } = await resp.json();
+  return appToken;
+}
+
+/**
+ * O webhook `livestream.status.updated` (ver `extrairIdDaTransmissaoKick`
+ * acima) nao traz categoria/jogo nem thumbnail - confirmado na
+ * documentacao oficial, esses dados so vem no `livestream.metadata.updated`,
+ * que nao assinamos. Busca via `GET /public/v1/users/livestreams`, que
+ * aceita App Access Token (dado publico do canal, sem exigir o OAuth do
+ * dono feito em /kickAuthStart).
+ */
+async function buscarDadosAoVivoKick(broadcasterUserId, clientId, clientSecret) {
+  const appToken = await obterTokenDeAppKick(clientId, clientSecret);
+  if (!appToken) return null;
+
+  const resp = await fetch(`https://api.kick.com/public/v1/users/livestreams?user_id=${broadcasterUserId}`, {
+    headers: { Authorization: `Bearer ${appToken}` },
+  });
+  if (!resp.ok) {
+    console.error("Falha ao consultar livestream da Kick:", resp.status, await resp.text());
+    return null;
+  }
+  const { data } = await resp.json();
+  const live = data && data[0];
+  if (!live) return null;
+
+  // Defensivo quanto ao formato exato de `thumbnail` (string ou {url}) - a
+  // documentacao publica da Kick e menos estavel que a da Twitch/YouTube.
+  const thumbnailUrl = typeof live.thumbnail === "string" ? live.thumbnail : live.thumbnail && live.thumbnail.url;
+  const jogo = live.category && live.category.name;
+  return { jogo: jogo || null, thumbnailUrl: thumbnailUrl || null };
+}
+exports.buscarDadosAoVivoKick = buscarDadosAoVivoKick;
+
 const KICK_CLIENT_ID = defineSecret("KICK_CLIENT_ID");
 const KICK_CLIENT_SECRET = defineSecret("KICK_CLIENT_SECRET");
 const SLUG_KICK = "patrickson_plays";
@@ -51,53 +96,61 @@ function assinaturaValida(mensagemId, timestamp, rawBody, assinaturaBase64, chav
  * entrega so comeca a funcionar depois da autorizacao unica feita em
  * /kickAuthStart (o app precisa do consentimento do dono do canal).
  */
-exports.kickWebhook = onRequest({ region: "southamerica-east1" }, async (req, res) => {
-  const mensagemId = req.header("Kick-Event-Message-Id");
-  const timestamp = req.header("Kick-Event-Message-Timestamp");
-  const assinatura = req.header("Kick-Event-Signature");
-  const tipoEvento = req.header("Kick-Event-Type");
+exports.kickWebhook = onRequest(
+  { secrets: [KICK_CLIENT_ID, KICK_CLIENT_SECRET], region: "southamerica-east1" },
+  async (req, res) => {
+    const mensagemId = req.header("Kick-Event-Message-Id");
+    const timestamp = req.header("Kick-Event-Message-Timestamp");
+    const assinatura = req.header("Kick-Event-Signature");
+    const tipoEvento = req.header("Kick-Event-Type");
 
-  if (!mensagemId || !timestamp || !assinatura) {
-    res.status(400).send("Cabecalhos ausentes");
-    return;
-  }
+    if (!mensagemId || !timestamp || !assinatura) {
+      res.status(400).send("Cabecalhos ausentes");
+      return;
+    }
 
-  try {
-    const chavePublica = await obterChavePublicaKick();
-    const valido = assinaturaValida(mensagemId, timestamp, req.rawBody, assinatura, chavePublica);
-    if (!valido) {
+    try {
+      const chavePublica = await obterChavePublicaKick();
+      const valido = assinaturaValida(mensagemId, timestamp, req.rawBody, assinatura, chavePublica);
+      if (!valido) {
+        res.status(403).send("Assinatura invalida");
+        return;
+      }
+    } catch (e) {
+      console.error("Erro verificando assinatura da Kick:", e);
       res.status(403).send("Assinatura invalida");
       return;
     }
-  } catch (e) {
-    console.error("Erro verificando assinatura da Kick:", e);
-    res.status(403).send("Assinatura invalida");
-    return;
-  }
 
-  if (tipoEvento === "livestream.status.updated") {
-    const aoVivo = !!req.body.is_live;
-    if (aoVivo) {
-      const urlDaLive = `https://kick.com/${SLUG_KICK}`;
-      await atualizarStatusPlataforma("kick", true, urlDaLive);
-      await registrarInicioTransmissao({
-        plataforma: "kick",
-        idDaTransmissao: extrairIdDaTransmissaoKick(req.body),
-        urlDaLive,
-        titulo: req.body.title,
-      });
-    } else {
-      const resultado = await atualizarStatusPlataforma("kick", false, null);
-      if (resultado.tipo === "encerrada") {
-        // A Kick nao expoe VOD nesse webhook - vodId/vodUrl ficam ausentes
-        // (nao inventamos), como o pedido pede explicitamente.
-        await registrarFimTransmissao({ plataforma: "kick" });
+    if (tipoEvento === "livestream.status.updated") {
+      const aoVivo = !!req.body.is_live;
+      if (aoVivo) {
+        const urlDaLive = `https://kick.com/${SLUG_KICK}`;
+        const dadosAoVivo = await buscarDadosAoVivoKick(
+          req.body.broadcaster && req.body.broadcaster.user_id,
+          KICK_CLIENT_ID.value(),
+          KICK_CLIENT_SECRET.value(),
+        );
+        await atualizarStatusPlataforma("kick", true, urlDaLive, { titulo: req.body.title, ...(dadosAoVivo || {}) });
+        await registrarInicioTransmissao({
+          plataforma: "kick",
+          idDaTransmissao: extrairIdDaTransmissaoKick(req.body),
+          urlDaLive,
+          titulo: req.body.title,
+        });
+      } else {
+        const resultado = await atualizarStatusPlataforma("kick", false, null);
+        if (resultado.tipo === "encerrada") {
+          // A Kick nao expoe VOD nesse webhook - vodId/vodUrl ficam ausentes
+          // (nao inventamos), como o pedido pede explicitamente.
+          await registrarFimTransmissao({ plataforma: "kick" });
+        }
       }
     }
-  }
 
-  res.status(200).send();
-});
+    res.status(200).send();
+  },
+);
 
 function base64url(buffer) {
   return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

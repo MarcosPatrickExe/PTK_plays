@@ -10,6 +10,7 @@ Widget _telaComMenu({
   required VoidCallback onPrivacidade,
   VoidCallback onPoliticaPrivacidade = _noop,
   required VoidCallback onConfiguracoes,
+  VoidCallback onSairDaConta = _noop,
   bool isDark = false,
 }) {
   return MaterialApp(
@@ -20,6 +21,7 @@ Widget _telaComMenu({
         onPrivacidade: onPrivacidade,
         onPoliticaPrivacidade: onPoliticaPrivacidade,
         onConfiguracoes: onConfiguracoes,
+        onSairDaConta: onSairDaConta,
       ),
       body: Builder(
         builder: (context) => Center(
@@ -44,6 +46,28 @@ void main() {
     expect(find.text('Privacidade'), findsOneWidget);
     expect(find.text('Política de Privacidade'), findsOneWidget);
     expect(find.text('Configurações'), findsOneWidget);
+    expect(find.text('Sair da conta'), findsOneWidget);
+  });
+
+  testWidgets('tocar em "Sair da conta" chama o callback e fecha o painel', (tester) async {
+    var chamado = false;
+    await tester.pumpWidget(
+      _telaComMenu(
+        onRecuperacaoSenha: () {},
+        onPrivacidade: () {},
+        onConfiguracoes: () {},
+        onSairDaConta: () => chamado = true,
+      ),
+    );
+
+    await tester.tap(find.byType(BotaoMenuLateral));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sair da conta'));
+    await tester.pumpAndSettle();
+
+    expect(chamado, isTrue);
+    expect(find.text('Menu'), findsNothing);
   });
 
   testWidgets('tocar em "Política de Privacidade" chama o callback e fecha o painel', (tester) async {

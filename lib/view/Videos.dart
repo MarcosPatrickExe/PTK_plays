@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/PoliticaPrivacidade.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
+import 'package:ptk_plays/view/Login.dart';
 import 'package:ptk_plays/view/Privacidade.dart';
 import 'package:ptk_plays/view/Profile.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
@@ -73,6 +75,16 @@ class _VideoScreenState extends State<Videos> {
         onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
         onPoliticaPrivacidade: () => abrirPoliticaPrivacidade(context),
         onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
+        onSairDaConta: () async {
+          await widget.authViewModel.logout();
+          if (!context.mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => Login(viewmodelYT: widget.viewmodelYT, apiKey: widget.apiKEY, authViewModel: widget.authViewModel),
+            ),
+            (route) => false,
+          );
+        },
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
@@ -82,6 +94,7 @@ class _VideoScreenState extends State<Videos> {
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
           Positioned.fill(child: AuthBackground(isDark: isDark)),
+          const DegradeTopo(),
           SafeArea(
             child: Column(
               children: [

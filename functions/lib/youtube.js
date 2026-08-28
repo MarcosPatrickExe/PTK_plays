@@ -40,13 +40,14 @@ exports.verificarYoutubeAoVivo = onSchedule(
     if (item && item.id && item.id.videoId) {
       const videoId = item.id.videoId;
       const urlDaLive = `https://www.youtube.com/watch?v=${videoId}`;
-      await atualizarStatusPlataforma("youtube", true, urlDaLive);
+      const titulo = item.snippet && item.snippet.title;
+      await atualizarStatusPlataforma("youtube", true, urlDaLive, { titulo });
       // `merge: true` cobre as reexecucoes do polling durante a mesma live.
       await registrarInicioTransmissao({
         plataforma: "youtube",
         idDaTransmissao: videoId,
         urlDaLive,
-        titulo: item.snippet && item.snippet.title,
+        titulo,
       });
     } else {
       const resultado = await atualizarStatusPlataforma("youtube", false, null);

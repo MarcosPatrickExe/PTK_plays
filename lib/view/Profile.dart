@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
+import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
@@ -166,6 +167,7 @@ class _ProfileState extends State<Profile> {
         onPrivacidade: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Privacidade())),
         onPoliticaPrivacidade: () => abrirPoliticaPrivacidade(context),
         onConfiguracoes: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Configuracoes())),
+        onSairDaConta: () => _sair(context),
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
@@ -175,6 +177,7 @@ class _ProfileState extends State<Profile> {
         children: [
           Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
           Positioned.fill(child: AuthBackground(isDark: isDark)),
+          const DegradeTopo(),
           SafeArea(
             child: Column(
               children: [

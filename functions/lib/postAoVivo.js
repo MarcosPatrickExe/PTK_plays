@@ -19,8 +19,11 @@ const LABELS_PLATAFORMA = {
  * @param {"youtube"|"twitch"|"kick"} plataforma
  * @param {boolean} aoVivo true quando a plataforma acabou de ficar ao vivo, false quando saiu do ar
  * @param {string|null} link url da live (so usado quando aoVivo == true)
+ * @param {{titulo?: string|null, jogo?: string|null, thumbnailUrl?: string|null}} [detalhes]
+ *   dados extras da live pra exibir no card do Feed (so usado quando aoVivo == true).
+ *   Campos ausentes/nulos simplesmente nao sao gravados.
  */
-async function atualizarStatusPlataforma(plataforma, aoVivo, link) {
+async function atualizarStatusPlataforma(plataforma, aoVivo, link, detalhes) {
   const db = getFirestore();
   const postsRef = db.collection("posts");
 
@@ -34,6 +37,15 @@ async function atualizarStatusPlataforma(plataforma, aoVivo, link) {
     const postAtivo = snap.empty ? null : snap.docs[0];
 
     if (aoVivo) {
+      const { titulo, jogo, thumbnailUrl } = detalhes || {};
+      const dadosPlataforma = {
+        link,
+        iniciadaEm: FieldValue.serverTimestamp(),
+        ...(titulo ? { titulo } : {}),
+        ...(jogo ? { jogo } : {}),
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      };
+
       if (!postAtivo) {
         const novoRef = postsRef.doc();
         tx.set(novoRef, {
@@ -44,19 +56,20 @@ async function atualizarStatusPlataforma(plataforma, aoVivo, link) {
           curtidas: 0,
           comentariosCount: 0,
           texto: "Corre pra assistir agora!",
-          linksPorPlataforma: { [plataforma]: link },
+          linksPorPlataforma: { [plataforma]: dadosPlataforma },
           encerrada: false,
         });
         return { tipo: "semNotificacao" }; // onDocumentCreated ja cuida da notificacao
       }
 
       const linksAtuais = postAtivo.data().linksPorPlataforma || {};
-      if (linksAtuais[plataforma] === link) {
+      const dadosAtuais = linksAtuais[plataforma];
+      if (dadosAtuais && dadosAtuais.link === link) {
         return { tipo: "semMudanca" };
       }
 
-      const eraNovaPlataforma = !linksAtuais[plataforma];
-      tx.update(postAtivo.ref, { [`linksPorPlataforma.${plataforma}`]: link });
+      const eraNovaPlataforma = !dadosAtuais;
+      tx.update(postAtivo.ref, { [`linksPorPlataforma.${plataforma}`]: dadosPlataforma });
       return eraNovaPlataforma
         ? { tipo: "novaPlataforma", postId: postAtivo.id, plataforma }
         : { tipo: "semMudanca" };

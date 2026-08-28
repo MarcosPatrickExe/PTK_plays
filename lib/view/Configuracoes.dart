@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../components/AuthBackground.dart';
 import '../components/AuthWidgets.dart';
+import '../components/DegradeTopo.dart';
 import '../components/Responsive.dart';
 import '../utils/AuthTheme.dart';
 import '../utils/ThemeController.dart';
@@ -23,6 +24,7 @@ class Configuracoes extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(child: AuthBackground(isDark: isDark)),
+            const DegradeTopo(),
             SafeArea(
               child: Stack(
                 children: [
