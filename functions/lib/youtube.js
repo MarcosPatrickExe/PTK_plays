@@ -9,13 +9,15 @@ const CANAL_ID = "UCB0Xu_75SQQIHVjaTmGBYuQ";
 /**
  * So o YouTube precisa de polling: a API deles nao oferece um jeito barato de
  * "escutar" quando um canal qualquer fica ao vivo (ao contrario da Twitch e da
- * Kick, que avisam via webhook). Roda so sabado/domingo, 13h-22h30 (Brasilia),
- * a cada 30min, pra ficar bem longe da cota gratuita de 10.000 unidades/dia
- * (20 checagens/dia x 100 unidades = 2.000/dia).
+ * Kick, que avisam via webhook). Roda todo dia, 13h-22h30 (Brasilia), a cada
+ * 30min, pra ficar bem longe da cota gratuita de 10.000 unidades/dia (20
+ * checagens/dia x 100 unidades = 2.000/dia) - a cota e diaria, entao rodar
+ * todo dia em vez de so sabado/domingo nao aumenta o uso em nenhum dia
+ * especifico, so estende a mesma checagem pros outros 5 dias da semana.
  */
 exports.verificarYoutubeAoVivo = onSchedule(
   {
-    schedule: "0,30 13-22 * * 6,0",
+    schedule: "0,30 13-22 * * *",
     timeZone: "America/Sao_Paulo",
     region: "southamerica-east1",
     secrets: [YOUTUBE_API_KEY],
