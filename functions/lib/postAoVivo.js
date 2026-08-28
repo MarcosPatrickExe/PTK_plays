@@ -11,6 +11,30 @@ const LABELS_PLATAFORMA = {
 };
 
 /**
+ * Uma entrada de `linksPorPlataforma` esta ao vivo quando nao foi marcada
+ * com `aoVivo: false`. O formato legado (o link gravado como texto puro,
+ * usado antes dos dados extras existirem) conta como ao vivo - era o unico
+ * jeito de uma entrada existir naquele formato.
+ */
+function estaAoVivo(dados) {
+  if (typeof dados === "string") return true;
+  return !!dados && dados.aoVivo !== false;
+}
+
+/**
+ * Duracao em segundos entre o inicio da transmissao e `agora`. Aceita o
+ * `iniciadaEm` do Firestore (Timestamp) e tambem Date/string, e devolve
+ * `null` quando nao da pra calcular (entrada legada, sem esse campo) - o
+ * card simplesmente nao mostra duracao nesse caso, em vez de mostrar zero.
+ */
+function calcularDuracaoSegundos(iniciadaEm, agora) {
+  if (!iniciadaEm) return null;
+  const inicio = typeof iniciadaEm.toDate === "function" ? iniciadaEm.toDate() : new Date(iniciadaEm);
+  if (Number.isNaN(inicio.getTime())) return null;
+  return Math.max(0, Math.round((agora.getTime() - inicio.getTime()) / 1000));
+}
+
+/**
  * Cria ou atualiza o post "ao vivo" ativo (tipo aoVivo, encerrada == false) de
  * acordo com a mudanca de status de uma plataforma. Roda dentro de uma
  * transacao pra evitar corrida entre o polling do YouTube e os webhooks da
@@ -46,6 +70,8 @@ async function atualizarStatusPlataforma(plataforma, aoVivo, link, detalhes) {
         ...(thumbnailUrl ? { thumbnailUrl } : {}),
       };
 
+      dadosPlataforma.aoVivo = true;
+
       if (!postAtivo) {
         const novoRef = postsRef.doc();
         tx.set(novoRef, {
@@ -64,32 +90,46 @@ async function atualizarStatusPlataforma(plataforma, aoVivo, link, detalhes) {
 
       const linksAtuais = postAtivo.data().linksPorPlataforma || {};
       const dadosAtuais = linksAtuais[plataforma];
-      if (dadosAtuais && dadosAtuais.link === link) {
+      // So e "sem mudanca" se a plataforma ja estiver ao vivo com esse
+      // mesmo link. Uma plataforma que ja encerrou (aoVivo: false) e voltou
+      // conta como nova: a entrada e reescrita do zero, com iniciadaEm novo.
+      const jaAoVivo = estaAoVivo(dadosAtuais);
+      if (jaAoVivo && dadosAtuais.link === link) {
         return { tipo: "semMudanca" };
       }
 
-      const eraNovaPlataforma = !dadosAtuais;
+      const eraNovaPlataforma = !jaAoVivo;
       tx.update(postAtivo.ref, { [`linksPorPlataforma.${plataforma}`]: dadosPlataforma });
       return eraNovaPlataforma
         ? { tipo: "novaPlataforma", postId: postAtivo.id, plataforma }
         : { tipo: "semMudanca" };
     }
 
-    // aoVivo == false: encerra a plataforma no post ativo, se existir
+    // aoVivo == false: encerra a plataforma no post ativo, se existir.
     if (!postAtivo) return { tipo: "semMudanca" };
 
     const linksAtuais = postAtivo.data().linksPorPlataforma || {};
-    if (!linksAtuais[plataforma]) return { tipo: "semMudanca" };
+    const dadosAtuais = linksAtuais[plataforma];
+    if (!dadosAtuais || estaAoVivo(dadosAtuais) === false) return { tipo: "semMudanca" };
 
-    const restantes = { ...linksAtuais };
-    delete restantes[plataforma];
-    const encerrouTudo = Object.keys(restantes).length === 0;
+    // Os dados da plataforma NAO sao apagados aqui (era `FieldValue.delete()`
+    // antes): o card do Feed continua mostrando jogo, plataforma, duracao e
+    // data de encerramento depois que a live acaba. Quem some do ar e
+    // marcado com `aoVivo: false`.
+    const agora = new Date();
+    const duracaoSegundos = calcularDuracaoSegundos(dadosAtuais.iniciadaEm, agora);
+
+    const aindaAoVivo = Object.entries(linksAtuais).some(
+      ([nome, dados]) => nome !== plataforma && estaAoVivo(dados),
+    );
 
     tx.update(postAtivo.ref, {
-      [`linksPorPlataforma.${plataforma}`]: FieldValue.delete(),
-      ...(encerrouTudo ? { encerrada: true } : {}),
+      [`linksPorPlataforma.${plataforma}.aoVivo`]: false,
+      [`linksPorPlataforma.${plataforma}.encerradaEm`]: agora,
+      ...(duracaoSegundos != null ? { [`linksPorPlataforma.${plataforma}.duracaoSegundos`]: duracaoSegundos } : {}),
+      ...(aindaAoVivo ? {} : { encerrada: true }),
     });
-    return { tipo: "encerrada" };
+    return { tipo: "encerrada", postId: postAtivo.id };
   });
 
   if (resultado.tipo === "novaPlataforma") {
@@ -97,6 +137,23 @@ async function atualizarStatusPlataforma(plataforma, aoVivo, link, detalhes) {
   }
 
   return resultado;
+}
+
+/**
+ * Anexa o link da gravacao (VOD) a plataforma dentro do post do Feed, pra
+ * que o card continue clicavel depois que a live acaba - o toque leva pra
+ * gravacao em vez de um link de live que nao existe mais.
+ *
+ * Roda depois de `atualizarStatusPlataforma(..., false, ...)` porque o VOD
+ * so e resolvido apos o fim (a Twitch precisa de uma chamada a Helix).
+ * Silencioso quando nao ha VOD (a Kick nao expoe um).
+ */
+async function anexarVodAoPost({ postId, plataforma, vodUrl }) {
+  if (!postId || !vodUrl) return;
+  await getFirestore()
+    .collection("posts")
+    .doc(postId)
+    .update({ [`linksPorPlataforma.${plataforma}.vodUrl`]: vodUrl });
 }
 
 async function notificarNovaPlataforma(postId, plataforma) {
@@ -113,4 +170,4 @@ async function notificarNovaPlataforma(postId, plataforma) {
   });
 }
 
-module.exports = { atualizarStatusPlataforma };
+module.exports = { atualizarStatusPlataforma, anexarVodAoPost, estaAoVivo, calcularDuracaoSegundos };

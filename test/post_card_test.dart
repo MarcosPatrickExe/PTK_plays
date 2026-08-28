@@ -94,6 +94,66 @@ void main() {
     });
   });
 
+  group('PostCard - live encerrada', () {
+    PostModel _postEncerrado() => PostModel(
+          id: 'p9',
+          tipo: PostModel.tipoAoVivo,
+          autorUid: 'sistema',
+          autorNickname: 'PTK Plays',
+          criadoEm: DateTime(2026, 8, 27, 21, 0),
+          plataformasAoVivo: {
+            'twitch': PostPlataformaAoVivo(
+              link: 'https://twitch.tv/patrickson_plays',
+              titulo: 'Rankeada até de madrugada',
+              jogo: 'Valorant',
+              iniciadaEm: DateTime(2026, 8, 27, 21, 5),
+              aoVivo: false,
+              encerradaEm: DateTime(2026, 8, 28, 0, 20),
+              duracaoSegundos: 11700, // 3h 15min
+              vodUrl: 'https://twitch.tv/videos/123',
+            ),
+          },
+        );
+
+    testWidgets('mostra duração, data de encerramento, jogo e o selo ENCERRADA', (tester) async {
+      await tester.pumpWidget(_comPost(_postEncerrado()));
+
+      expect(find.text('ENCERRADA'), findsOneWidget);
+      expect(find.text('AO VIVO'), findsNothing);
+      expect(find.text('Valorant'), findsOneWidget);
+      expect(find.text('Durou 3h 15min'), findsOneWidget);
+      expect(find.text('Encerrada em 28/08 às 00:20'), findsOneWidget);
+    });
+
+    testWidgets('a badge aponta pra gravação (vodUrl) em vez do link da live', (tester) async {
+      final dados = _postEncerrado().plataformasAoVivo['twitch']!;
+      expect(dados.linkParaAbrir, 'https://twitch.tv/videos/123');
+    });
+
+    testWidgets('enquanto está no ar, a badge aponta pra live e mostra o horário de início', (tester) async {
+      final post = PostModel(
+        id: 'p10',
+        tipo: PostModel.tipoAoVivo,
+        autorUid: 'sistema',
+        autorNickname: 'PTK Plays',
+        criadoEm: DateTime(2026, 8, 27, 21, 0),
+        plataformasAoVivo: {
+          'kick': PostPlataformaAoVivo(
+            link: 'https://kick.com/patrickson_plays',
+            jogo: 'Just Chatting',
+            iniciadaEm: DateTime(2026, 8, 27, 21, 5),
+          ),
+        },
+      );
+
+      await tester.pumpWidget(_comPost(post));
+
+      expect(find.text('AO VIVO'), findsOneWidget);
+      expect(find.text('Começou às 27/08 às 21:05'), findsOneWidget);
+      expect(post.plataformasAoVivo['kick']!.linkParaAbrir, 'https://kick.com/patrickson_plays');
+    });
+  });
+
   group('PostPlataformaAoVivo.fromDynamic', () {
     test('le o formato atual (mapa com link + extras)', () {
       final dados = PostPlataformaAoVivo.fromDynamic({

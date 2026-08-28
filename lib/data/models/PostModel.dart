@@ -11,13 +11,32 @@ class PostPlataformaAoVivo {
   final String? thumbnailUrl;
   final DateTime? iniciadaEm;
 
+  /// false depois que a transmissao dessa plataforma encerrou. Entradas
+  /// legadas (sem o campo) contam como ao vivo - era o unico estado
+  /// possivel antes, ja que a plataforma era apagada do post ao encerrar.
+  final bool aoVivo;
+  final DateTime? encerradaEm;
+  final int? duracaoSegundos;
+
+  /// Link da gravacao, preenchido no fim da transmissao. A Kick nao expoe
+  /// VOD, entao la fica sempre nulo.
+  final String? vodUrl;
+
   const PostPlataformaAoVivo({
     required this.link,
     this.titulo,
     this.jogo,
     this.thumbnailUrl,
     this.iniciadaEm,
+    this.aoVivo = true,
+    this.encerradaEm,
+    this.duracaoSegundos,
+    this.vodUrl,
   });
+
+  /// Pra onde o toque na badge leva: a gravacao quando a live ja acabou,
+  /// senao a propria live.
+  String get linkParaAbrir => (!aoVivo && vodUrl != null && vodUrl!.isNotEmpty) ? vodUrl! : link;
 
   /// Le uma entrada de `linksPorPlataforma`. Aceita os dois formatos que
   /// existem no Firestore hoje:
@@ -37,6 +56,10 @@ class PostPlataformaAoVivo {
         jogo: mapa['jogo'],
         thumbnailUrl: mapa['thumbnailUrl'],
         iniciadaEm: (mapa['iniciadaEm'] as Timestamp?)?.toDate(),
+        aoVivo: mapa['aoVivo'] ?? true,
+        encerradaEm: (mapa['encerradaEm'] as Timestamp?)?.toDate(),
+        duracaoSegundos: mapa['duracaoSegundos'],
+        vodUrl: mapa['vodUrl'],
       );
     }
     return const PostPlataformaAoVivo(link: '');

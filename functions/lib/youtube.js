@@ -1,6 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
-const { atualizarStatusPlataforma } = require("./postAoVivo");
+const { atualizarStatusPlataforma, anexarVodAoPost } = require("./postAoVivo");
 const { registrarInicioTransmissao, registrarFimTransmissao } = require("./transmissoes");
 
 const YOUTUBE_API_KEY = defineSecret("YOUTUBE_API_KEY");
@@ -59,13 +59,14 @@ exports.verificarYoutubeAoVivo = onSchedule(
       if (resultado.tipo === "encerrada") {
         // No YouTube o vodId sai de graca: e o mesmo videoId da live, que
         // continua sendo o id do video (agora gravado) depois que ela acaba.
-        await registrarFimTransmissao({
+        const vod = await registrarFimTransmissao({
           plataforma: "youtube",
           resolverVod: (idDaTransmissao) => ({
             vodId: idDaTransmissao,
             vodUrl: `https://www.youtube.com/watch?v=${idDaTransmissao}`,
           }),
         });
+        await anexarVodAoPost({ postId: resultado.postId, plataforma: "youtube", vodUrl: vod && vod.vodUrl });
       }
     }
   }

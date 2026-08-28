@@ -24,7 +24,7 @@ class Configuracoes extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(child: AuthBackground(isDark: isDark)),
-            const DegradeTopo(),
+            DegradeTopo(isDark: isDark),
             SafeArea(
               child: Stack(
                 children: [

@@ -2,6 +2,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const crypto = require("crypto");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+// Sem `anexarVodAoPost` aqui de proposito: a Kick nao expoe VOD.
 const { atualizarStatusPlataforma } = require("./postAoVivo");
 const { registrarInicioTransmissao, registrarFimTransmissao } = require("./transmissoes");
 

@@ -136,13 +136,16 @@ class HomePage extends StatelessWidget {
           ),
           // Scrim e cabecalho ficam DEPOIS do conteudo no Stack: o conteudo
           // rolado passa por baixo dos dois em vez de ser cortado.
-          const DegradeTopo(),
+          DegradeTopo(isDark: isDark),
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
               child: buildHeader(title: "Feed", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
             ),
           ),
+          // Scrim do rodape: escurece o conteudo que passa por baixo da
+          // barra de navegacao, espelhando o do topo.
+          DegradeRodape(isDark: isDark),
           Positioned(
             left: 0,
             right: 0,
@@ -239,14 +242,30 @@ class PostCard extends StatelessWidget {
             .whereType<DateTime>()
             .fold<DateTime?>(null, (menor, atual) => (menor == null || atual.isBefore(menor)) ? atual : menor);
 
+        final aindaAoVivo = detalhes.any((d) => d.aoVivo);
+        // Depois que acaba, o que interessa e quando terminou e quanto
+        // durou - a maior duracao entre as plataformas e o encerramento
+        // mais recente representam a transmissao como um todo.
+        final encerradaEm = detalhes
+            .map((d) => d.encerradaEm)
+            .whereType<DateTime>()
+            .fold<DateTime?>(null, (maior, atual) => (maior == null || atual.isAfter(maior)) ? atual : maior);
+        final duracaoSegundos = detalhes
+            .map((d) => d.duracaoSegundos)
+            .whereType<int>()
+            .fold<int?>(null, (maior, atual) => (maior == null || atual > maior) ? atual : maior);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFE0264F), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                color: aindaAoVivo ? const Color(0xFFE0264F) : (isDark ? Colors.white24 : Colors.black26),
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Text(
-                'AO VIVO',
+                aindaAoVivo ? 'AO VIVO' : 'ENCERRADA',
                 style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
@@ -272,22 +291,29 @@ class PostCard extends StatelessWidget {
               tituloLive ?? post.texto ?? 'Corre pra assistir agora!',
               style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
             ),
-            if (jogo != null || iniciadaEm != null) ...[
+            if (jogo != null) ...[
+              const SizedBox(height: 6),
+              _linhaDetalhe(Icons.sports_esports, jogo),
+            ],
+            if (duracaoSegundos != null) ...[
               const SizedBox(height: 4),
-              Text(
-                [
-                  if (jogo != null) jogo,
-                  if (iniciadaEm != null) 'começou às ${_formatarHorario(iniciadaEm)}',
-                ].join(' • '),
-                style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight, fontSize: 13),
-              ),
+              _linhaDetalhe(Icons.schedule, 'Durou ${_formatarDuracao(duracaoSegundos)}'),
+            ],
+            if (!aindaAoVivo && encerradaEm != null) ...[
+              const SizedBox(height: 4),
+              _linhaDetalhe(Icons.event_available, 'Encerrada em ${_formatarDataHora(encerradaEm)}'),
+            ] else if (aindaAoVivo && iniciadaEm != null) ...[
+              const SizedBox(height: 4),
+              _linhaDetalhe(Icons.play_circle_outline, 'Começou às ${_formatarDataHora(iniciadaEm)}'),
             ],
             if (ativas.isNotEmpty) ...[
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: ativas.map((p) => _badgePlataforma(context, p, post.plataformasAoVivo[p]!.link)).toList(),
+                children: ativas
+                    .map((p) => _badgePlataforma(context, p, post.plataformasAoVivo[p]!))
+                    .toList(),
               ),
             ],
           ],
@@ -470,13 +496,36 @@ class PostCard extends StatelessWidget {
     return 'há ${diff.inDays}d';
   }
 
-  String _formatarHorario(DateTime data) {
+  String _formatarDataHora(DateTime data) {
     final local = data.toLocal();
-    final hora = local.hour.toString().padLeft(2, '0');
-    final minuto = local.minute.toString().padLeft(2, '0');
     final dia = local.day.toString().padLeft(2, '0');
     final mes = local.month.toString().padLeft(2, '0');
-    return '$hora:$minuto ($dia/$mes)';
+    final hora = local.hour.toString().padLeft(2, '0');
+    final minuto = local.minute.toString().padLeft(2, '0');
+    return '$dia/$mes às $hora:$minuto';
+  }
+
+  /// "2h 35min", "45min" ou "38s" - sem zeros a esquerda inuteis, pra ficar
+  /// legivel num card curto.
+  String _formatarDuracao(int totalSegundos) {
+    final horas = totalSegundos ~/ 3600;
+    final minutos = (totalSegundos % 3600) ~/ 60;
+    if (horas > 0) return minutos > 0 ? '${horas}h ${minutos}min' : '${horas}h';
+    if (minutos > 0) return '${minutos}min';
+    return '${totalSegundos}s';
+  }
+
+  Widget _linhaDetalhe(IconData icone, String texto) {
+    final cor = isDark ? AuthTheme.subDark : AuthTheme.subLight;
+    return Row(
+      children: [
+        Icon(icone, size: 15, color: cor),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(texto, style: GoogleFonts.outfit(color: cor, fontSize: 13)),
+        ),
+      ],
+    );
   }
 
   Color _corPlataforma(String p) {
@@ -496,11 +545,16 @@ class PostCard extends StatelessWidget {
   // claro demais pra texto branco ficar legivel em cima.
   Color _corTextoPlataforma(String p) => p == 'kick' ? Colors.black : Colors.white;
 
-  Widget _badgePlataforma(BuildContext context, String plataforma, String link) {
+  /// Badge da plataforma. O toque abre a live enquanto ela esta no ar e a
+  /// gravacao depois que acaba (ver [PostPlataformaAoVivo.linkParaAbrir]).
+  /// O icone reflete isso: "abrir link" pra live, "play" pra gravacao.
+  Widget _badgePlataforma(BuildContext context, String plataforma, PostPlataformaAoVivo dados) {
     final cor = _corPlataforma(plataforma);
     final corTexto = _corTextoPlataforma(plataforma);
+    final temGravacao = !dados.aoVivo && dados.vodUrl != null && dados.vodUrl!.isNotEmpty;
+
     return GestureDetector(
-      onTap: () => _abrirLink(context, link),
+      onTap: () => _abrirLink(context, dados.linkParaAbrir),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(20)),
@@ -512,7 +566,7 @@ class PostCard extends StatelessWidget {
               style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: corTexto),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.open_in_new, size: 13, color: corTexto),
+            Icon(temGravacao ? Icons.play_arrow : Icons.open_in_new, size: 13, color: corTexto),
           ],
         ),
       ),

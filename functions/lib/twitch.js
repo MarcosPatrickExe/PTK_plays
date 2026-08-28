@@ -1,7 +1,7 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const crypto = require("crypto");
-const { atualizarStatusPlataforma } = require("./postAoVivo");
+const { atualizarStatusPlataforma, anexarVodAoPost } = require("./postAoVivo");
 const { registrarInicioTransmissao, registrarFimTransmissao } = require("./transmissoes");
 
 const TWITCH_WEBHOOK_SECRET = defineSecret("TWITCH_WEBHOOK_SECRET");
@@ -140,10 +140,11 @@ exports.twitchWebhook = onRequest(
         const resultado = await atualizarStatusPlataforma("twitch", false, null);
         if (resultado.tipo === "encerrada") {
           const broadcasterId = req.body.event.broadcaster_user_id;
-          await registrarFimTransmissao({
+          const vod = await registrarFimTransmissao({
             plataforma: "twitch",
             resolverVod: () => buscarVodMaisRecente(broadcasterId, TWITCH_CLIENT_ID.value(), TWITCH_CLIENT_SECRET.value()),
           });
+          await anexarVodAoPost({ postId: resultado.postId, plataforma: "twitch", vodUrl: vod && vod.vodUrl });
         }
       }
       res.status(200).send();

@@ -67,6 +67,7 @@ describe('atualizarStatusPlataforma', () => {
     expect(dados.linksPorPlataforma.twitch).toEqual({
       link: 'https://twitch.tv/patrickson_plays',
       iniciadaEm: SERVER_TIMESTAMP,
+      aoVivo: true,
       titulo: 'Rankeada até de madrugada',
       jogo: 'Valorant',
       thumbnailUrl: 'https://static-cdn.jtvnw.net/preview.jpg',
@@ -81,6 +82,7 @@ describe('atualizarStatusPlataforma', () => {
       link: 'https://kick.com/patrickson_plays',
       iniciadaEm: SERVER_TIMESTAMP,
       titulo: 'Só de boa',
+      aoVivo: true,
     });
   });
 
@@ -96,6 +98,7 @@ describe('atualizarStatusPlataforma', () => {
         link: 'https://twitch.tv/patrickson_plays',
         iniciadaEm: SERVER_TIMESTAMP,
         jogo: 'Valorant',
+        aoVivo: true,
       },
     });
     expect(mockMessagingSend).toHaveBeenCalledTimes(1);
@@ -112,29 +115,80 @@ describe('atualizarStatusPlataforma', () => {
     expect(mockMessagingSend).not.toHaveBeenCalled();
   });
 
-  test('ao encerrar a ultima plataforma ativa, remove a entrada e marca o post como encerrado', async () => {
+  // Um Timestamp do Firestore como o que vem do `iniciadaEm` ja gravado.
+  function timestampDe(data) {
+    return { toDate: () => data };
+  }
+
+  test('ao encerrar, PRESERVA os dados da plataforma e grava duracao + encerradaEm', async () => {
+    const inicio = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2h atras
     postAtivoSnap = postComPlataformas({
-      twitch: { link: 'https://twitch.tv/patrickson_plays', iniciadaEm: SERVER_TIMESTAMP },
+      twitch: { link: 'https://twitch.tv/patrickson_plays', jogo: 'Valorant', iniciadaEm: timestampDe(inicio) },
     });
 
     await atualizarStatusPlataforma('twitch', false, null);
 
-    expect(mockTxUpdate).toHaveBeenCalledWith(REF_POST_EXISTENTE, {
-      'linksPorPlataforma.twitch': FIELD_DELETE,
-      encerrada: true,
-    });
+    const [, atualizacao] = mockTxUpdate.mock.calls[0];
+    // O jogo/link NAO sao apagados (antes era um FieldValue.delete() na
+    // entrada inteira) - o card do Feed continua mostrando os detalhes.
+    expect(atualizacao['linksPorPlataforma.twitch']).toBeUndefined();
+    expect(atualizacao['linksPorPlataforma.twitch.aoVivo']).toBe(false);
+    expect(atualizacao['linksPorPlataforma.twitch.encerradaEm']).toBeInstanceOf(Date);
+    expect(atualizacao['linksPorPlataforma.twitch.duracaoSegundos']).toBeCloseTo(7200, -1);
+    expect(atualizacao.encerrada).toBe(true);
   });
 
-  test('ao encerrar uma plataforma quando outra ainda esta ativa, nao marca o post como encerrado', async () => {
+  test('ao encerrar uma plataforma quando outra ainda esta ao vivo, nao marca o post como encerrado', async () => {
     postAtivoSnap = postComPlataformas({
-      twitch: { link: 'https://twitch.tv/patrickson_plays', iniciadaEm: SERVER_TIMESTAMP },
-      kick: { link: 'https://kick.com/patrickson_plays', iniciadaEm: SERVER_TIMESTAMP },
+      twitch: { link: 'https://twitch.tv/patrickson_plays', iniciadaEm: timestampDe(new Date()) },
+      kick: { link: 'https://kick.com/patrickson_plays', iniciadaEm: timestampDe(new Date()) },
     });
 
     await atualizarStatusPlataforma('twitch', false, null);
 
-    expect(mockTxUpdate).toHaveBeenCalledWith(REF_POST_EXISTENTE, {
-      'linksPorPlataforma.twitch': FIELD_DELETE,
+    const [, atualizacao] = mockTxUpdate.mock.calls[0];
+    expect(atualizacao['linksPorPlataforma.twitch.aoVivo']).toBe(false);
+    expect(atualizacao.encerrada).toBeUndefined();
+  });
+
+  test('nao reprocessa uma plataforma que ja tinha encerrado', async () => {
+    postAtivoSnap = postComPlataformas({
+      twitch: { link: 'https://twitch.tv/patrickson_plays', aoVivo: false, iniciadaEm: timestampDe(new Date()) },
     });
+
+    const resultado = await atualizarStatusPlataforma('twitch', false, null);
+
+    expect(resultado.tipo).toBe('semMudanca');
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  test('uma plataforma que encerrou e voltou ao ar conta como nova (reescreve a entrada e notifica)', async () => {
+    postAtivoSnap = postComPlataformas({
+      twitch: {
+        link: 'https://twitch.tv/patrickson_plays',
+        aoVivo: false,
+        encerradaEm: new Date(),
+        iniciadaEm: timestampDe(new Date()),
+      },
+    });
+
+    await atualizarStatusPlataforma('twitch', true, 'https://twitch.tv/patrickson_plays', { jogo: 'Valorant' });
+
+    const [, atualizacao] = mockTxUpdate.mock.calls[0];
+    expect(atualizacao['linksPorPlataforma.twitch'].aoVivo).toBe(true);
+    expect(mockMessagingSend).toHaveBeenCalledTimes(1);
+  });
+
+  test('formato legado (link como texto puro) conta como ao vivo e pode ser encerrado', async () => {
+    postAtivoSnap = postComPlataformas({ twitch: 'https://twitch.tv/patrickson_plays' });
+
+    const resultado = await atualizarStatusPlataforma('twitch', false, null);
+
+    expect(resultado.tipo).toBe('encerrada');
+    const [, atualizacao] = mockTxUpdate.mock.calls[0];
+    expect(atualizacao['linksPorPlataforma.twitch.aoVivo']).toBe(false);
+    // Sem iniciadaEm no formato legado nao da pra calcular duracao - o card
+    // simplesmente nao mostra esse dado, em vez de mostrar zero.
+    expect(atualizacao['linksPorPlataforma.twitch.duracaoSegundos']).toBeUndefined();
   });
 });
