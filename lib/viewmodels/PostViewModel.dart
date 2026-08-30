@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseException;
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../data/models/PostModel.dart';
+import '../data/models/UserModel.dart';
 import '../data/repositories/PostRepository.dart';
+import '../utils/ValidacaoPost.dart';
 
 class PostViewModel {
   final PostRepository _repository;
@@ -9,4 +13,58 @@ class PostViewModel {
 
   Future<void> votar({required String postId, required int indiceOpcao, required String uid}) =>
       _repository.votar(postId: postId, indiceOpcao: indiceOpcao, uid: uid);
+
+  /// Publica um aviso de texto. A validacao do conteudo (vazio, tamanho) e
+  /// feita na tela antes de chegar aqui, porque erro de formulario vai pro
+  /// modal bloqueante e erro de escrita vai pro toast (regra do CLAUDE.md).
+  /// Retorna null em caso de sucesso, ou a mensagem pro toast.
+  Future<String?> publicarAviso({required String texto, required UserModel autor}) {
+    return _publicar(() => _repository.criarPost(
+          tipo: PostModel.tipoAvisoTexto,
+          autorUid: autor.uid,
+          autorNickname: autor.nickname,
+          autorCargo: autor.cargo,
+          texto: texto.trim(),
+        ));
+  }
+
+  /// Enquete. So o admin consegue publicar: o `firestore.rules` recusa esse
+  /// tipo pra qualquer outro cargo (a UI tambem nao oferece a opcao).
+  Future<String?> publicarEnquete({
+    required String pergunta,
+    required List<String> opcoes,
+    required UserModel autor,
+  }) {
+    return _publicar(() => _repository.criarPost(
+          tipo: PostModel.tipoEnquete,
+          autorUid: autor.uid,
+          autorNickname: autor.nickname,
+          autorCargo: autor.cargo,
+          titulo: pergunta.trim(),
+          opcoes: opcoesPreenchidas(opcoes),
+        ));
+  }
+
+  Future<String?> excluirPost(String postId) {
+    return _publicar(() => _repository.excluirPost(postId));
+  }
+
+  Future<String?> _publicar(Future<void> Function() escrita) async {
+    try {
+      await escrita();
+      return null;
+    } on FirebaseException catch (e, stack) {
+      debugPrint('escrita no feed falhou: ${e.code}\n$stack');
+      // permission-denied aqui quase sempre quer dizer que a regra nova de
+      // /posts ainda nao foi publicada (firebase deploy --only
+      // firestore:rules) — vale dizer isso em vez de um erro generico.
+      if (e.code == 'permission-denied') {
+        return 'Você não tem permissão pra isso. Se acabou de virar admin, saia e entre de novo.';
+      }
+      return 'Não foi possível concluir. Tente de novo.';
+    } catch (e, stack) {
+      debugPrint('escrita no feed falhou: $e\n$stack');
+      return 'Não foi possível concluir. Tente de novo.';
+    }
+  }
 }

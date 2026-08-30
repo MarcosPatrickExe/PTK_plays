@@ -157,6 +157,22 @@ class FakePostRepository implements PostRepository {
 
   @override
   Future<void> votar({required String postId, required int indiceOpcao, required String uid}) async {}
+
+  // Publicar/apagar nao faz sentido no harness de screenshot: ele so
+  // renderiza as telas com dados fixos, sem Firestore por tras.
+  @override
+  Future<void> criarPost({
+    required String tipo,
+    required String autorUid,
+    required String autorNickname,
+    required String autorCargo,
+    String? texto,
+    String? titulo,
+    List<String>? opcoes,
+  }) async {}
+
+  @override
+  Future<void> excluirPost(String postId) async {}
 }
 
 class FakeYoutubeViewModel implements YoutubeViewModel {

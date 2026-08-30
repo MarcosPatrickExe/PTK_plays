@@ -763,9 +763,8 @@ a tela do painel.
   vira problema de custo de leitura e de usabilidade.
 - **Confirmação antes de banir**: hoje o clique bane direto. Um diálogo de
   confirmação com campo de motivo evita acidente e já alimenta o log acima.
-- **Aba "Posts" no painel**: criar aviso/enquete pelo app em vez de pelo
-  Console do Firebase. As regras já permitem (`ehAdmin()` em `posts`), é só
-  UI — provavelmente a coisa mais útil por menos esforço da lista toda.
+- ~~**Aba "Posts" no painel**~~ — **entregue** em 30/ago/2026, junto com a
+  publicação pelos inscritos (ver seção abaixo).
 
 ## Verificação pendente do usuário: cargo da conta admin
 
@@ -783,3 +782,49 @@ você no Cloud Shell). Como conferir e corrigir:
 
 Isso é feito pelo Console de propósito: o `firestore.rules` trava `cargo`
 contra escrita do cliente justamente pra ninguém se auto-promover.
+
+
+# Publicar no feed pelo app (30/ago/2026)
+
+## Entregue
+
+- **Aba "Posts" no Painel ADM**: lista o feed inteiro (inclusive os avisos
+  de live), com botão de "Nova publicação" e exclusão com confirmação.
+- **Botão de publicar no próprio Feed**, pra qualquer usuário logado — o
+  inscrito publica **aviso de texto**; o admin também publica **enquete**.
+- **Preferência do admin**: post de admin vai pro topo do feed
+  (`prioridade` 100 contra 0 dos demais cargos), e dentro da mesma
+  prioridade vale o mais recente (`PostModel.ordenarParaFeed`). Avisos de
+  live e posts antigos criados no Console continuam no topo mesmo sem o
+  campo gravado — a prioridade é deduzida na leitura, não precisou migrar
+  nada no Firestore.
+- **Selo ADMIN no card** e menu de 3 pontos pra excluir o próprio post
+  (admin exclui o de qualquer um).
+- **`firestore.rules`**: o create em `/posts` agora exige que `autorUid`
+  seja o próprio usuário, que `autorCargo` bata com o cargo real gravado no
+  perfil dele e que `prioridade` seja a do cargo — não adianta o cliente
+  mandar `admin`/`100` na mão. Enquete continua restrita a admin; `aoVivo`
+  não é aceito de cliente nenhum (só das Cloud Functions, que usam o Admin
+  SDK e ignoram as regras). Delete: autor ou admin.
+
+**Precisa de deploy**: `firebase deploy --only firestore:rules`. Enquanto a
+regra antiga estiver no ar, só o admin consegue publicar — o inscrito leva
+`permission-denied`.
+
+## Pendências dessa parte
+
+- **Foto no post (`avisoFoto`) pelo app**: o tipo já existe e o card já
+  renderiza, mas publicar com foto precisa de um caminho novo no
+  `storage.rules` (hoje só `fotos_perfil/{uid}/`) e de reaproveitar o
+  `ModalCropFoto`. As regras do Firestore já aceitam `avisoFoto` vindo do
+  admin.
+- **Envelhecimento da preferência do admin**: a ordenação é literal — todo
+  post de admin fica acima de todo post de inscrito, pra sempre. Com o
+  tempo, avisos velhos do canal vão empurrar as postagens novas da galera
+  pra baixo. Se isso incomodar, a saída é dar validade ao destaque (ex:
+  admin no topo só nas primeiras 48h, depois entra na ordem normal) ou um
+  campo `fixado` explícito, marcado post a post.
+- **Moderação do que os inscritos publicam**: hoje não há filtro de
+  palavrão, denúncia nem limite de quantos posts por dia. Vale revisitar
+  junto com a Etapa 2 (barrar quem foi banido) — hoje um usuário banido
+  ainda consegue publicar, porque nada no app usa `estadoModeracao` ainda.

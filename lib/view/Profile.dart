@@ -160,7 +160,7 @@ class _ProfileState extends State<Profile> {
         isDark: isDark,
         ehAdmin: _usuarioAtual?.ehAdmin ?? false,
         onPainelAdmin: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const PainelAdmin()),
+          MaterialPageRoute(builder: (_) => PainelAdmin(admin: _usuarioAtual!)),
         ),
         onRecuperacaoSenha: _usuarioAtual == null
             ? () {}

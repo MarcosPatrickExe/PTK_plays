@@ -6,7 +6,9 @@ import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
+import 'package:ptk_plays/components/NovoPost.dart';
 import 'package:ptk_plays/components/Responsive.dart';
+import 'package:ptk_plays/components/Toast.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
@@ -44,17 +46,25 @@ class HomePage extends StatelessWidget {
     bool isDark = context.watch<ThemeController>().isDark;
     final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
+    // O perfil do usuario logado e lido uma vez pra tela inteira: o cargo
+    // decide se o "Painel ADM" aparece no menu, e os dados do autor sao o
+    // que o botao de publicar manda pro post.
+    return StreamBuilder<UserModel?>(
+      stream: authViewModel.streamUsuarioAtual(),
+      builder: (context, snapshotUsuario) {
+        final usuario = snapshotUsuario.data;
+        return _construirTela(context, isDark, postViewModel, usuario);
+      },
+    );
+  }
+
+  Widget _construirTela(BuildContext context, bool isDark, PostViewModel postViewModel, UserModel? usuario) {
     return Scaffold(
-      // StreamBuilder so em volta do drawer: o cargo do usuario decide se a
-      // opcao "Painel ADM" aparece, e o drawer e a unica parte da tela que
-      // depende disso.
-      endDrawer: StreamBuilder<UserModel?>(
-        stream: authViewModel.streamUsuarioAtual(),
-        builder: (context, snapshot) => MenuLateral(
+      endDrawer: MenuLateral(
         isDark: isDark,
-        ehAdmin: snapshot.data?.ehAdmin ?? false,
+        ehAdmin: usuario?.ehAdmin ?? false,
         onPainelAdmin: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const PainelAdmin()),
+          MaterialPageRoute(builder: (_) => PainelAdmin(admin: usuario!)),
         ),
         onRecuperacaoSenha: () => Navigator.of(context).push(
           MaterialPageRoute(
@@ -74,7 +84,6 @@ class HomePage extends StatelessWidget {
             (route) => false,
           );
         },
-        ),
       ),
       // A barra de navegacao NAO fica no slot bottomNavigationBar do Scaffold:
       // a combinacao extendBody+BackdropFilter nesse slot corrompe o frame
@@ -132,6 +141,14 @@ class HomePage extends StatelessWidget {
                             isDark: isDark,
                             post: postagens[index],
                             uidAtual: authViewModel.uidAtual,
+                            // Autor apaga o proprio post; admin apaga
+                            // qualquer um. Avisos de live sao do sistema e
+                            // ninguem apaga pela UI (eles se encerram
+                            // sozinhos quando a transmissao acaba).
+                            onExcluir: postagens[index].tipo != PostModel.tipoAoVivo &&
+                                    (usuario?.ehAdmin == true || postagens[index].autorUid == authViewModel.uidAtual)
+                                ? () => _excluirPost(context, postViewModel, postagens[index].id)
+                                : null,
                             onVotar: (indiceOpcao) {
                               final uid = authViewModel.uidAtual;
                               if (uid == null) return;
@@ -158,6 +175,22 @@ class HomePage extends StatelessWidget {
           // Scrim do rodape: escurece o conteudo que passa por baixo da
           // barra de navegacao, espelhando o do topo.
           DegradeRodape(isDark: isDark),
+          // Publicar no feed: todo usuario logado pode (inscrito publica
+          // aviso de texto; admin tambem publica enquete e cai no topo da
+          // lista). Sem perfil carregado ainda, o botao nem aparece - nao
+          // da pra assinar o post sem saber quem e o autor.
+          if (usuario != null)
+            Positioned(
+              right: 18,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 96),
+                  child: BotaoNovoPost(isDark: isDark, autor: usuario, postViewModel: postViewModel),
+                ),
+              ),
+            ),
           Positioned(
             left: 0,
             right: 0,
@@ -180,11 +213,74 @@ class HomePage extends StatelessWidget {
   }
 }
 
+/// Pede confirmacao e apaga o post. A exclusao e definitiva e some pra
+/// todo mundo, entao nao da pra ser um toque unico sem pergunta.
+Future<void> _excluirPost(BuildContext context, PostViewModel postViewModel, String postId) async {
+  final confirmou = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Excluir post?'),
+      content: const Text('Ele some do feed pra todo mundo. Não dá pra desfazer.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Excluir', style: TextStyle(color: Color(0xFFE0264F))),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmou != true || !context.mounted) return;
+
+  final erro = await postViewModel.excluirPost(postId);
+  if (!context.mounted) return;
+  mostrarToast(context, mensagem: erro ?? 'Post excluído.', erro: erro != null);
+}
+
+/// Botao flutuante de publicar no feed (Home). Fica acima da barra de
+/// navegacao, no canto direito. O formulario em si e compartilhado com a
+/// aba "Posts" do Painel ADM (ver `mostrarNovoPost`).
+class BotaoNovoPost extends StatelessWidget {
+  final bool isDark;
+  final UserModel autor;
+  final PostViewModel postViewModel;
+
+  const BotaoNovoPost({super.key, required this.isDark, required this.autor, required this.postViewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final publicou = await mostrarNovoPost(context, autor: autor, postViewModel: postViewModel);
+        if (publicou && context.mounted) {
+          mostrarToast(context, mensagem: 'Publicado no feed!', erro: false);
+        }
+      },
+      child: Container(
+        width: 54,
+        height: 54,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AuthTheme.buttonGradient,
+          boxShadow: const [BoxShadow(color: Color(0x66C828B4), blurRadius: 22, offset: Offset(0, 10))],
+        ),
+        child: const Icon(Icons.edit_outlined, color: Colors.white, size: 24),
+      ),
+    );
+  }
+}
+
 class PostCard extends StatelessWidget {
   final bool isDark;
   final PostModel post;
   final String? uidAtual;
   final void Function(int indiceOpcao)? onVotar;
+
+  /// Quando nao for nulo, o card mostra o menu de 3 pontos com "Excluir".
+  /// Quem decide se ele aparece e a Home (autor do post ou admin) — as
+  /// regras do Firestore aplicam o mesmo recorte no servidor.
+  final Future<void> Function()? onExcluir;
 
   const PostCard({
     super.key,
@@ -192,6 +288,7 @@ class PostCard extends StatelessWidget {
     required this.post,
     this.uidAtual,
     this.onVotar,
+    this.onExcluir,
   });
 
   @override
@@ -211,15 +308,48 @@ class PostCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  post.autorNickname,
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        post.autorNickname,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                        ),
+                      ),
+                    ),
+                    // Deixa visivel de quem e a "preferencia" no feed: post
+                    // de admin fica no topo (PostModel.ordenarParaFeed).
+                    if (post.autorCargo == 'admin') ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA12EE0),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'ADMIN',
+                          style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Text(
                 _tempoRelativo(post.criadoEm),
                 style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight, fontSize: 12),
               ),
+              if (onExcluir != null)
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.more_vert, size: 18, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+                  onSelected: (_) => onExcluir!(),
+                  itemBuilder: (context) => const [PopupMenuItem(value: 'excluir', child: Text('Excluir post'))],
+                ),
             ],
           ),
           const SizedBox(height: 12),

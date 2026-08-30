@@ -6,8 +6,12 @@ import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/components/Toast.dart';
+import 'package:ptk_plays/components/NovoPost.dart';
+import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/AdminRepository.dart';
+import 'package:ptk_plays/data/repositories/PostRepository.dart';
+import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 
@@ -15,22 +19,29 @@ import 'package:ptk_plays/utils/ThemeController.dart';
 /// `cargo == 'admin'` (ver [UserModel.ehAdmin]). A UI apenas esconde a
 /// opção; quem de fato barra um não-admin é o `firestore.rules`.
 ///
-/// Seções previstas (ver ROADMAP.md, "Painel ADM"): Usuários, Cargos,
-/// Badges, Notificações e Aviso no WhatsApp. Só "Usuários" está
-/// implementada — as demais aparecem como seções pendentes, com o que
-/// falta pra cada uma, em vez de sumirem da navegação.
+/// Seções previstas (ver ROADMAP.md, "Painel ADM"): Usuários, Posts,
+/// Cargos, Badges, Notificações e Aviso no WhatsApp. "Usuários" e "Posts"
+/// estão implementadas — as demais aparecem como seções pendentes, com o
+/// que falta pra cada uma, em vez de sumirem da navegação.
 class PainelAdmin extends StatelessWidget {
   final AdminRepository? repository;
+  final PostRepository? postRepository;
 
-  const PainelAdmin({super.key, this.repository});
+  /// Perfil de quem abriu o painel — é ele que assina os posts publicados
+  /// pela aba "Posts". Sempre vem preenchido: a opção do menu só existe pra
+  /// quem tem `cargo == 'admin'`.
+  final UserModel admin;
+
+  const PainelAdmin({super.key, required this.admin, this.repository, this.postRepository});
 
   @override
   Widget build(BuildContext context) {
     final bool isDark = context.watch<ThemeController>().isDark;
     final repo = repository ?? AdminRepository();
+    final postViewModel = PostViewModel(postRepository ?? PostRepository());
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         body: Stack(
           children: [
@@ -47,6 +58,7 @@ class PainelAdmin extends StatelessWidget {
                     child: TabBarView(
                       children: [
                         _SecaoUsuarios(isDark: isDark, repository: repo),
+                        _SecaoPosts(isDark: isDark, admin: admin, postViewModel: postViewModel),
                         const _SecaoPendente(
                           titulo: 'Cargos',
                           descricao:
@@ -116,6 +128,7 @@ class PainelAdmin extends StatelessWidget {
       labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14),
       tabs: const [
         Tab(text: 'Usuários'),
+        Tab(text: 'Posts'),
         Tab(text: 'Cargos'),
         Tab(text: 'Badges'),
         Tab(text: 'Notificações'),
@@ -337,6 +350,189 @@ class _LinhaUsuario extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Aba "Posts": publica avisos/enquetes no feed e apaga o que já está lá.
+///
+/// A lista é o mesmo stream que a Home usa, então mostra também os avisos
+/// de live escritos pelas Cloud Functions — esses não têm botão de apagar
+/// (eles se encerram sozinhos quando a transmissão acaba).
+class _SecaoPosts extends StatelessWidget {
+  final bool isDark;
+  final UserModel admin;
+  final PostViewModel postViewModel;
+
+  const _SecaoPosts({required this.isDark, required this.admin, required this.postViewModel});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<PostModel>>(
+      stream: postViewModel.streamPostagens(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight));
+        }
+
+        final posts = snapshot.data ?? [];
+
+        return ResponsiveCenter(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+            itemCount: posts.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              if (index == 0) return _botaoPublicar(context, snapshot.hasError, posts.isEmpty);
+              return _LinhaPost(
+                post: posts[index - 1],
+                isDark: isDark,
+                postViewModel: postViewModel,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _botaoPublicar(BuildContext context, bool deuErro, bool vazio) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BotaoPrimario(
+          label: 'Nova publicação',
+          carregando: false,
+          onTap: () async {
+            final publicou = await mostrarNovoPost(context, autor: admin, postViewModel: postViewModel);
+            if (publicou && context.mounted) {
+              mostrarToast(context, mensagem: 'Publicado no feed!', erro: false);
+            }
+          },
+        ),
+        const SizedBox(height: 14),
+        if (deuErro)
+          Text(
+            'Não foi possível carregar os posts.',
+            style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+          )
+        else if (vazio)
+          Text(
+            'Nenhum post no feed ainda.',
+            style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+          ),
+      ],
+    );
+  }
+}
+
+class _LinhaPost extends StatelessWidget {
+  final PostModel post;
+  final bool isDark;
+  final PostViewModel postViewModel;
+
+  const _LinhaPost({required this.post, required this.isDark, required this.postViewModel});
+
+  static const Map<String, String> _rotuloDoTipo = {
+    PostModel.tipoAvisoTexto: 'AVISO',
+    PostModel.tipoAvisoFoto: 'FOTO',
+    PostModel.tipoEnquete: 'ENQUETE',
+    PostModel.tipoAoVivo: 'LIVE',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final resumo = post.texto?.trim().isNotEmpty == true
+        ? post.texto!.trim()
+        : (post.titulo?.trim().isNotEmpty == true ? post.titulo!.trim() : '(sem texto)');
+
+    // Avisos de live são do sistema: quem os encerra são as Cloud Functions.
+    final podeApagar = post.tipo != PostModel.tipoAoVivo;
+
+    return CardVidro(
+      isDark: isDark,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _selo(_rotuloDoTipo[post.tipo] ?? post.tipo.toUpperCase(), const Color(0xFF6B4BE0)),
+                    if (post.prioridade >= PostModel.prioridadeDestaque) ...[
+                      const SizedBox(width: 6),
+                      _selo('TOPO', const Color(0xFFA12EE0)),
+                    ],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        post.autorNickname,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  resumo,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (podeApagar)
+            IconButton(
+              tooltip: 'Excluir post',
+              icon: const Icon(Icons.delete_outline, color: Color(0xFFE0264F)),
+              onPressed: () => _confirmarExclusao(context),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmarExclusao(BuildContext context) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir post?'),
+        content: const Text('Ele some do feed pra todo mundo. Não dá pra desfazer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Excluir', style: TextStyle(color: Color(0xFFE0264F))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !context.mounted) return;
+
+    final erro = await postViewModel.excluirPost(post.id);
+    if (!context.mounted) return;
+    mostrarToast(context, mensagem: erro ?? 'Post excluído.', erro: erro != null);
+  }
+
+  Widget _selo(String texto, Color cor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(20)),
+      child: Text(
+        texto,
+        style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
       ),
     );
   }

@@ -11,9 +11,19 @@ service cloud.firestore {
       return estaLogado() && request.auth.uid == userId;
     }
 
+    function cargoDoUsuario() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cargo;
+    }
+
     function ehAdmin() {
-      return estaLogado() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cargo == 'admin';
+      return estaLogado() && cargoDoUsuario() == 'admin';
+    }
+
+    // Peso do post na ordenacao do feed. Os mesmos numeros estao em
+    // PostModel.prioridadeDoCargo — la e so leitura; e AQUI que um inscrito
+    // fica impedido de publicar com prioridade de admin.
+    function prioridadeDoCargo(cargo) {
+      return cargo == 'admin' ? 100 : 0;
     }
 
     function tipoDePostagemValido(tipo) {
@@ -98,16 +108,37 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Feed de avisos do canal (Home). O painel de admin dentro do app ainda
-    // nao existe, entao por enquanto os posts sao criados manualmente pelo
-    // admin direto no Console do Firebase (o que ja tem acesso irrestrito e
-    // ignora essas regras) — essa regra aqui serve pra quando o painel for
-    // construido, e pra impedir qualquer outro usuario de escrever posts.
+    // Feed (Home) e aba "Posts" do Painel ADM. Qualquer usuario logado
+    // publica aviso de texto; enquete e privilegio de admin. O que impede
+    // um inscrito de se passar por admin no feed sao as tres checagens do
+    // create: autorUid tem que ser ele mesmo, autorCargo tem que ser o
+    // cargo real gravado no perfil dele, e prioridade tem que ser a do
+    // cargo — nao adianta o cliente mandar 'admin'/100 na mao.
+    //
+    // Avisos de live (tipo 'aoVivo') sao escritos pelas Cloud Functions com
+    // o Admin SDK, que ignora estas regras — por isso 'aoVivo' nao entra
+    // nos tipos aceitos aqui.
     match /posts/{postId} {
       allow read: if estaLogado();
-      allow create, update: if ehAdmin() && tipoDePostagemValido(request.resource.data.tipo);
+
+      allow create: if estaLogado()
+        && request.resource.data.autorUid == request.auth.uid
+        && request.resource.data.autorCargo == cargoDoUsuario()
+        && request.resource.data.prioridade == prioridadeDoCargo(cargoDoUsuario())
+        // Data vinda do servidor: o relogio do aparelho nao decide a
+        // posicao do post no feed.
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.curtidas == 0
+        && request.resource.data.comentariosCount == 0
+        && (ehAdmin()
+              ? request.resource.data.tipo in ['avisoTexto', 'avisoFoto', 'enquete']
+              : request.resource.data.tipo == 'avisoTexto');
+
+      allow update: if ehAdmin() && tipoDePostagemValido(request.resource.data.tipo);
       allow update: if podeVotar();
-      allow delete: if ehAdmin();
+
+      // Autor apaga o proprio post; admin apaga o de qualquer um.
+      allow delete: if ehAdmin() || (estaLogado() && resource.data.autorUid == request.auth.uid);
     }
 
     match /{document=**} {
