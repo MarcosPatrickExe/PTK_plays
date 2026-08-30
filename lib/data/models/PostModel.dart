@@ -106,13 +106,58 @@ class PostModel {
 
   static const List<String> tiposValidos = [tipoAvisoTexto, tipoAoVivo, tipoAvisoFoto, tipoEnquete];
 
+  /// Peso de um post em destaque (admin e aviso de live) e de um post comum
+  /// (demais cargos) na ordenacao do feed. Os mesmos numeros estao em
+  /// `firestore.rules` (prioridadeDoCargo), que e quem de fato impede um
+  /// inscrito de publicar com prioridade de admin - aqui e so leitura.
+  static const int prioridadeDestaque = 100;
+  static const int prioridadeComum = 0;
+
+  static int prioridadeDoCargo(String cargo) => cargo == 'admin' ? prioridadeDestaque : prioridadeComum;
+
+  /// Prioridade deduzida pra posts que nao tem o campo gravado:
+  /// - avisos de live, escritos pelas Cloud Functions, sao do canal;
+  /// - posts sem `autorCargo` nenhum sao os antigos, criados pelo admin
+  ///   direto no Console antes de o painel existir.
+  /// Em ambos os casos o lugar deles e no topo, junto com os do admin.
+  static int prioridadePadrao({required String tipo, String? autorCargo}) {
+    if (tipo == tipoAoVivo || autorCargo == null) return prioridadeDestaque;
+    return prioridadeDoCargo(autorCargo);
+  }
+
+  /// Ordem do feed: primeiro a prioridade (post do admin/canal acima dos
+  /// posts dos inscritos), depois o mais recente.
+  ///
+  /// A ordenacao e feita aqui, no cliente, e nao no `orderBy` do Firestore:
+  /// ordenar por dois campos exigiria criar um indice composto no Console a
+  /// mao, e o feed carrega poucas dezenas de posts - nao compensa.
+  static List<PostModel> ordenarParaFeed(List<PostModel> posts) {
+    final ordenados = [...posts];
+    ordenados.sort((a, b) {
+      final porPrioridade = b.prioridade.compareTo(a.prioridade);
+      return porPrioridade != 0 ? porPrioridade : b.criadoEm.compareTo(a.criadoEm);
+    });
+    return ordenados;
+  }
+
   final String id;
   final String tipo;
   final String autorUid;
   final String autorNickname;
+
+  /// Cargo de quem publicou, congelado no momento da postagem ('inscrito',
+  /// 'vip' ou 'admin'). Serve pra mostrar o selo no card sem precisar ler o
+  /// perfil do autor de novo - e pra saber a [prioridade] do post.
+  final String autorCargo;
+
   final DateTime criadoEm;
   final int curtidas;
   final int comentariosCount;
+
+  /// Peso do post na ordenacao do feed: quanto maior, mais pra cima. Post
+  /// de admin e aviso de live ficam acima dos posts dos inscritos (ver
+  /// [prioridadeDoCargo] e [ordenarParaFeed]).
+  final int prioridade;
 
   /// avisoTexto, aoVivo (legenda opcional) e avisoFoto (legenda).
   final String? texto;
@@ -140,6 +185,8 @@ class PostModel {
     required this.autorUid,
     required this.autorNickname,
     required this.criadoEm,
+    this.autorCargo = 'inscrito',
+    this.prioridade = 0,
     this.curtidas = 0,
     this.comentariosCount = 0,
     this.texto,
@@ -152,11 +199,20 @@ class PostModel {
   });
 
   factory PostModel.fromFirestore(String id, Map<String, dynamic> data) {
+    final tipo = data['tipo'] ?? tipoAvisoTexto;
+    final autorCargo = data['autorCargo'] ?? 'inscrito';
+
     return PostModel(
       id: id,
-      tipo: data['tipo'] ?? tipoAvisoTexto,
+      tipo: tipo,
       autorUid: data['autorUid'] ?? '',
       autorNickname: data['autorNickname'] ?? 'PTK Plays',
+      autorCargo: autorCargo,
+      // Posts criados antes desses campos existirem (Console do Firebase) e
+      // os avisos de live escritos pelas Cloud Functions nao tem
+      // 'prioridade' gravada - a deducao abaixo mantem os dois no topo,
+      // sem precisar migrar nada no Firestore.
+      prioridade: data['prioridade'] ?? prioridadePadrao(tipo: tipo, autorCargo: data['autorCargo']),
       criadoEm: (data['criadoEm'] as Timestamp?)?.toDate() ?? DateTime.now(),
       curtidas: data['curtidas'] ?? 0,
       comentariosCount: data['comentariosCount'] ?? 0,

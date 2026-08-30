@@ -234,6 +234,57 @@ void main() {
     expect(find.text('Corre pra assistir agora!'), findsOneWidget);
   });
 
+  group('PostCard - autoria e exclusao', () {
+    PostModel _postDe({required String cargo}) => PostModel(
+          id: 'p20',
+          tipo: PostModel.tipoAvisoTexto,
+          autorUid: 'uid-autor',
+          autorNickname: 'PTKzin',
+          autorCargo: cargo,
+          criadoEm: DateTime.now(),
+          texto: 'Bora de Elden Ring hoje!',
+        );
+
+    testWidgets('post de admin mostra o selo ADMIN; de inscrito, nao', (tester) async {
+      await tester.pumpWidget(_comPost(_postDe(cargo: 'admin')));
+      expect(find.text('ADMIN'), findsOneWidget);
+
+      await tester.pumpWidget(_comPost(_postDe(cargo: 'inscrito')));
+      expect(find.text('ADMIN'), findsNothing);
+    });
+
+    testWidgets('sem onExcluir, o card nao mostra o menu de 3 pontos', (tester) async {
+      await tester.pumpWidget(_comPost(_postDe(cargo: 'inscrito')));
+
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+    });
+
+    testWidgets('com onExcluir, o menu aparece e chama o callback', (tester) async {
+      var pediuExclusao = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PostCard(
+              isDark: false,
+              post: _postDe(cargo: 'inscrito'),
+              onExcluir: () async => pediuExclusao = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Excluir post'));
+      await tester.pumpAndSettle();
+
+      expect(pediuExclusao, isTrue);
+    });
+  });
+
   // O toque nas badges (abre a live via url_launcher) nao tem teste
   // automatizado: assim como em test/politica_privacidade_test.dart, o
   // url_launcher depende do canal de plataforma nativo, que nao existe

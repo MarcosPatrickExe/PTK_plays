@@ -75,7 +75,7 @@ class _VideoScreenState extends State<Videos> {
         isDark: isDark,
         ehAdmin: snapshot.data?.ehAdmin ?? false,
         onPainelAdmin: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const PainelAdmin()),
+          MaterialPageRoute(builder: (_) => PainelAdmin(admin: snapshot.data!)),
         ),
         onRecuperacaoSenha: () => Navigator.of(context).push(
           MaterialPageRoute(
