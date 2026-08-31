@@ -841,25 +841,27 @@ imagem (que era o `errorBuilder` do `Image.network` disparando).
 `access-control-allow-origin: *`. Ou seja, **não é URL errada nem CORS** —
 o endereço está correto e a imagem existe. Não deu pra reproduzir o
 navegador do usuário deste ambiente (a rede do sandbox bloqueia hosts
-externos), então sobraram duas causas possíveis, que só um teste no
-navegador dele separa:
-
-1. `i.ytimg.com` bloqueado por extensão (uBlock/Brave/AdGuard), DNS ou
-   provedor — é um domínio que aparece em listas de bloqueio. O avatar do
-   canal, que vem de `yt3.googleusercontent.com`, continua carregando, o
-   que bate com esse cenário.
-2. Falha no carregamento de imagem do próprio CanvasKit na Web.
-
-**Teste que separa os dois**: abrir
+externos), então o usuário testou abrindo
 `https://i.ytimg.com/vi/FqWsenFQARE/hqdefault.jpg` direto numa aba do mesmo
-navegador. Se não carregar, é o caso 1 (bloqueio) — e uma janela anônima
-com extensões desligadas confirma.
+navegador: **carregou normalmente**. Isso descartou bloqueio de
+extensão/DNS/provedor e isolou a causa no carregamento de imagem do Flutter
+na Web.
 
-**O que foi feito** (`lib/components/ImagemRede.dart`): toda imagem de rede
-do app passou a ter spinner enquanto carrega, uma **segunda URL** tentada
-quando a primeira falha (`img.youtube.com` serve a mesma miniatura por
-outro domínio, que costuma escapar dos bloqueios) e um placeholder
-explícito quando as duas falham.
+**Causa raiz**: na Web o Flutter baixa os bytes da imagem por XHR e
+decodifica (`_network_image_web.dart`), caminho que depende de CORS e que
+falha pra `i.ytimg.com` — mesmo o endereço abrindo numa aba, onde o
+navegador usa um `<img>` comum, que não passa por CORS.
+
+**Correção**: `webHtmlElementStrategy: WebHtmlElementStrategy.fallback` no
+`ImagemRede`. Quando o download de bytes falha, o Flutter monta um `<img>`
+de verdade — exatamente o que a aba do navegador faz. Só age na Web e só
+depois da falha, então não muda nada no Android/iOS nem nas imagens que já
+carregavam.
+
+**O resto do que foi feito** (`lib/components/ImagemRede.dart`): toda
+imagem de rede do app passou a ter spinner enquanto carrega, uma **segunda
+URL** tentada quando a primeira falha (`img.youtube.com` serve a mesma
+miniatura por outro domínio) e um placeholder explícito quando tudo falha.
 
 **Preview de live sem depender de deploy**: `previewUrl` passou a deduzir
 também a prévia da **Twitch** a partir do login do canal no link

@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 
-/// Imagem vinda da internet com três coisas que o `Image.network` cru não
-/// dá: spinner enquanto carrega, uma segunda URL pra tentar quando a
-/// primeira falha, e um placeholder no lugar do quadrado cinza anônimo.
+/// Imagem vinda da internet com o que o `Image.network` cru não dá:
+/// carregamento por `<img>` quando o normal falha na Web, spinner enquanto
+/// carrega, uma segunda URL pra tentar, e um placeholder no lugar do
+/// quadrado cinza anônimo.
 ///
-/// O endereço alternativo existe por um motivo concreto: as miniaturas do
-/// YouTube ficam em `i.ytimg.com`, um domínio que extensão de bloqueio de
-/// anúncio/rastreamento e alguns provedores derrubam. `img.youtube.com`
-/// serve exatamente a mesma imagem por outro domínio, então quando a
-/// primeira falha a segunda costuma passar. Se as duas falharem, aí é
-/// bloqueio do navegador/rede mesmo — e o placeholder diz isso, em vez de
-/// parecer um bug do app.
+/// **Por que `webHtmlElementStrategy`**: na Web, o Flutter carrega imagem
+/// baixando os bytes por XHR e decodificando — o que exige CORS. As
+/// miniaturas do YouTube (`i.ytimg.com`) abrem numa aba do navegador mas
+/// falham por esse caminho, e era isso que deixava os cards de vídeo e de
+/// live com um quadrado cinza. Com `fallback`, quando o download de bytes
+/// falha o Flutter monta um `<img>` de verdade — exatamente o que a aba do
+/// navegador faz, e que comprovadamente funciona. Em Android/iOS o
+/// parâmetro é ignorado.
+///
+/// O endereço alternativo é a linha de defesa seguinte, pra quando a URL em
+/// si não responde: `img.youtube.com` serve exatamente a mesma miniatura
+/// que `i.ytimg.com`, por outro domínio.
 class ImagemRede extends StatelessWidget {
   final String url;
   final String? urlAlternativa;
@@ -42,6 +48,8 @@ class ImagemRede extends StatelessWidget {
       height: altura,
       width: largura,
       fit: fit,
+      // Só entra em ação na Web, e só se o caminho normal falhar.
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       loadingBuilder: (context, filho, progresso) {
         if (progresso == null) return filho;
         return _moldura(

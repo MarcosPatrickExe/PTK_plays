@@ -38,6 +38,28 @@ void main() {
     expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
   });
 
+  // Na Web o Flutter baixa os bytes da imagem por XHR e decodifica, o que
+  // exige CORS. As miniaturas do YouTube falham por esse caminho mesmo
+  // abrindo numa aba do navegador; `fallback` faz o Flutter montar um
+  // <img> de verdade quando o download falha. Sem isso, o card fica com o
+  // quadrado cinza que o usuario reportou.
+  testWidgets('toda tentativa pede o fallback pra <img> na Web', (tester) async {
+    await tester.pumpWidget(_tela(const ImagemRede(
+      url: 'https://i.ytimg.com/vi/abc/hqdefault.jpg',
+      urlAlternativa: 'https://img.youtube.com/vi/abc/hqdefault.jpg',
+      isDark: false,
+    )));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final estrategias = tester
+        .widgetList<Image>(find.byType(Image))
+        .map((i) => (i.image as NetworkImage).webHtmlElementStrategy)
+        .toSet();
+
+    expect(estrategias, {WebHtmlElementStrategy.fallback});
+  });
+
   testWidgets('as duas falhando, ainda assim sobra o placeholder', (tester) async {
     await tester.pumpWidget(_tela(const ImagemRede(
       url: 'https://i.ytimg.com/vi/abc/hqdefault.jpg',
