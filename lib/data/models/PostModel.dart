@@ -38,16 +38,53 @@ class PostPlataformaAoVivo {
   /// senao a propria live.
   String get linkParaAbrir => (!aoVivo && vodUrl != null && vodUrl!.isNotEmpty) ? vodUrl! : link;
 
-  /// Preview do card. Twitch e Kick mandam `thumbnailUrl` pronto; o YouTube
-  /// nao manda nenhum, mas a miniatura dele e deduzivel do proprio id do
-  /// video que ja esta no link (`watch?v=<id>`), num endereco publico e
-  /// estavel. Retorna null quando nao da pra deduzir nada.
+  /// Preview do card, na ordem: a thumbnail que a plataforma mandou, senao
+  /// uma deduzida do proprio link.
+  ///
+  /// `thumbnailUrl` so aparece depois que as Cloud Functions que buscam
+  /// esses dados forem publicadas — enquanto isso, os avisos de live sao
+  /// gravados sem ele. Por isso as deducoes abaixo importam: elas fazem o
+  /// card ter previa mesmo sem nada gravado no Firestore.
+  ///
+  /// - **YouTube**: a miniatura sai do id do video que ja esta no link
+  ///   (`watch?v=<id>`), num endereco publico e estavel.
+  /// - **Twitch**: enquanto a transmissao esta no ar, a previa fica num
+  ///   endereco previsivel a partir do login do canal (o caminho do link).
+  ///   Depois que a live acaba esse endereco para de responder, entao a
+  ///   deducao so vale com [aoVivo] — encerrada, sem `thumbnailUrl`
+  ///   gravado, o card fica sem previa mesmo.
+  /// - **Kick**: nao tem endereco previsivel; depende da Function.
+  ///
+  /// Retorna null quando nao da pra deduzir nada.
   String? get previewUrl {
     if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) return thumbnailUrl;
 
-    final videoId = Uri.tryParse(link)?.queryParameters['v'];
-    if (videoId == null || videoId.isEmpty) return null;
-    return 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+    final uri = Uri.tryParse(link);
+    if (uri == null) return null;
+
+    final videoId = uri.queryParameters['v'];
+    if (videoId != null && videoId.isNotEmpty) {
+      return 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+    }
+
+    if (aoVivo && uri.host.endsWith('twitch.tv') && uri.pathSegments.isNotEmpty) {
+      final login = uri.pathSegments.first;
+      if (login.isNotEmpty) {
+        return 'https://static-cdn.jtvnw.net/previews-ttv/live_user_$login-440x248.jpg';
+      }
+    }
+
+    return null;
+  }
+
+  /// Segundo endereco pra mesma imagem, tentado quando o primeiro falha
+  /// (ver `ImagemRede`). So existe pro YouTube: `i.ytimg.com` e bloqueado
+  /// por algumas extensoes de navegador e redes, e `img.youtube.com` serve
+  /// exatamente a mesma miniatura por outro dominio.
+  String? get previewUrlAlternativo {
+    final url = previewUrl;
+    if (url == null || !url.startsWith('https://i.ytimg.com/')) return null;
+    return url.replaceFirst('https://i.ytimg.com/', 'https://img.youtube.com/');
   }
 
   /// Le uma entrada de `linksPorPlataforma`. Aceita os dois formatos que

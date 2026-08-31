@@ -6,6 +6,12 @@ class VideoNotification {
   final String publishedAt;
   final String videoID;
 
+  /// Mesma miniatura, por outro dominio. `thumbnailUrl` vem da API do
+  /// YouTube apontando pra `i.ytimg.com`, que e bloqueado por algumas
+  /// extensoes de navegador e redes; `img.youtube.com` serve a mesma imagem
+  /// e costuma passar. Usado como segunda tentativa em [ImagemRede].
+  String get thumbnailAlternativaUrl => 'https://img.youtube.com/vi/\$videoID/hqdefault.jpg';
+
   const VideoNotification({
     required this.videoTitle,
     required this.channelTittle,
