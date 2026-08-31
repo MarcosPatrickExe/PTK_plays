@@ -191,6 +191,47 @@ void main() {
       const dados = PostPlataformaAoVivo(link: 'https://kick.com/patrickson_plays');
       expect(dados.previewUrl, isNull);
     });
+
+    // Enquanto a transmissao esta no ar, a Twitch serve a previa num
+    // endereco previsivel a partir do login do canal - isso faz o card ter
+    // imagem mesmo antes das Cloud Functions gravarem thumbnailUrl.
+    test('deduz a previa da Twitch pelo login do canal enquanto esta ao vivo', () {
+      const dados = PostPlataformaAoVivo(link: 'https://twitch.tv/patrickson_plays');
+      expect(
+        dados.previewUrl,
+        'https://static-cdn.jtvnw.net/previews-ttv/live_user_patrickson_plays-440x248.jpg',
+      );
+    });
+
+    test('depois de encerrada, nao deduz previa da Twitch (o endereco some)', () {
+      const dados = PostPlataformaAoVivo(link: 'https://twitch.tv/patrickson_plays', aoVivo: false);
+      expect(dados.previewUrl, isNull);
+    });
+
+    test('thumbnailUrl gravado tem prioridade sobre qualquer deducao', () {
+      const dados = PostPlataformaAoVivo(
+        link: 'https://twitch.tv/patrickson_plays',
+        thumbnailUrl: 'https://cdn/preview.jpg',
+      );
+      expect(dados.previewUrl, 'https://cdn/preview.jpg');
+    });
+  });
+
+  group('PostPlataformaAoVivo.previewUrlAlternativo', () {
+    // i.ytimg.com e bloqueado por algumas extensoes de navegador e redes;
+    // img.youtube.com serve a mesma miniatura por outro dominio.
+    test('troca o dominio da miniatura do YouTube', () {
+      const dados = PostPlataformaAoVivo(link: 'https://www.youtube.com/watch?v=abc123');
+      expect(dados.previewUrlAlternativo, 'https://img.youtube.com/vi/abc123/hqdefault.jpg');
+    });
+
+    test('nao inventa alternativa pra thumbnail que nao e do YouTube', () {
+      const twitch = PostPlataformaAoVivo(link: 'https://twitch.tv/patrickson_plays');
+      const semPreview = PostPlataformaAoVivo(link: 'https://kick.com/patrickson_plays');
+
+      expect(twitch.previewUrlAlternativo, isNull);
+      expect(semPreview.previewUrlAlternativo, isNull);
+    });
   });
 
   group('PostPlataformaAoVivo.fromDynamic', () {

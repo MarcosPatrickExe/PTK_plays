@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ptk_plays/components/ImagemRede.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import '../data/models/VideoNotification.dart';
 
@@ -75,16 +76,10 @@ class VideoCard extends StatelessWidget {
                 // Thumbnail (quadrado, pra o card nao esticar em telas largas)
                 AspectRatio(
                   aspectRatio: 1,
-                  child: Image.network( notification.thumbnailUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[800],
-                        child: const Center(
-                          child: Icon(Icons.image, color: Colors.white54, size: 50),
-                        ),
-                      );
-                    },
+                  child: ImagemRede(
+                    url: notification.thumbnailUrl,
+                    urlAlternativa: notification.thumbnailAlternativaUrl,
+                    isDark: isDark,
                   ),
                 ),
 

@@ -828,3 +828,49 @@ regra antiga estiver no ar, só o admin consegue publicar — o inscrito leva
   palavrão, denúncia nem limite de quantos posts por dia. Vale revisitar
   junto com a Etapa 2 (barrar quem foi banido) — hoje um usuário banido
   ainda consegue publicar, porque nada no app usa `estadoModeracao` ainda.
+
+
+# Preview das lives e miniaturas dos vídeos (31/ago/2026)
+
+**Sintoma relatado**: o preview não aparece nos cards — nem durante a live,
+nem depois. Na aba Vídeos, o card mostrava um quadrado cinza com ícone de
+imagem (que era o `errorBuilder` do `Image.network` disparando).
+
+**O que foi verificado**: a URL que a API do YouTube devolve
+(`i.ytimg.com/vi/<id>/hqdefault.jpg`) responde 200 e manda
+`access-control-allow-origin: *`. Ou seja, **não é URL errada nem CORS** —
+o endereço está correto e a imagem existe. Não deu pra reproduzir o
+navegador do usuário deste ambiente (a rede do sandbox bloqueia hosts
+externos), então o usuário testou abrindo
+`https://i.ytimg.com/vi/FqWsenFQARE/hqdefault.jpg` direto numa aba do mesmo
+navegador: **carregou normalmente**. Isso descartou bloqueio de
+extensão/DNS/provedor e isolou a causa no carregamento de imagem do Flutter
+na Web.
+
+**Causa raiz**: na Web o Flutter baixa os bytes da imagem por XHR e
+decodifica (`_network_image_web.dart`), caminho que depende de CORS e que
+falha pra `i.ytimg.com` — mesmo o endereço abrindo numa aba, onde o
+navegador usa um `<img>` comum, que não passa por CORS.
+
+**Correção**: `webHtmlElementStrategy: WebHtmlElementStrategy.fallback` no
+`ImagemRede`. Quando o download de bytes falha, o Flutter monta um `<img>`
+de verdade — exatamente o que a aba do navegador faz. Só age na Web e só
+depois da falha, então não muda nada no Android/iOS nem nas imagens que já
+carregavam.
+
+**O resto do que foi feito** (`lib/components/ImagemRede.dart`): toda
+imagem de rede do app passou a ter spinner enquanto carrega, uma **segunda
+URL** tentada quando a primeira falha (`img.youtube.com` serve a mesma
+miniatura por outro domínio) e um placeholder explícito quando tudo falha.
+
+**Preview de live sem depender de deploy**: `previewUrl` passou a deduzir
+também a prévia da **Twitch** a partir do login do canal no link
+(`static-cdn.jtvnw.net/previews-ttv/live_user_<login>-440x248.jpg`),
+enquanto a transmissão está no ar. Antes disso, um aviso de live da Twitch
+só tinha imagem se as Cloud Functions já tivessem gravado `thumbnailUrl` —
+e **elas ainda não foram publicadas**, o que sozinho já explicava a
+ausência de preview nos cards de live.
+
+**Continua pendente**: `firebase deploy --only functions:twitchWebhook,functions:kickWebhook,functions:verificarYoutubeAoVivo`.
+Sem isso, a Kick continua sem prévia (não tem endereço previsível como a
+Twitch) e nenhuma plataforma grava jogo/título/duração nos posts novos.

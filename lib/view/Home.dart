@@ -5,6 +5,7 @@ import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/DegradeTopo.dart';
+import 'package:ptk_plays/components/ImagemRede.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/NovoPost.dart';
 import 'package:ptk_plays/components/Responsive.dart';
@@ -378,7 +379,16 @@ class PostCard extends StatelessWidget {
 
         final tituloLive = primeiroNaoVazio(detalhes.map((d) => d.titulo));
         final jogo = primeiroNaoVazio(detalhes.map((d) => d.jogo));
-        final thumbnailUrl = primeiroNaoVazio(detalhes.map((d) => d.previewUrl));
+        // Guarda a plataforma inteira, e nao so a URL: o card precisa
+        // tambem do endereco alternativo dela pra segunda tentativa.
+        PostPlataformaAoVivo? comPreview;
+        for (final detalhe in detalhes) {
+          if (detalhe.previewUrl != null) {
+            comPreview = detalhe;
+            break;
+          }
+        }
+        final thumbnailUrl = comPreview?.previewUrl;
         final iniciadaEm = detalhes
             .map((d) => d.iniciadaEm)
             .whereType<DateTime>()
@@ -415,16 +425,12 @@ class PostCard extends StatelessWidget {
               const SizedBox(height: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  thumbnailUrl,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 160,
-                    color: Colors.grey.shade800,
-                    child: const Center(child: Icon(Icons.image, color: Colors.white54)),
-                  ),
+                child: ImagemRede(
+                  url: thumbnailUrl,
+                  urlAlternativa: comPreview?.previewUrlAlternativo,
+                  isDark: isDark,
+                  altura: 160,
+                  largura: double.infinity,
                 ),
               ),
             ],
@@ -475,15 +481,7 @@ class PostCard extends StatelessWidget {
             if (post.fotoUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  post.fotoUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 160,
-                    color: Colors.grey.shade800,
-                    child: const Center(child: Icon(Icons.image, color: Colors.white54)),
-                  ),
-                ),
+                child: ImagemRede(url: post.fotoUrl!, isDark: isDark),
               ),
           ],
         );
