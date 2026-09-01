@@ -874,3 +874,88 @@ ausência de preview nos cards de live.
 **Continua pendente**: `firebase deploy --only functions:twitchWebhook,functions:kickWebhook,functions:verificarYoutubeAoVivo`.
 Sem isso, a Kick continua sem prévia (não tem endereço previsível como a
 Twitch) e nenhuma plataforma grava jogo/título/duração nos posts novos.
+
+# Feed enxuto e mídia no post do admin (01/set/2026)
+
+Quatro coisas num pacote só, todas pedidas depois de olhar o feed em
+produção.
+
+## 1. Nível desejado da API do Android: já estava atualizado
+
+O aviso do Play Console ("Atualize o nível desejado da API até 31 de agosto
+de 2026") **não corresponde ao estado do código**: `compileSdk` e
+`targetSdk` estão fixos em **36** (Android 16) em
+`android/app/build.gradle.kts` desde o commit `7ca9679` (27/jul/2026), e as
+tags `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm essa mudança.
+
+O que o Play Console olha é o **artefato publicado**, não o repositório —
+o aviso some quando um build gerado a partir dessa versão do código for
+enviado e promovido. Se ele persistir depois disso, é porque a faixa que
+está em produção/teste ainda serve um AAB antigo.
+
+## 2. Avisos de live no formato antigo saem do feed
+
+Os cards de "ENCERRADA / Corre pra assistir agora!" sem miniatura e sem
+badge de plataforma são posts que a **versão antiga** da Cloud Function
+esvaziava ao encerrar a transmissão: ela apagava `linksPorPlataforma` em vez
+de marcar `aoVivo: false`. Não dá pra recuperar o que foi apagado.
+
+- `PostModel.formatoAntigo` identifica esses posts (tipo `aoVivo` com
+  `plataformasAoVivo` vazio) e `semFormatoAntigo` os tira do feed.
+- Uma ação **"Limpar avisos de live antigos"** na aba Posts do Painel ADM
+  apaga esses posts de vez, em lote, com confirmação.
+
+## 3. Post com mais de 30 dias só aparece rolando
+
+O feed abre com **10 posts** e nenhum com mais de 30 dias. Descendo além
+dessa primeira página (ou tocando em "Ver publicações mais antigas"), o
+limite cresce de 10 em 10 e o histórico entra, sempre depois dos recentes —
+`PostModel.paginarParaFeed`. A consulta do Firestore subiu de 30 pra 60
+posts pra ter o que revelar.
+
+Detalhe que o teste cobre: post antigo **não** entra pra completar a
+primeira página mesmo quando sobra espaço nela (feed com 3 posts recentes
+mostra 3, não 3 + 7 antigos).
+
+## 4. Foto e vídeo no post — só do admin
+
+- Novo tipo `avisoMidia`, com `fotoUrl` e `videoUrl` **no mesmo post**
+  (`avisoFoto` vira formato legado, ainda lido).
+- `NovoPost` ganhou os botões "Foto" e "Vídeo" (galeria via `image_picker`),
+  com prévia e botão de tirar o anexo. Só aparecem pro admin.
+- Upload em `posts_midia/{uid}/` no Storage, feito só no "Publicar" — quem
+  desiste no meio não deixa arquivo órfão.
+- Dependência nova: **`video_player`**, pro vídeo tocar dentro do card.
+  Começa parado com o botão de play (nada de autoplay num feed).
+
+**Por que inscrito não posta imagem**: está escrito em
+`REGRAS_DA_COMUNIDADE.md` (documento novo, com as regras de convivência —
+inclusive a de não xingar). Resumo: mídia é o que dá pra publicar de pior
+sem ninguém revisar antes, e o app não tem fila de moderação nem detecção
+automática. Quem barra de verdade é o `firestore.rules`: o tipo
+`avisoMidia` é recusado pra quem não é admin, e um `avisoTexto` que venha
+com `fotoUrl`/`videoUrl` também.
+
+**Limitação conhecida do `storage.rules`**: regra de Storage não lê o
+Firestore, então lá só dá pra amarrar a escrita ao dono da pasta — um
+inscrito consegue subir um arquivo pra `posts_midia/<uid-dele>/`, mas não
+consegue publicá-lo em post nenhum, então ele não aparece pra ninguém.
+Fechar isso de vez pede um *custom claim* de admin no Auth (Cloud
+Function), que fica anotado como pendência.
+
+## 5. Card de imagem no formato do Instagram
+
+`ImagemAdaptativa` mede a foto e ajusta a proporção do card a ela, entre
+**9:16** (retrato de celular) e **1.91:1** (paisagem larga). O limite de
+baixo é 9:16 em vez do 4:5 do Instagram de propósito: o pedido era o card
+acompanhar a foto vertical, então uma 9:16 aparece inteira em vez de ser
+cortada. A medição roda num `ImageStream` à parte — se falhar, a imagem
+ainda aparece (o `ImagemRede` tem os próprios fallbacks), só que quadrada.
+
+## Pendências que este pacote deixou
+
+- **Publicar `firestore.rules` e `storage.rules`** — sem isso o admin não
+  consegue publicar mídia (`permission-denied`) e o upload é recusado.
+- *Custom claim* de admin, pra fechar a escrita no Storage.
+- Denúncia dentro do app e moderação de mídia (ver
+  `REGRAS_DA_COMUNIDADE.md`, seção 7).

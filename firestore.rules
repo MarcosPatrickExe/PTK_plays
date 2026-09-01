@@ -27,7 +27,7 @@ service cloud.firestore {
     }
 
     function tipoDePostagemValido(tipo) {
-      return tipo in ['avisoTexto', 'aoVivo', 'avisoFoto', 'enquete'];
+      return tipo in ['avisoTexto', 'aoVivo', 'avisoFoto', 'avisoMidia', 'enquete'];
     }
 
     // Vota numa enquete: qualquer usuario logado pode, uma unica vez por post,
@@ -109,11 +109,12 @@ service cloud.firestore {
     }
 
     // Feed (Home) e aba "Posts" do Painel ADM. Qualquer usuario logado
-    // publica aviso de texto; enquete e privilegio de admin. O que impede
-    // um inscrito de se passar por admin no feed sao as tres checagens do
-    // create: autorUid tem que ser ele mesmo, autorCargo tem que ser o
-    // cargo real gravado no perfil dele, e prioridade tem que ser a do
-    // cargo — nao adianta o cliente mandar 'admin'/100 na mao.
+    // publica aviso de texto; enquete e midia (foto/video) sao privilegio
+    // de admin. O que impede um inscrito de se passar por admin no feed sao
+    // as tres checagens do create: autorUid tem que ser ele mesmo,
+    // autorCargo tem que ser o cargo real gravado no perfil dele, e
+    // prioridade tem que ser a do cargo — nao adianta o cliente mandar
+    // 'admin'/100 na mao.
     //
     // Avisos de live (tipo 'aoVivo') sao escritos pelas Cloud Functions com
     // o Admin SDK, que ignora estas regras — por isso 'aoVivo' nao entra
@@ -131,8 +132,13 @@ service cloud.firestore {
         && request.resource.data.curtidas == 0
         && request.resource.data.comentariosCount == 0
         && (ehAdmin()
-              ? request.resource.data.tipo in ['avisoTexto', 'avisoFoto', 'enquete']
-              : request.resource.data.tipo == 'avisoTexto');
+              ? request.resource.data.tipo in ['avisoTexto', 'avisoMidia', 'enquete']
+              // Inscrito publica texto e so texto: nem o tipo com midia, nem
+              // um avisoTexto com uma foto pendurada nele. Publicar imagem e
+              // video sem ninguem revisar antes e o buraco mais facil de
+              // furar as regras da comunidade (REGRAS_DA_COMUNIDADE.md).
+              : (request.resource.data.tipo == 'avisoTexto'
+                   && !request.resource.data.keys().hasAny(['fotoUrl', 'videoUrl'])));
 
       allow update: if ehAdmin() && tipoDePostagemValido(request.resource.data.tipo);
       allow update: if podeVotar();

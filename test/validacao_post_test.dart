@@ -41,4 +41,34 @@ void main() {
   test('opcoesPreenchidas apara espaços e descarta campos vazios', () {
     expect(opcoesPreenchidas([' Um ', '', '  ', 'Dois']), ['Um', 'Dois']);
   });
+
+  group('validarAviso com mídia', () {
+    test('post sem texto é aceito quando tem foto ou vídeo anexado', () {
+      expect(validarAviso('', temMidia: true), isNull);
+      expect(validarAviso('   ', temMidia: true), isNull);
+    });
+
+    test('o limite de caracteres continua valendo mesmo com mídia', () {
+      expect(validarAviso('a' * (limiteCaracteresAviso + 1), temMidia: true), isNotNull);
+    });
+  });
+
+  group('validarTamanhoMidia', () {
+    test('aceita arquivo dentro do limite de cada tipo', () {
+      expect(validarTamanhoMidia(bytes: limiteBytesImagem, ehVideo: false), isNull);
+      expect(validarTamanhoMidia(bytes: limiteBytesVideo, ehVideo: true), isNull);
+    });
+
+    test('recusa arquivo acima do limite', () {
+      expect(validarTamanhoMidia(bytes: limiteBytesImagem + 1, ehVideo: false), isNotNull);
+      expect(validarTamanhoMidia(bytes: limiteBytesVideo + 1, ehVideo: true), isNotNull);
+    });
+
+    test('vídeo tem folga maior que imagem', () {
+      // Um arquivo de 20MB passa como vídeo e é recusado como imagem.
+      const vinteMb = 20 * 1024 * 1024;
+      expect(validarTamanhoMidia(bytes: vinteMb, ehVideo: true), isNull);
+      expect(validarTamanhoMidia(bytes: vinteMb, ehVideo: false), isNotNull);
+    });
+  });
 }

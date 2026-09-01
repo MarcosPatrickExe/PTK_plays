@@ -411,6 +411,8 @@ class _SecaoPosts extends StatelessWidget {
             }
           },
         ),
+        const SizedBox(height: 10),
+        _BotaoLimparAntigos(isDark: isDark, postViewModel: postViewModel),
         const SizedBox(height: 14),
         if (deuErro)
           Text(
@@ -427,6 +429,78 @@ class _SecaoPosts extends StatelessWidget {
   }
 }
 
+/// Apaga de vez os avisos de live no formato antigo — aqueles que a versão
+/// velha da Cloud Function esvaziava ao encerrar a transmissão e que hoje
+/// já nem aparecem no feed (ver [PostModel.formatoAntigo]). Não dá pra
+/// recuperar o que foi apagado deles, então o certo é sumir com os cards.
+class _BotaoLimparAntigos extends StatefulWidget {
+  final bool isDark;
+  final PostViewModel postViewModel;
+
+  const _BotaoLimparAntigos({required this.isDark, required this.postViewModel});
+
+  @override
+  State<_BotaoLimparAntigos> createState() => _BotaoLimparAntigosState();
+}
+
+class _BotaoLimparAntigosState extends State<_BotaoLimparAntigos> {
+  bool _limpando = false;
+
+  Future<void> _limpar() async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Limpar avisos antigos?'),
+        content: const Text(
+          'Apaga de vez os avisos de live que ficaram sem miniatura e sem '
+          'plataforma. Eles já não aparecem no feed. Não dá pra desfazer.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Limpar', style: TextStyle(color: Color(0xFFE0264F))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !mounted) return;
+
+    setState(() => _limpando = true);
+    final resultado = await widget.postViewModel.limparAvisosDeLiveAntigos();
+    if (!mounted) return;
+    setState(() => _limpando = false);
+
+    mostrarToast(
+      context,
+      mensagem: resultado.erro ??
+          (resultado.apagados == 0
+              ? 'Nenhum aviso antigo pra limpar.'
+              : '${resultado.apagados} aviso(s) antigo(s) apagado(s).'),
+      erro: resultado.erro != null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = widget.isDark ? AuthTheme.subDark : AuthTheme.subLight;
+
+    return TextButton.icon(
+      onPressed: _limpando ? null : _limpar,
+      icon: _limpando
+          ? SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: cor),
+            )
+          : const Icon(Icons.cleaning_services_outlined, size: 18),
+      label: const Text('Limpar avisos de live antigos'),
+      style: TextButton.styleFrom(foregroundColor: cor),
+    );
+  }
+}
+
 class _LinhaPost extends StatelessWidget {
   final PostModel post;
   final bool isDark;
@@ -437,6 +511,7 @@ class _LinhaPost extends StatelessWidget {
   static const Map<String, String> _rotuloDoTipo = {
     PostModel.tipoAvisoTexto: 'AVISO',
     PostModel.tipoAvisoFoto: 'FOTO',
+    PostModel.tipoAvisoMidia: 'MÍDIA',
     PostModel.tipoEnquete: 'ENQUETE',
     PostModel.tipoAoVivo: 'LIVE',
   };

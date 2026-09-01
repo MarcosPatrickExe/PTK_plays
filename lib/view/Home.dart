@@ -5,11 +5,13 @@ import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
 import 'package:ptk_plays/components/DegradeTopo.dart';
+import 'package:ptk_plays/components/ImagemAdaptativa.dart';
 import 'package:ptk_plays/components/ImagemRede.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/components/NovoPost.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/components/Toast.dart';
+import 'package:ptk_plays/components/VideoPost.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
@@ -120,7 +122,12 @@ class HomePage extends StatelessWidget {
                         );
                       }
 
-                      final postagens = snapshot.data ?? [];
+                      // Avisos de live no formato antigo nao chegam a ser
+                      // desenhados: sem plataforma nenhuma gravada, o card
+                      // sairia so com "ENCERRADA" e o texto padrao (ver
+                      // PostModel.formatoAntigo). Quem apaga de vez e a
+                      // acao de limpeza da aba Posts do Painel ADM.
+                      final postagens = PostModel.semFormatoAntigo(snapshot.data ?? []);
 
                       if (postagens.isEmpty) {
                         return Center(
@@ -132,30 +139,12 @@ class HomePage extends StatelessWidget {
                       }
 
                       return ResponsiveCenter(
-                        child: ListView.separated(
-                          // O topo abre espaco pro cabecalho flutuante: a
-                          // lista comeca abaixo dele, mas rola por baixo.
-                          padding: const EdgeInsets.fromLTRB(16, alturaCabecalho + 16, 16, 100),
-                          itemCount: postagens.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 16),
-                          itemBuilder: (context, index) => PostCard(
-                            isDark: isDark,
-                            post: postagens[index],
-                            uidAtual: authViewModel.uidAtual,
-                            // Autor apaga o proprio post; admin apaga
-                            // qualquer um. Avisos de live sao do sistema e
-                            // ninguem apaga pela UI (eles se encerram
-                            // sozinhos quando a transmissao acaba).
-                            onExcluir: postagens[index].tipo != PostModel.tipoAoVivo &&
-                                    (usuario?.ehAdmin == true || postagens[index].autorUid == authViewModel.uidAtual)
-                                ? () => _excluirPost(context, postViewModel, postagens[index].id)
-                                : null,
-                            onVotar: (indiceOpcao) {
-                              final uid = authViewModel.uidAtual;
-                              if (uid == null) return;
-                              postViewModel.votar(postId: postagens[index].id, indiceOpcao: indiceOpcao, uid: uid);
-                            },
-                          ),
+                        child: ListaDoFeed(
+                          isDark: isDark,
+                          postagens: postagens,
+                          uidAtual: authViewModel.uidAtual,
+                          ehAdmin: usuario?.ehAdmin == true,
+                          postViewModel: postViewModel,
                         ),
                       );
                     },
@@ -209,6 +198,122 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Lista rolavel do feed, com a paginacao "post antigo so aparece rolando".
+///
+/// A primeira pagina mostra ate [PostModel.postsPorPagina] posts e so os
+/// dos ultimos 30 dias. Chegando perto do fim da rolagem o limite cresce, e
+/// e ai que os posts mais velhos entram na lista — e o que faz o feed abrir
+/// leve, com o assunto do momento, sem perder o historico pra quem quiser
+/// descer atras dele (ver PostModel.paginarParaFeed).
+class ListaDoFeed extends StatefulWidget {
+  final bool isDark;
+  final List<PostModel> postagens;
+  final String? uidAtual;
+  final bool ehAdmin;
+  final PostViewModel postViewModel;
+
+  const ListaDoFeed({
+    super.key,
+    required this.isDark,
+    required this.postagens,
+    required this.ehAdmin,
+    required this.postViewModel,
+    this.uidAtual,
+  });
+
+  @override
+  State<ListaDoFeed> createState() => _ListaDoFeedState();
+}
+
+class _ListaDoFeedState extends State<ListaDoFeed> {
+  final _rolagem = ScrollController();
+  int _limite = PostModel.postsPorPagina;
+
+  @override
+  void initState() {
+    super.initState();
+    _rolagem.addListener(_aoRolar);
+  }
+
+  @override
+  void dispose() {
+    _rolagem.removeListener(_aoRolar);
+    _rolagem.dispose();
+    super.dispose();
+  }
+
+  void _aoRolar() {
+    if (!_rolagem.hasClients) return;
+    // Comeca a carregar um pouco antes do fim pra a lista nao dar aquele
+    // solavanco de parar no ultimo card e so entao crescer.
+    final perto = _rolagem.position.pixels >= _rolagem.position.maxScrollExtent - 240;
+    if (perto) _mostrarMais();
+  }
+
+  void _mostrarMais() {
+    if (!PostModel.temMaisParaMostrar(widget.postagens, limite: _limite)) return;
+    setState(() => _limite += PostModel.postsPorPagina);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visiveis = PostModel.paginarParaFeed(widget.postagens, limite: _limite);
+    final temMais = PostModel.temMaisParaMostrar(widget.postagens, limite: _limite);
+
+    return ListView.separated(
+      controller: _rolagem,
+      // O topo abre espaco pro cabecalho flutuante: a lista comeca abaixo
+      // dele, mas rola por baixo.
+      padding: const EdgeInsets.fromLTRB(16, alturaCabecalho + 16, 16, 100),
+      // O item extra e o rodape de "role pra ver os antigos".
+      itemCount: visiveis.length + (temMais ? 1 : 0),
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        if (index >= visiveis.length) return _rodapeDeMais();
+
+        final post = visiveis[index];
+        return PostCard(
+          isDark: widget.isDark,
+          post: post,
+          uidAtual: widget.uidAtual,
+          // Autor apaga o proprio post; admin apaga qualquer um. Avisos de
+          // live sao do sistema e ninguem apaga pela UI (eles se encerram
+          // sozinhos quando a transmissao acaba).
+          onExcluir: post.tipo != PostModel.tipoAoVivo && (widget.ehAdmin || post.autorUid == widget.uidAtual)
+              ? () => _excluirPost(context, widget.postViewModel, post.id)
+              : null,
+          onVotar: (indiceOpcao) {
+            final uid = widget.uidAtual;
+            if (uid == null) return;
+            widget.postViewModel.votar(postId: post.id, indiceOpcao: indiceOpcao, uid: uid);
+          },
+        );
+      },
+    );
+  }
+
+  /// Aparece no fim da lista enquanto ainda ha post escondido. Alem de dar
+  /// o toque de "tem mais coisa aqui embaixo", ele e o plano B da rolagem
+  /// automatica quando a lista e curta demais pra rolar.
+  Widget _rodapeDeMais() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: TextButton(
+          onPressed: _mostrarMais,
+          style: TextButton.styleFrom(
+            foregroundColor: widget.isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+          ),
+          child: Text(
+            'Ver publicações mais antigas',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
     );
   }
@@ -466,11 +571,14 @@ class PostCard extends StatelessWidget {
             ],
           ],
         );
+      // avisoFoto e o formato antigo do avisoMidia (so foto, sem video):
+      // os dois desenham igual, com a imagem se adaptando ao formato dela.
       case PostModel.tipoAvisoFoto:
+      case PostModel.tipoAvisoMidia:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (post.texto != null)
+            if (post.texto != null && post.texto!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
@@ -478,11 +586,20 @@ class PostCard extends StatelessWidget {
                   style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
                 ),
               ),
-            if (post.fotoUrl != null)
+            if (post.fotoUrl != null && post.fotoUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: ImagemRede(url: post.fotoUrl!, isDark: isDark),
+                child: ImagemAdaptativa(url: post.fotoUrl!, isDark: isDark),
               ),
+            // Foto e video podem vir no mesmo post: quando os dois estao
+            // presentes, o video entra logo abaixo da imagem.
+            if (post.videoUrl != null && post.videoUrl!.isNotEmpty) ...[
+              if (post.fotoUrl != null && post.fotoUrl!.isNotEmpty) const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: VideoPost(url: post.videoUrl!, isDark: isDark),
+              ),
+            ],
           ],
         );
       case PostModel.tipoEnquete:
@@ -607,6 +724,7 @@ class PostCard extends StatelessWidget {
       case PostModel.tipoAoVivo:
         return Icons.sensors;
       case PostModel.tipoAvisoFoto:
+      case PostModel.tipoAvisoMidia:
         return Icons.image;
       case PostModel.tipoEnquete:
         return Icons.poll;

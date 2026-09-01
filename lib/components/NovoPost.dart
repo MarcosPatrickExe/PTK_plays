@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/ModalMSG.dart';
@@ -11,9 +14,14 @@ import 'package:ptk_plays/utils/ValidacaoPost.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 
 /// Abre o formulario de nova publicacao do feed. Todo usuario logado pode
-/// publicar um aviso de texto; **enquete so aparece pra quem e admin**, que
-/// e o mesmo recorte do `firestore.rules` (a UI so esconde a opcao, quem
-/// barra de verdade e a regra).
+/// publicar um aviso de texto; **enquete e midia (foto/video) so aparecem
+/// pra quem e admin**, que e o mesmo recorte do `firestore.rules` (a UI so
+/// esconde as opcoes, quem barra de verdade e a regra).
+///
+/// Midia so do admin e uma decisao de moderacao, nao de layout: imagem e
+/// video sao o que da pra publicar de pior sem ninguem revisar antes (ver
+/// REGRAS_DA_COMUNIDADE.md). Inscrito publica texto, que da pra ler e
+/// apagar depois.
 ///
 /// Retorna true quando algo foi publicado (a lista do feed e um stream, o
 /// post aparece sozinho — o retorno serve pro chamador dar o toast de
@@ -54,6 +62,12 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
 
   bool _enquete = false;
   bool _publicando = false;
+  bool _escolhendoMidia = false;
+
+  _MidiaEscolhida? _foto;
+  _MidiaEscolhida? _video;
+
+  bool get _temMidia => _foto != null || _video != null;
 
   @override
   void dispose() {
@@ -65,10 +79,46 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
     super.dispose();
   }
 
+  /// Abre a galeria e guarda os bytes do arquivo escolhido. Nada sobe pro
+  /// Storage aqui: o envio so acontece no "Publicar", pra quem desistir no
+  /// meio do caminho nao deixar arquivo orfao la.
+  Future<void> _escolherMidia({required bool ehVideo}) async {
+    setState(() => _escolhendoMidia = true);
+
+    try {
+      final seletor = ImagePicker();
+      final arquivo = ehVideo
+          ? await seletor.pickVideo(source: ImageSource.gallery)
+          : await seletor.pickImage(source: ImageSource.gallery, maxWidth: 1600, imageQuality: 90);
+
+      if (arquivo == null || !mounted) return;
+
+      final bytes = await arquivo.readAsBytes();
+      if (!mounted) return;
+
+      final erroDeTamanho = validarTamanhoMidia(bytes: bytes.length, ehVideo: ehVideo);
+      if (erroDeTamanho != null) {
+        mostrarErroCustom(context, title: 'Arquivo grande demais', msg: erroDeTamanho);
+        return;
+      }
+
+      final escolhida = _MidiaEscolhida(
+        bytes: bytes,
+        contentType: arquivo.mimeType ?? (ehVideo ? 'video/mp4' : 'image/jpeg'),
+        extensao: _extensaoDoArquivo(arquivo.name, ehVideo ? 'mp4' : 'jpg'),
+        nome: arquivo.name,
+      );
+
+      setState(() => ehVideo ? _video = escolhida : _foto = escolhida);
+    } finally {
+      if (mounted) setState(() => _escolhendoMidia = false);
+    }
+  }
+
   Future<void> _publicar() async {
     final erroDeValidacao = _enquete
         ? validarEnquete(pergunta: _pergunta.text, opcoes: _opcoes.map((o) => o.text).toList())
-        : validarAviso(_texto.text);
+        : validarAviso(_texto.text, temMidia: _temMidia);
 
     // Erro de formulario é modal bloqueante; erro da escrita em si é toast
     // (regra de feedback do CLAUDE.md).
@@ -79,13 +129,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
 
     setState(() => _publicando = true);
 
-    final erro = _enquete
-        ? await widget.postViewModel.publicarEnquete(
-            pergunta: _pergunta.text,
-            opcoes: _opcoes.map((o) => o.text).toList(),
-            autor: widget.autor,
-          )
-        : await widget.postViewModel.publicarAviso(texto: _texto.text, autor: widget.autor);
+    final erro = await _escrever();
 
     if (!mounted) return;
     setState(() => _publicando = false);
@@ -96,6 +140,46 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
     }
 
     Navigator.of(context).pop(true);
+  }
+
+  /// Faz a escrita conforme o que o formulario tem: enquete, aviso com
+  /// midia (sobe os arquivos primeiro) ou aviso so de texto.
+  Future<String?> _escrever() async {
+    if (_enquete) {
+      return widget.postViewModel.publicarEnquete(
+        pergunta: _pergunta.text,
+        opcoes: _opcoes.map((o) => o.text).toList(),
+        autor: widget.autor,
+      );
+    }
+
+    if (!_temMidia) {
+      return widget.postViewModel.publicarAviso(texto: _texto.text, autor: widget.autor);
+    }
+
+    final envioDaFoto = await _subir(_foto);
+    if (envioDaFoto.erro != null) return envioDaFoto.erro;
+
+    final envioDoVideo = await _subir(_video);
+    if (envioDoVideo.erro != null) return envioDoVideo.erro;
+
+    return widget.postViewModel.publicarMidia(
+      texto: _texto.text,
+      autor: widget.autor,
+      fotoUrl: envioDaFoto.url,
+      videoUrl: envioDoVideo.url,
+    );
+  }
+
+  Future<({String? url, String? erro})> _subir(_MidiaEscolhida? midia) async {
+    if (midia == null) return (url: null, erro: null);
+
+    return widget.postViewModel.enviarMidia(
+      uid: widget.autor.uid,
+      bytes: midia.bytes,
+      contentType: midia.contentType,
+      extensao: midia.extensao,
+    );
   }
 
   @override
@@ -130,7 +214,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
             const SizedBox(height: 4),
             Text(
               widget.autor.ehAdmin
-                  ? 'Como admin, seu post fica no topo do feed.'
+                  ? 'Como admin, seu post fica no topo do feed — e você pode anexar foto e vídeo.'
                   : 'Publicando como ${widget.autor.nickname}.',
               style: GoogleFonts.outfit(fontSize: 13, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
             ),
@@ -169,12 +253,101 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
   }
 
   Widget _campoDeAviso(bool isDark) {
-    return _CampoMultilinha(
-      isDark: isDark,
-      controller: _texto,
-      hint: 'O que você quer avisar pra galera?',
-      linhas: 5,
-      limite: limiteCaracteresAviso,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CampoMultilinha(
+          isDark: isDark,
+          controller: _texto,
+          hint: widget.autor.ehAdmin
+              ? 'O que você quer avisar pra galera?'
+              : 'O que você quer dizer pra galera?',
+          linhas: 5,
+          limite: limiteCaracteresAviso,
+        ),
+        if (widget.autor.ehAdmin) ...[
+          const SizedBox(height: 14),
+          _barraDeAnexos(isDark),
+          if (_foto != null) ...[
+            const SizedBox(height: 12),
+            _previaDaFoto(isDark),
+          ],
+          if (_video != null) ...[
+            const SizedBox(height: 12),
+            _previaDoVideo(isDark),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _barraDeAnexos(bool isDark) {
+    return Row(
+      children: [
+        _BotaoAnexo(
+          icone: Icons.image_outlined,
+          label: _foto == null ? 'Foto' : 'Trocar foto',
+          isDark: isDark,
+          onTap: _escolhendoMidia ? null : () => _escolherMidia(ehVideo: false),
+        ),
+        const SizedBox(width: 10),
+        _BotaoAnexo(
+          icone: Icons.videocam_outlined,
+          label: _video == null ? 'Vídeo' : 'Trocar vídeo',
+          isDark: isDark,
+          onTap: _escolhendoMidia ? null : () => _escolherMidia(ehVideo: true),
+        ),
+        if (_escolhendoMidia) ...[
+          const SizedBox(width: 12),
+          SizedBox(
+            height: 18,
+            width: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _previaDaFoto(bool isDark) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.memory(_foto!.bytes, width: double.infinity, height: 180, fit: BoxFit.cover),
+        ),
+        Positioned(top: 6, right: 6, child: _BotaoRemoverAnexo(onTap: () => setState(() => _foto = null))),
+      ],
+    );
+  }
+
+  /// O vídeo não é reproduzido aqui: prévia é só a confirmação de qual
+  /// arquivo foi escolhido, com o botão de tirar. Quem toca o vídeo é o
+  /// card do feed depois de publicado.
+  Widget _previaDoVideo(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AuthTheme.inputBgDark : AuthTheme.inputBgLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.movie_outlined, size: 20, color: AuthTheme.inputTextColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _video!.nome,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(fontSize: 14, color: AuthTheme.inputTextColor),
+            ),
+          ),
+          _BotaoRemoverAnexo(onTap: () => setState(() => _video = null)),
+        ],
+      ),
     );
   }
 
@@ -290,6 +463,82 @@ class _BotaoTipo extends StatelessWidget {
             color: selecionado ? Colors.white : (isDark ? AuthTheme.subDark : AuthTheme.subLight),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Arquivo escolhido na galeria e ainda nao enviado. Guarda os bytes junto
+/// porque no Web nao existe caminho de arquivo pra reler depois.
+class _MidiaEscolhida {
+  final Uint8List bytes;
+  final String contentType;
+  final String extensao;
+  final String nome;
+
+  const _MidiaEscolhida({
+    required this.bytes,
+    required this.contentType,
+    required this.extensao,
+    required this.nome,
+  });
+}
+
+String _extensaoDoArquivo(String nome, String padrao) {
+  final ponto = nome.lastIndexOf('.');
+  if (ponto == -1 || ponto == nome.length - 1) return padrao;
+  return nome.substring(ponto + 1).toLowerCase();
+}
+
+class _BotaoAnexo extends StatelessWidget {
+  final IconData icone;
+  final String label;
+  final bool isDark;
+  final VoidCallback? onTap;
+
+  const _BotaoAnexo({required this.icone, required this.label, required this.isDark, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = isDark ? AuthTheme.linkDark : AuthTheme.linkLight;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: cor.withOpacity(onTap == null ? .3 : .8), width: 1.3),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 17, color: cor),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: cor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BotaoRemoverAnexo extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _BotaoRemoverAnexo({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
+        child: const Icon(Icons.close, size: 16, color: Colors.white),
       ),
     );
   }
