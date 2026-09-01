@@ -1,11 +1,14 @@
 rules_version = '2';
 
 // Regras do Firebase Storage (separadas das do Firestore em firestore.rules).
-// So guarda as fotos de perfil enviadas pelo usuario (ver
-// AuthRepository.atualizarFotoPerfil / ModalCropFoto): cada usuario so pode
-// escrever dentro da propria pasta "fotos_perfil/{uid}/", limitada a imagens
-// de ate 5MB. Qualquer usuario logado pode ler (mesma logica de
-// firestore.rules: perfis sao visiveis entre usuarios logados).
+// Guarda duas coisas, cada uma na propria pasta por uid, e em ambas o
+// usuario so escreve dentro da pasta dele:
+// - "fotos_perfil/{uid}/": foto de perfil (ver
+//   AuthRepository.atualizarFotoPerfil / ModalCropFoto), ate 5MB de imagem;
+// - "posts_midia/{uid}/": foto/video anexado a um post do feed (ver
+//   PostRepository.enviarMidiaDePost).
+// Qualquer usuario logado pode ler as duas (mesma logica de
+// firestore.rules: o que esta publicado e visivel entre usuarios logados).
 service firebase.storage {
   match /b/{bucket}/o {
     match /fotos_perfil/{uid}/{arquivo} {
@@ -14,6 +17,19 @@ service firebase.storage {
         && request.auth.uid == uid
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
+    }
+
+    // Midia anexada a um post do feed. A regra so consegue amarrar a
+    // escrita ao dono da pasta: regra de Storage nao le o Firestore, entao
+    // nao da pra checar aqui se quem esta subindo e admin. Quem barra a
+    // PUBLICACAO de midia por quem nao e admin e o firestore.rules (create
+    // em /posts) — sem post, um arquivo aqui nao aparece pra ninguem.
+    match /posts_midia/{uid}/{arquivo} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && ((request.resource.contentType.matches('image/.*') && request.resource.size < 10 * 1024 * 1024)
+            || (request.resource.contentType.matches('video/.*') && request.resource.size < 50 * 1024 * 1024));
     }
 
     match /{allPaths=**} {

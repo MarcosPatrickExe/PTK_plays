@@ -4,45 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/NovoPost.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
-import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 
-/// Substitui o Firestore: guarda o que teria sido gravado, pra o teste
-/// conferir o que o formulário manda (tipo, cargo do autor, opções).
-class FakePostRepository implements PostRepository {
-  final List<Map<String, dynamic>> publicados = [];
-  final List<String> apagados = [];
-
-  @override
-  Stream<List<PostModel>> streamPostagens() => Stream.value(const []);
-
-  @override
-  Future<void> votar({required String postId, required int indiceOpcao, required String uid}) async {}
-
-  @override
-  Future<void> criarPost({
-    required String tipo,
-    required String autorUid,
-    required String autorNickname,
-    required String autorCargo,
-    String? texto,
-    String? titulo,
-    List<String>? opcoes,
-  }) async {
-    publicados.add({
-      'tipo': tipo,
-      'autorUid': autorUid,
-      'autorCargo': autorCargo,
-      'texto': texto,
-      'titulo': titulo,
-      'opcoes': opcoes,
-    });
-  }
-
-  @override
-  Future<void> excluirPost(String postId) async => apagados.add(postId);
-}
+import 'fake_post_repository.dart';
 
 UserModel _usuario({required String cargo}) => UserModel(
       uid: 'uid-1',
@@ -133,6 +98,27 @@ void main() {
     expect(repo.publicados.single['texto'], 'Bora de Elden Ring hoje!');
     // O formulário fecha sozinho depois de publicar.
     expect(find.text('Nova publicação'), findsNothing);
+  });
+
+  testWidgets('inscrito não vê botão de anexar foto nem vídeo', (tester) async {
+    await abrirFormulario(tester, _usuario(cargo: 'inscrito'));
+
+    expect(find.text('Foto'), findsNothing);
+    expect(find.text('Vídeo'), findsNothing);
+  });
+
+  testWidgets('admin vê os botões de anexar foto e vídeo no aviso', (tester) async {
+    await abrirFormulario(tester, _usuario(cargo: 'admin'));
+
+    expect(find.text('Foto'), findsOneWidget);
+    expect(find.text('Vídeo'), findsOneWidget);
+
+    // Anexo é coisa de aviso: na enquete os botões saem de cena.
+    await tester.tap(find.text('Enquete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Foto'), findsNothing);
+    expect(find.text('Vídeo'), findsNothing);
   });
 
   testWidgets('enquete do admin manda pergunta e opções preenchidas', (tester) async {

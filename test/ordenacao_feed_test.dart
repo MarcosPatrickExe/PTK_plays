@@ -108,4 +108,96 @@ void main() {
       expect(post.prioridade, PostModel.prioridadeComum);
     });
   });
+
+  group('PostModel.formatoAntigo', () {
+    PostModel live({required String id, Map<String, PostPlataformaAoVivo> plataformas = const {}}) {
+      return PostModel(
+        id: id,
+        tipo: PostModel.tipoAoVivo,
+        autorUid: 'sistema',
+        autorNickname: 'PTK Plays',
+        criadoEm: DateTime(2026, 8, 1),
+        plataformasAoVivo: plataformas,
+      );
+    }
+
+    test('aviso de live sem plataforma nenhuma é o formato antigo', () {
+      expect(live(id: 'velho').formatoAntigo, isTrue);
+    });
+
+    test('aviso de live com plataforma continua valendo', () {
+      final novo = live(
+        id: 'novo',
+        plataformas: const {'twitch': PostPlataformaAoVivo(link: 'https://twitch.tv/ptk')},
+      );
+      expect(novo.formatoAntigo, isFalse);
+    });
+
+    test('post que não é de live nunca conta como formato antigo', () {
+      final aviso = _post(id: 'a', prioridade: 0, criadoEm: DateTime(2026, 8, 1));
+      expect(aviso.formatoAntigo, isFalse);
+    });
+
+    test('semFormatoAntigo tira só os avisos de live vazios', () {
+      final lista = [
+        live(id: 'velho'),
+        live(id: 'novo', plataformas: const {'kick': PostPlataformaAoVivo(link: 'https://kick.com/ptk')}),
+        _post(id: 'aviso', prioridade: 0, criadoEm: DateTime(2026, 8, 1)),
+      ];
+
+      expect(PostModel.semFormatoAntigo(lista).map((p) => p.id), ['novo', 'aviso']);
+    });
+  });
+
+  group('PostModel.paginarParaFeed', () {
+    final agora = DateTime(2026, 9, 1, 12);
+
+    // 12 recentes (1 a 12 dias atrás) e 4 com mais de 30 dias, já na ordem
+    // que ordenarParaFeed devolveria.
+    List<PostModel> lista() => [
+          for (var i = 1; i <= 12; i++)
+            _post(id: 'r$i', prioridade: 0, criadoEm: agora.subtract(Duration(days: i))),
+          for (var i = 1; i <= 4; i++)
+            _post(id: 'a$i', prioridade: 0, criadoEm: agora.subtract(Duration(days: 30 + i))),
+        ];
+
+    test('a primeira página traz 10 posts e nenhum com mais de 30 dias', () {
+      final visiveis = PostModel.paginarParaFeed(lista(), limite: PostModel.postsPorPagina, agora: agora);
+
+      expect(visiveis, hasLength(10));
+      expect(visiveis.every((post) => !post.ehAntigo(agora)), isTrue);
+    });
+
+    test('post antigo fica escondido mesmo quando sobra espaço na primeira página', () {
+      // Só 3 recentes: ainda assim os antigos não entram pra completar 10.
+      final poucos = [
+        for (var i = 1; i <= 3; i++)
+          _post(id: 'r$i', prioridade: 0, criadoEm: agora.subtract(Duration(days: i))),
+        for (var i = 1; i <= 4; i++)
+          _post(id: 'a$i', prioridade: 0, criadoEm: agora.subtract(Duration(days: 30 + i))),
+      ];
+
+      final visiveis = PostModel.paginarParaFeed(poucos, limite: PostModel.postsPorPagina, agora: agora);
+
+      expect(visiveis.map((p) => p.id), ['r1', 'r2', 'r3']);
+    });
+
+    test('rolando além da primeira página os antigos aparecem, no fim', () {
+      final visiveis = PostModel.paginarParaFeed(lista(), limite: 20, agora: agora);
+
+      expect(visiveis, hasLength(16));
+      expect(visiveis.last.id, 'a4');
+      // Os recentes continuam vindo antes de qualquer antigo.
+      final primeiroAntigo = visiveis.indexWhere((post) => post.ehAntigo(agora));
+      expect(primeiroAntigo, 12);
+    });
+
+    test('temMaisParaMostrar indica quando ainda sobrou post escondido', () {
+      expect(
+        PostModel.temMaisParaMostrar(lista(), limite: PostModel.postsPorPagina, agora: agora),
+        isTrue,
+      );
+      expect(PostModel.temMaisParaMostrar(lista(), limite: 100, agora: agora), isFalse);
+    });
+  });
 }

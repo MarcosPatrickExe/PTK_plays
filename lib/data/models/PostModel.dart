@@ -130,10 +130,11 @@ class PostOpcaoEnquete {
   }
 }
 
-/// Postagem do feed (Home). Suporta 4 tipos, diferenciados pelo campo [tipo]:
+/// Postagem do feed (Home). Suporta 5 tipos, diferenciados pelo campo [tipo]:
 /// - avisoTexto: aviso com somente texto.
 /// - aoVivo: aviso de que o canal esta ao vivo (com plataformas/link).
-/// - avisoFoto: aviso com texto + foto.
+/// - avisoMidia: aviso do admin com foto e/ou video anexados.
+/// - avisoFoto: formato antigo do anterior, so leitura.
 /// - enquete: enquete com titulo (pergunta) e opcoes de resposta.
 class PostModel {
   static const tipoAvisoTexto = 'avisoTexto';
@@ -141,7 +142,18 @@ class PostModel {
   static const tipoAvisoFoto = 'avisoFoto';
   static const tipoEnquete = 'enquete';
 
-  static const List<String> tiposValidos = [tipoAvisoTexto, tipoAoVivo, tipoAvisoFoto, tipoEnquete];
+  /// Aviso com midia anexada pelo admin: foto, video, ou os dois no mesmo
+  /// post. Substitui o [tipoAvisoFoto], que continua sendo lido pra nao
+  /// quebrar os posts antigos mas nao e mais escrito pelo app.
+  static const tipoAvisoMidia = 'avisoMidia';
+
+  static const List<String> tiposValidos = [
+    tipoAvisoTexto,
+    tipoAoVivo,
+    tipoAvisoFoto,
+    tipoAvisoMidia,
+    tipoEnquete,
+  ];
 
   /// Peso de um post em destaque (admin e aviso de live) e de um post comum
   /// (demais cargos) na ordenacao do feed. Os mesmos numeros estao em
@@ -177,6 +189,57 @@ class PostModel {
     return ordenados;
   }
 
+  /// Quantos posts o feed mostra de cara. Rolar ate o fim carrega mais um
+  /// tanto desses (ver [paginarParaFeed]).
+  static const int postsPorPagina = 10;
+
+  /// A partir de quando um post conta como "antigo" e sai da primeira
+  /// pagina do feed.
+  static const Duration janelaRecente = Duration(days: 30);
+
+  bool ehAntigo([DateTime? agora]) =>
+      (agora ?? DateTime.now()).difference(criadoEm) > janelaRecente;
+
+  /// Avisos de live no formato velho: encerrados pela versao antiga da
+  /// Cloud Function, que apagava `linksPorPlataforma` do post quando a
+  /// transmissao acabava. Sobra um card sem miniatura, sem titulo e sem as
+  /// badges das plataformas — so o "ENCERRADA" e o texto padrao. Nao da pra
+  /// recuperar o que foi apagado, entao esses posts saem do feed (e o
+  /// Painel ADM tem uma acao pra apaga-los de vez).
+  bool get formatoAntigo => tipo == tipoAoVivo && plataformasAoVivo.isEmpty;
+
+  static List<PostModel> semFormatoAntigo(List<PostModel> posts) =>
+      posts.where((post) => !post.formatoAntigo).toList();
+
+  /// Recorta a lista ja ordenada no que deve aparecer na tela agora.
+  ///
+  /// A primeira pagina so tem post recente: enquanto [limite] for
+  /// [postsPorPagina], os posts com mais de 30 dias ficam de fora mesmo que
+  /// sobre espaco. Eles so entram quando o usuario rola alem dessa primeira
+  /// pagina — que e quando [limite] cresce.
+  static List<PostModel> paginarParaFeed(
+    List<PostModel> posts, {
+    required int limite,
+    DateTime? agora,
+  }) {
+    final momento = agora ?? DateTime.now();
+    final recentes = posts.where((post) => !post.ehAntigo(momento)).toList();
+
+    if (limite <= postsPorPagina) return recentes.take(limite).toList();
+
+    final antigos = posts.where((post) => post.ehAntigo(momento)).toList();
+    return [...recentes, ...antigos].take(limite).toList();
+  }
+
+  /// Se ainda ha post pra revelar rolando mais pra baixo.
+  static bool temMaisParaMostrar(
+    List<PostModel> posts, {
+    required int limite,
+    DateTime? agora,
+  }) {
+    return paginarParaFeed(posts, limite: limite, agora: agora).length < posts.length;
+  }
+
   final String id;
   final String tipo;
   final String autorUid;
@@ -199,8 +262,14 @@ class PostModel {
   /// avisoTexto, aoVivo (legenda opcional) e avisoFoto (legenda).
   final String? texto;
 
-  /// avisoFoto.
+  /// avisoFoto e avisoMidia.
   final String? fotoUrl;
+
+  /// avisoMidia: video enviado pelo admin junto do post (Firebase Storage).
+  final String? videoUrl;
+
+  bool get temMidia =>
+      (fotoUrl != null && fotoUrl!.isNotEmpty) || (videoUrl != null && videoUrl!.isNotEmpty);
 
   /// aoVivo: uma entrada por plataforma ativa ('youtube', 'twitch', 'kick'),
   /// com link + dados extras (titulo/jogo/thumbnail) de cada uma.
@@ -228,6 +297,7 @@ class PostModel {
     this.comentariosCount = 0,
     this.texto,
     this.fotoUrl,
+    this.videoUrl,
     this.plataformasAoVivo = const {},
     this.titulo,
     this.opcoes,
@@ -255,6 +325,7 @@ class PostModel {
       comentariosCount: data['comentariosCount'] ?? 0,
       texto: data['texto'],
       fotoUrl: data['fotoUrl'],
+      videoUrl: data['videoUrl'],
       plataformasAoVivo: data['linksPorPlataforma'] is Map
           ? Map<String, dynamic>.from(data['linksPorPlataforma'] as Map).map(
               (plataforma, detalhes) => MapEntry(plataforma, PostPlataformaAoVivo.fromDynamic(detalhes)),

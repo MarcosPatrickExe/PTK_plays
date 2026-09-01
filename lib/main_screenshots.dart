@@ -169,10 +169,26 @@ class FakePostRepository implements PostRepository {
     String? texto,
     String? titulo,
     List<String>? opcoes,
+    String? fotoUrl,
+    String? videoUrl,
   }) async {}
 
   @override
   Future<void> excluirPost(String postId) async {}
+
+  @override
+  Future<String> enviarMidiaDePost({
+    required String uid,
+    required Uint8List bytes,
+    required String contentType,
+    required String extensao,
+  }) async => '';
+
+  @override
+  Future<List<PostModel>> buscarAvisosDeLiveFormatoAntigo() async => const [];
+
+  @override
+  Future<void> excluirPosts(List<String> postIds) async {}
 }
 
 class FakeYoutubeViewModel implements YoutubeViewModel {

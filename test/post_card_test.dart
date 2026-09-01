@@ -1,11 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ptk_plays/components/ImagemAdaptativa.dart';
+import 'package:ptk_plays/components/VideoPost.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/view/Home.dart';
 
 Widget _comPost(PostModel post) {
   return MaterialApp(
     home: Scaffold(body: PostCard(isDark: false, post: post)),
+  );
+}
+
+/// Card de mídia dentro de uma lista rolável e numa largura de celular, que
+/// é onde ele vive de verdade. Sem isso a imagem, que é proporcional à
+/// largura, estoura a altura fixa da tela de teste.
+Widget _comPostRolavel(PostModel post) {
+  return MaterialApp(
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 360,
+          child: ListView(children: [PostCard(isDark: false, post: post)]),
+        ),
+      ),
+    ),
   );
 }
 
@@ -331,4 +349,64 @@ void main() {
   // url_launcher depende do canal de plataforma nativo, que nao existe
   // neste ambiente de `flutter test` - so a logica de renderizacao acima
   // (qual link vai em qual badge, na ordem certa) e validada.
+
+  group('PostCard - tipo avisoMidia', () {
+    testWidgets('foto e vídeo aparecem no mesmo card, com a legenda', (tester) async {
+      final post = PostModel(
+        id: 'm1',
+        tipo: PostModel.tipoAvisoMidia,
+        autorUid: 'uid-admin',
+        autorNickname: 'PTK Plays',
+        autorCargo: 'admin',
+        criadoEm: DateTime.now(),
+        texto: 'Setup novo ficou show!',
+        fotoUrl: 'https://exemplo/setup.jpg',
+        videoUrl: 'https://exemplo/setup.mp4',
+      );
+
+      await tester.pumpWidget(_comPostRolavel(post));
+      await tester.pump();
+
+      expect(find.text('Setup novo ficou show!'), findsOneWidget);
+      expect(find.byType(ImagemAdaptativa), findsOneWidget);
+      expect(find.byType(VideoPost), findsOneWidget);
+    });
+
+    testWidgets('post só de vídeo não abre espaço de imagem', (tester) async {
+      final post = PostModel(
+        id: 'm2',
+        tipo: PostModel.tipoAvisoMidia,
+        autorUid: 'uid-admin',
+        autorNickname: 'PTK Plays',
+        autorCargo: 'admin',
+        criadoEm: DateTime.now(),
+        videoUrl: 'https://exemplo/clipe.mp4',
+      );
+
+      await tester.pumpWidget(_comPostRolavel(post));
+      await tester.pump();
+
+      expect(find.byType(ImagemAdaptativa), findsNothing);
+      expect(find.byType(VideoPost), findsOneWidget);
+    });
+
+    testWidgets('avisoFoto antigo continua desenhando pelo mesmo caminho', (tester) async {
+      final post = PostModel(
+        id: 'm3',
+        tipo: PostModel.tipoAvisoFoto,
+        autorUid: 'uid-canal',
+        autorNickname: 'PTK Plays',
+        criadoEm: DateTime.now(),
+        texto: 'Foto antiga',
+        fotoUrl: 'https://exemplo/antiga.jpg',
+      );
+
+      await tester.pumpWidget(_comPostRolavel(post));
+      await tester.pump();
+
+      expect(find.text('Foto antiga'), findsOneWidget);
+      expect(find.byType(ImagemAdaptativa), findsOneWidget);
+      expect(find.byType(VideoPost), findsNothing);
+    });
+  });
 }
