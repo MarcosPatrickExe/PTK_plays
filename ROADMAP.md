@@ -1026,4 +1026,43 @@ sentido.
 `firebase deploy --only firestore:rules` — sem isso as três checagens
 novas (`contaBloqueada()`, o travamento dos campos de moderação, e o uso
 deles em `posts`/`podeVotar`) não valem nada em produção; o app já bloqueia
-a UI, mas a regra antiga continua no ar até o deploy.
+a UI, mas a regra antiga continua no ar até o deploy. **Já feito** pelo
+usuário em 01/set/2026, junto com este pacote.
+
+## O bloqueio virou global (mesmo dia)
+
+A primeira versão só checava em `Home` (o Feed) — perguntado sobre isso,
+ficou claro que não era em tempo real pra quem estivesse em outra tela
+(Vídeos, Perfil, Conquistas) no momento do banimento: a pessoa só caía na
+tela de bloqueio ao voltar pro Feed. Publicar/votar já era barrado na hora
+de qualquer tela (via `contaBloqueada()` nas regras), mas a UI ficava
+comportando-se como se nada tivesse acontecido até isso.
+
+Correção: o bloqueio subiu pro `builder` do `MaterialApp`
+(`lib/main.dart`), que envolve QUALQUER tela em qualquer rota — não só a
+Home. Peças novas:
+
+- **`AuthRepository.streamUsuarioReativo()` / `AuthViewModel` (mesmo
+  nome)**: diferente do `streamUsuarioAtual()` usado pelas telas comuns
+  (que fixa o uid no instante em que é chamado), este acompanha login e
+  logout em si — troca de assinatura sozinho quando o uid muda. Precisa
+  disso porque o gate vive o app inteiro e nunca é recriado por uma troca
+  de tela pra "descobrir" de quem é a vez de ouvir.
+- **`lib/components/ContaGate.dart`**: `GateDeConta` (widget puro, testável
+  sem Firebase — só `Stack([child, if bloqueado ContaBloqueadaView])`) e
+  `ContaGate` (a parte com Firebase, que alimenta o primeiro). O conteúdo
+  normal do app continua **montado por baixo**, só coberto — não troca de
+  rota. Isso é o que faz uma suspensão vencer com o app aberto devolver a
+  pessoa pro exato lugar onde estava, sem perder navegação.
+- **`main.dart`**: `MaterialApp` ganhou `navigatorKey` (um `GlobalKey`
+  estático) e `builder: (context, child) => ContaGate(...)`. O
+  `navigatorKey` existe porque o "Sair" do `ContaGate` precisa navegar pro
+  Login, mas o `context` do `builder` fica ACIMA do `Navigator` do app —
+  `Navigator.of(context)` não o alcançaria dali.
+- O gate antigo, dentro de `Home._construirTela`, foi removido — ficou
+  redundante (o `ContaGate` cobre a Home também).
+
+Testado: `GateDeConta` isolado (usuário nulo/ativo/banido/suspenso dentro e
+fora do prazo, conteúdo continua montado por baixo, botão "Sair" chama o
+callback). `ContaGate` em si (a parte com Firebase/navegação) não tem teste
+de ponta a ponta, mesma limitação de sempre neste ambiente.
