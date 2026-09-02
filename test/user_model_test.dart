@@ -116,4 +116,82 @@ void main() {
       expect(UserModel.fromFirestore(data).avatarPreset, '');
     });
   });
+
+  group('UserModel.estaBloqueado', () {
+    UserModel usuario({required String estado, DateTime? suspensoAte}) => UserModel(
+          uid: 'u1',
+          nickname: 'Fulano',
+          email: 'fulano@teste.com',
+          fotoUrl: '',
+          cargo: 'inscrito',
+          categorias: const [],
+          status: 'online',
+          criadoEm: DateTime(2026, 1, 1),
+          ultimoAcesso: null,
+          badges: const [],
+          contadores: const {},
+          estadoModeracao: estado,
+          suspensoAte: suspensoAte,
+        );
+
+    final agora = DateTime(2026, 9, 1, 12);
+
+    test('conta ativa nao esta bloqueada', () {
+      expect(usuario(estado: 'ativo').estaBloqueado(agora), isFalse);
+    });
+
+    test('conta banida esta sempre bloqueada, mesmo sem prazo', () {
+      expect(usuario(estado: 'banido').estaBloqueado(agora), isTrue);
+    });
+
+    test('conta suspensa dentro do prazo esta bloqueada', () {
+      final conta = usuario(estado: 'suspenso', suspensoAte: agora.add(const Duration(days: 1)));
+      expect(conta.estaBloqueado(agora), isTrue);
+    });
+
+    test('suspensao vencida libera a conta mesmo sem o admin reativar', () {
+      final conta = usuario(estado: 'suspenso', suspensoAte: agora.subtract(const Duration(days: 1)));
+      expect(conta.estaBloqueado(agora), isFalse);
+    });
+
+    test('suspenso sem data gravada (defensivo) nao trava', () {
+      expect(usuario(estado: 'suspenso').estaBloqueado(agora), isFalse);
+    });
+  });
+
+  group('UserModel.motivoModeracao', () {
+    test('fromFirestore le o motivo gravado pelo admin', () {
+      final data = {
+        'uid': 'u1',
+        'nickname': 'Fulano',
+        'email': 'fulano@teste.com',
+        'cargo': 'inscrito',
+        'categorias': [],
+        'status': 'online',
+        'criadoEm': Timestamp.fromDate(DateTime(2026, 1, 1)),
+        'badges': [],
+        'contadores': {},
+        'estadoModeracao': 'banido',
+        'motivoModeracao': 'Xingou outro usuário no feed',
+      };
+
+      expect(UserModel.fromFirestore(data).motivoModeracao, 'Xingou outro usuário no feed');
+    });
+
+    test('fromFirestore sem o campo (nunca moderado) vem nulo', () {
+      final data = {
+        'uid': 'u1',
+        'nickname': 'Fulano',
+        'email': 'fulano@teste.com',
+        'cargo': 'inscrito',
+        'categorias': [],
+        'status': 'online',
+        'criadoEm': Timestamp.fromDate(DateTime(2026, 1, 1)),
+        'badges': [],
+        'contadores': {},
+      };
+
+      expect(UserModel.fromFirestore(data).motivoModeracao, isNull);
+    });
+  });
 }

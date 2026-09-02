@@ -706,11 +706,8 @@ duração tem teste automatizado.
 
 ## Pendências, do mais fácil ao mais difícil
 
-### Etapa 2 — barrar quem foi banido/suspenso (fácil)
-Hoje o Painel ADM **marca** o estado, mas nada no app usa essa marcação: um
-usuário banido continua entrando normalmente. Falta bloquear no login e
-numa checagem em tempo real (o usuário já logado precisa cair fora quando é
-banido). Uma tela de "conta suspensa até dd/MM" resolve a UX.
+### Etapa 2 — barrar quem foi banido/suspenso — feita em 01/set/2026
+Ver a seção "Bloqueio de conta banida/suspensa" mais abaixo.
 
 ### Etapa 3 — mensagem privada do admin (médio)
 Coleção `conversas` + regras (só os dois participantes leem/escrevem) +
@@ -959,3 +956,74 @@ ainda aparece (o `ImagemRede` tem os próprios fallbacks), só que quadrada.
 - *Custom claim* de admin, pra fechar a escrita no Storage.
 - Denúncia dentro do app e moderação de mídia (ver
   `REGRAS_DA_COMUNIDADE.md`, seção 7).
+
+
+# Bloqueio de conta banida/suspensa (01/set/2026)
+
+Motivo de existir: até aqui, o Painel ADM só **marcava** `estadoModeracao`
+no documento do usuário — nada no app consumia essa marcação. Banir alguém
+não impedia nada; era decorativo. Descoberto ao investigar um relato do
+usuário sobre um jeito diferente de burlar o banimento.
+
+## O que uma conta banida/suspensa não consegue mais fazer
+
+- **Usar o app**: `Home._construirTela` checa `usuario.estaBloqueado()`
+  antes de montar o Feed e, se verdadeiro, mostra `ContaBloqueadaView` no
+  lugar — banido vê "Sua conta foi banida"; suspenso vê até quando
+  (`suspensoAte`), e o motivo quando o admin informou um. Só resta o botão
+  "Sair". `UserModel.estaBloqueado()` trata uma suspensão vencida como
+  liberada mesmo que o admin não tenha clicado em "Reativar conta" ainda.
+- **Se desbanir sozinha**: a regra de update do próprio usuário em
+  `firestore.rules` não travava `estadoModeracao`/`suspensoAte`/
+  `motivoModeracao` contra mudança pelo dono — qualquer escrita comum de
+  perfil (trocar nickname, por exemplo) podia incluir esses campos junto e
+  a regra deixava passar, porque nada ali os mencionava. Nada de injeção
+  envolvida: é só que a regra não continha a checagem. Uma conta com um
+  token válido de autenticação fala direto com o Firestore usando o SDK —
+  não existe camada de validação "por trás" do banco além das próprias
+  regras, e o que a UI do app oferece ou esconde não é o que decide
+  segurança. Agora os três campos ficam presos ao valor que já tinham,
+  contra escrita do próprio dono. Só a regra separada do admin (que já
+  existia) altera esses campos.
+- **Publicar ou votar contornando o app**: mesmo que alguém tecnicamente
+  capaz escrevesse direto no Firestore pulando a UI (inclusive porque a UI
+  em si nem carrega mais pra uma conta bloqueada), a função nova
+  `contaBloqueada()` também barra a criação de post e o voto em enquete
+  pra quem está banido ou suspenso dentro do prazo.
+
+## O que fica de fora (limitação conhecida)
+
+Bloquear pelo Firestore não desativa a conta no **Firebase Auth** — a
+pessoa continua logada tecnicamente, só não consegue fazer nada dentro do
+app nem escrever no banco. Um banimento à prova de qualquer contorno (ex:
+"eu recadastro com o mesmo e-mail depois que expira" não se aplica aqui,
+mas "eu crio uma conta nova do zero" sempre vai ser possível — banir uma
+conta nunca impediu cadastro de outra) pediria desativar a conta de
+verdade via `admin.auth().updateUser(uid, {disabled: true})`, que é uma
+Cloud Function — fora do escopo de hoje, registrado pra quando fizer
+sentido.
+
+## Testes
+
+- `UserModel.estaBloqueado()`: ativo não bloqueia, banido bloqueia sempre,
+  suspenso dentro do prazo bloqueia, suspensão vencida libera sozinha,
+  suspenso sem `suspensoAte` gravado (defensivo) não bloqueia.
+- `UserModel.motivoModeracao`: lido do Firestore quando presente, nulo em
+  conta nunca moderada.
+- `ContaBloqueadaView`: mensagem certa por estado (banido/suspenso), data
+  formatada da suspensão, motivo aparece só quando existe, botão "Sair"
+  chama o callback.
+- **Não testado de ponta a ponta**: o `firestore.rules` em si (bloqueio de
+  update de campo de moderação e de create/vote pra conta bloqueada) — este
+  ambiente não tem o Firebase CLI nem o emulador de regras instalados, só
+  dá pra validar a lógica do lado Flutter. Recomendo testar manualmente
+  depois do deploy: banir uma conta de teste e confirmar que ela não
+  consegue mais editar o próprio perfil pra reverter o estado, nem publicar
+  post, usando o console do Firebase ou o próprio app.
+
+## Pendência de deploy
+
+`firebase deploy --only firestore:rules` — sem isso as três checagens
+novas (`contaBloqueada()`, o travamento dos campos de moderação, e o uso
+deles em `posts`/`podeVotar`) não valem nada em produção; o app já bloqueia
+a UI, mas a regra antiga continua no ar até o deploy.
