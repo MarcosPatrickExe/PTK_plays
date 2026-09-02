@@ -27,6 +27,11 @@ class AuthViewModel {
     return _repository.streamUsuario(uid);
   }
 
+  /// Ver [AuthRepository.streamUsuarioReativo]. Usado pelo `ContaGate`, que
+  /// precisa perceber login/logout em si, nao so mudanca em quem ja estava
+  /// logado quando o stream foi criado.
+  Stream<UserModel?> streamUsuarioReativo() => _repository.streamUsuarioReativo();
+
   Future<void> logout() => _repository.logout();
 
   /// Retorna null em caso de sucesso (ou cancelamento pelo usuario),

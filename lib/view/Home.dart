@@ -17,7 +17,6 @@ import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/PoliticaPrivacidade.dart';
-import 'package:ptk_plays/view/ContaBloqueada.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
 import 'package:ptk_plays/view/Login.dart';
 import 'package:ptk_plays/view/PainelAdmin.dart';
@@ -63,27 +62,6 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _construirTela(BuildContext context, bool isDark, PostViewModel postViewModel, UserModel? usuario) {
-    // Conta banida ou suspensa nao ve o feed: so a tela de bloqueio, com a
-    // opcao de sair. Quem impede publicar/votar de verdade e o
-    // firestore.rules (contaBloqueada()) — essa tela e so a UI, pra nao dar
-    // a entender que a pessoa ainda pode usar o app normalmente.
-    if (usuario != null && usuario.estaBloqueado()) {
-      return ContaBloqueadaView(
-        isDark: isDark,
-        usuario: usuario,
-        onSair: () async {
-          await authViewModel.logout();
-          if (!context.mounted) return;
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (_) => Login(viewmodelYT: viewmodelYT, apiKey: apiKEY, authViewModel: authViewModel),
-            ),
-            (route) => false,
-          );
-        },
-      );
-    }
-
     return Scaffold(
       endDrawer: MenuLateral(
         isDark: isDark,

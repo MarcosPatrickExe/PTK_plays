@@ -60,6 +60,9 @@ class FakeAuthViewModel implements AuthViewModel {
   Stream<UserModel?> streamUsuarioAtual() => Stream.value(_usuarioFake);
 
   @override
+  Stream<UserModel?> streamUsuarioReativo() => Stream.value(_usuarioFake);
+
+  @override
   Future<void> logout() async {}
 
   @override

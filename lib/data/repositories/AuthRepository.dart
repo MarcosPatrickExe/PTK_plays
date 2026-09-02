@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math';
@@ -219,6 +220,36 @@ class AuthRepository {
     return _firestore.collection('users').doc(uid).snapshots().map(
       (doc) => doc.exists ? UserModel.fromFirestore(doc.data()!) : null,
     );
+  }
+
+  /// Como [streamUsuario], mas acompanha login/logout em si — troca de
+  /// assinatura sozinho quando o uid muda, em vez de ficar preso ao uid
+  /// que estava logado no instante em que o stream foi criado (que e como
+  /// [streamUsuario] se comporta quando chamado uma vez soh).
+  ///
+  /// Existe pro `ContaGate` (`lib/components/ContaGate.dart`), o unico
+  /// lugar que precisa disso: ele envolve o app inteiro e nunca e
+  /// desmontado por uma troca de tela, entao nao pode depender de ser
+  /// recriado a cada login pra saber de quem e a vez de ouvir.
+  Stream<UserModel?> streamUsuarioReativo() {
+    final controlador = StreamController<UserModel?>.broadcast();
+    StreamSubscription<UserModel?>? assinaturaDoDocumento;
+
+    final assinaturaDoAuth = _auth.authStateChanges().listen((user) {
+      assinaturaDoDocumento?.cancel();
+      if (user == null) {
+        controlador.add(null);
+        return;
+      }
+      assinaturaDoDocumento = streamUsuario(user.uid).listen(controlador.add, onError: controlador.addError);
+    });
+
+    controlador.onCancel = () {
+      assinaturaDoDocumento?.cancel();
+      assinaturaDoAuth.cancel();
+    };
+
+    return controlador.stream;
   }
 
   Future<void> logout() async {

@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:ptk_plays/components/ContaGate.dart';
 import 'package:ptk_plays/data/repositories/AuthRepository.dart';
 import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
 import 'package:ptk_plays/data/services/YouTubeService.dart';
@@ -30,6 +31,11 @@ class MyApp extends StatelessWidget {
   
   const MyApp({ Key? key }) : super(key: key);
 
+  // Fica fora do build() pra ser o mesmo GlobalKey em toda a vida do app —
+  // e o que permite o ContaGate navegar pro Login apos o logout, mesmo
+  // vivendo acima da navegacao (fora do alcance de Navigator.of(context)).
+  static final _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build( BuildContext context ) {
     
@@ -46,7 +52,17 @@ class MyApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: context.read<ThemeController>().getThemeMode,
+      navigatorKey: _navigatorKey,
       home: SplashScreen( viewmodelYTtemp: ytVM, apiKEYtemp: Utils.APIkey, authViewModelTemp: authVM ),
+      // Cobre QUALQUER tela com a tela de bloqueio quando a conta logada
+      // esta banida/suspensa (ver ContaGate) — nao so o Feed.
+      builder: (context, child) => ContaGate(
+        authViewModel: authVM,
+        viewmodelYT: ytVM,
+        apiKey: Utils.APIkey,
+        navigatorKey: _navigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
     
   }
