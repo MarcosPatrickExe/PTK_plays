@@ -19,6 +19,23 @@ service cloud.firestore {
       return estaLogado() && cargoDoUsuario() == 'admin';
     }
 
+    // Estado de moderacao de quem esta fazendo a chamada, pra barrar posts e
+    // votos de conta banida/suspensa mesmo que a pessoa contorne o app e
+    // escreva direto no Firestore (o app so esconde a UI — quem impede de
+    // verdade e a regra). .get(campo, padrao) evita erro em conta que nunca
+    // foi moderada, que nao tem esses campos gravados (ver
+    // UserModel.toFirestore: eles so existem depois da primeira acao do
+    // Painel ADM).
+    function dadosDoUsuario() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function contaBloqueada() {
+      let estado = dadosDoUsuario().get('estadoModeracao', 'ativo');
+      let suspensoAte = dadosDoUsuario().get('suspensoAte', null);
+      return estado == 'banido' || (estado == 'suspenso' && suspensoAte != null && suspensoAte > request.time);
+    }
+
     // Peso do post na ordenacao do feed. Os mesmos numeros estao em
     // PostModel.prioridadeDoCargo — la e so leitura; e AQUI que um inscrito
     // fica impedido de publicar com prioridade de admin.
@@ -36,6 +53,7 @@ service cloud.firestore {
     // escolheu, pra UI poder destacar o botao que o usuario apertou.
     function podeVotar() {
       return estaLogado()
+        && !contaBloqueada()
         && resource.data.tipo == 'enquete'
         && !(request.auth.uid in resource.data.get('votantes', []))
         && request.resource.data.votantes == resource.data.get('votantes', []).concat([request.auth.uid])
@@ -75,6 +93,13 @@ service cloud.firestore {
         && request.resource.data.cargo == resource.data.cargo
         && request.resource.data.badges == resource.data.badges
         && request.resource.data.contadores == resource.data.contadores
+        // O dono NAO pode mudar o proprio estado de moderacao — sem isso,
+        // uma conta banida conseguiria se desbanir sozinha numa escrita
+        // comum de perfil (nada aqui barrava esses 3 campos antes). Quem
+        // muda e so o admin, pela regra de baixo.
+        && request.resource.data.get('estadoModeracao', 'ativo') == resource.data.get('estadoModeracao', 'ativo')
+        && request.resource.data.get('suspensoAte', null) == resource.data.get('suspensoAte', null)
+        && request.resource.data.get('motivoModeracao', null) == resource.data.get('motivoModeracao', null)
         && categoriasValidas(request.resource.data.categorias)
         && statusValido(request.resource.data.status)
         && request.resource.data.ultimoAcesso == request.time;
@@ -123,6 +148,7 @@ service cloud.firestore {
       allow read: if estaLogado();
 
       allow create: if estaLogado()
+        && !contaBloqueada()
         && request.resource.data.autorUid == request.auth.uid
         && request.resource.data.autorCargo == cargoDoUsuario()
         && request.resource.data.prioridade == prioridadeDoCargo(cargoDoUsuario())

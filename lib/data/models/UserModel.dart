@@ -35,9 +35,24 @@ class UserModel {
   /// nao tem prazo).
   final DateTime? suspensoAte;
 
+  /// Motivo informado pelo admin ao suspender/banir, se algum. Mostrado pra
+  /// quem foi moderado (ver ContaBloqueadaView) e no Painel ADM.
+  final String? motivoModeracao;
+
   static const List<String> estadosModeracaoValidos = ['ativo', 'suspenso', 'banido'];
 
   bool get ehAdmin => cargo == 'admin';
+
+  /// Se a conta esta impedida de usar o app agora: banida sempre, ou
+  /// suspensa e ainda dentro do prazo. Uma suspensao vencida ([suspensoAte]
+  /// no passado) conta como liberada mesmo que o admin ainda nao tenha
+  /// clicado em "Reativar conta" — o Painel ADM so mostra o selo, quem
+  /// decide se bloqueia e esta checagem.
+  bool estaBloqueado([DateTime? agora]) {
+    if (estadoModeracao == 'banido') return true;
+    if (estadoModeracao != 'suspenso') return false;
+    return suspensoAte != null && suspensoAte!.isAfter(agora ?? DateTime.now());
+  }
 
   const UserModel({
     required this.uid,
@@ -55,6 +70,7 @@ class UserModel {
     this.avatarPreset = '',
     this.estadoModeracao = 'ativo',
     this.suspensoAte,
+    this.motivoModeracao,
   });
 
   factory UserModel.novoInscrito({
@@ -103,6 +119,7 @@ class UserModel {
       avatarPreset: data['avatarPreset'] ?? '',
       estadoModeracao: data['estadoModeracao'] ?? 'ativo',
       suspensoAte: (data['suspensoAte'] as Timestamp?)?.toDate(),
+      motivoModeracao: data['motivoModeracao'],
     );
   }
 
