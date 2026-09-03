@@ -16,6 +16,7 @@ import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
+import 'package:ptk_plays/utils/ValidacaoCadastro.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 
 class EditarPerfil extends StatefulWidget {

@@ -52,6 +52,7 @@ flutter:
     - assets/login_logo.png
     - assets/mock_photos/
     - assets/avatares/
+    - assets/ptk/
 
 flutter_icons:
   android: true

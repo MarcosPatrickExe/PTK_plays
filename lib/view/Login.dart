@@ -12,7 +12,7 @@ import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
-import 'Cadastro.dart';
+import 'CriarConta.dart';
 import 'Home.dart';
 
 const String _iconGoogle = '''
@@ -77,7 +77,7 @@ class _LoginState extends State<Login> {
   void _irParaCadastro() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => Cadastro(
+        builder: (context) => CriarConta(
           viewmodelYT: widget.viewmodelYT,
           apiKey: widget.apiKey,
           authViewModel: widget.authViewModel,

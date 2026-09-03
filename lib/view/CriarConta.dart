@@ -1,0 +1,651 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:ptk_plays/components/AuthWidgets.dart';
+import 'package:ptk_plays/components/CampoFlutuante.dart';
+import 'package:ptk_plays/components/FundoPTK.dart';
+import 'package:ptk_plays/components/ModalCropFoto.dart';
+import 'package:ptk_plays/components/Responsive.dart';
+import 'package:ptk_plays/components/SeletorAvatarPreset.dart';
+import 'package:ptk_plays/components/Toast.dart';
+import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
+import 'package:ptk_plays/utils/ValidacaoCadastro.dart';
+import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
+import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
+import 'package:ptk_plays/view/Home.dart';
+
+/// As telas do cadastro, na ordem em que aparecem.
+enum EtapaCadastro { boasVindas, nickname, email, senha, foto, whatsapp }
+
+/// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve
+/// e-mail e senha resolvidos pelo provedor, então essas duas etapas somem —
+/// pedir de novo seria pedir uma segunda senha pra mesma conta.
+List<EtapaCadastro> etapasDoCadastro({required bool contaSocial}) {
+  return [
+    EtapaCadastro.boasVindas,
+    EtapaCadastro.nickname,
+    if (!contaSocial) EtapaCadastro.email,
+    if (!contaSocial) EtapaCadastro.senha,
+    EtapaCadastro.foto,
+    EtapaCadastro.whatsapp,
+  ];
+}
+
+/// A arte do PTK que fica ao fundo de cada etapa. Etapas sem arte definida
+/// ainda caem no gradiente do app (ver [FundoPTK]).
+String? assetDaEtapa(EtapaCadastro etapa) {
+  switch (etapa) {
+    case EtapaCadastro.nickname:
+      return 'assets/ptk/ptk_nickname.jpg';
+    case EtapaCadastro.email:
+      return 'assets/ptk/ptk_email.jpg';
+    case EtapaCadastro.senha:
+      return 'assets/ptk/ptk_senha.jpg';
+    default:
+      return null;
+  }
+}
+
+/// Cadastro em etapas: uma pergunta por tela, com a arte do PTK ao fundo
+/// mudando junto. Só dá pra avançar com a etapa atual preenchida — o botão
+/// "Avançar" fica desabilitado até lá, e cada campo avisa o que falta
+/// enquanto a pessoa digita (ver [CampoFlutuante]).
+class CriarConta extends StatefulWidget {
+  final YoutubeViewModel viewmodelYT;
+  final String apiKey;
+  final AuthViewModel authViewModel;
+
+  /// true quando a pessoa já entrou pelo Google/Apple e está só completando
+  /// o perfil: pula e-mail e senha.
+  final bool contaSocial;
+
+  /// Nick sugerido pelo provedor social (o nome da conta Google/Apple), pra
+  /// já vir preenchido em vez de campo em branco.
+  final String? nicknameSugerido;
+
+  const CriarConta({
+    super.key,
+    required this.viewmodelYT,
+    required this.apiKey,
+    required this.authViewModel,
+    this.contaSocial = false,
+    this.nicknameSugerido,
+  });
+
+  @override
+  State<CriarConta> createState() => _CriarContaState();
+}
+
+class _CriarContaState extends State<CriarConta> {
+  late final List<EtapaCadastro> _etapas = etapasDoCadastro(contaSocial: widget.contaSocial);
+  final _paginas = PageController();
+  int _indice = 0;
+
+  final _nickname = TextEditingController();
+  final _email = TextEditingController();
+  final _confirmarEmail = TextEditingController();
+  final _senha = TextEditingController();
+  final _confirmarSenha = TextEditingController();
+  final _whatsapp = TextEditingController();
+
+  String? _avatarPreset;
+  Uint8List? _fotoPropria;
+  bool _escolhendoFoto = false;
+  bool _criando = false;
+
+  EtapaCadastro get _etapaAtual => _etapas[_indice];
+
+  @override
+  void initState() {
+    super.initState();
+    _whatsapp.text = MascaraTelefoneWhatsapp.mascaraVazia;
+    if (widget.nicknameSugerido != null) _nickname.text = widget.nicknameSugerido!;
+  }
+
+  @override
+  void dispose() {
+    _paginas.dispose();
+    for (final campo in [_nickname, _email, _confirmarEmail, _senha, _confirmarSenha, _whatsapp]) {
+      campo.dispose();
+    }
+    super.dispose();
+  }
+
+  /// O que ainda falta na etapa atual, ou null se ela está completa. É o
+  /// mesmo conjunto de regras que os campos usam pra avisar enquanto a
+  /// pessoa digita — aqui elas decidem se o "Avançar" libera.
+  String? _pendenciaDaEtapa(EtapaCadastro etapa) {
+    switch (etapa) {
+      case EtapaCadastro.boasVindas:
+        return null;
+      case EtapaCadastro.nickname:
+        return validarNickname(_nickname.text);
+      case EtapaCadastro.email:
+        return validarEmail(_email.text) ??
+            validarConfirmacaoEmail(email: _email.text, confirmacao: _confirmarEmail.text);
+      case EtapaCadastro.senha:
+        return validarSenha(_senha.text) ??
+            validarConfirmacaoSenha(senha: _senha.text, confirmacao: _confirmarSenha.text);
+      case EtapaCadastro.foto:
+        return validarFotoEscolhida(avatarPreset: _avatarPreset, temFotoPropria: _fotoPropria != null);
+      case EtapaCadastro.whatsapp:
+        return validarWhatsappObrigatorio(_whatsapp.text);
+    }
+  }
+
+  bool get _podeAvancar => _pendenciaDaEtapa(_etapaAtual) == null;
+  bool get _ehUltimaEtapa => _indice == _etapas.length - 1;
+
+  void _avancar() {
+    if (!_podeAvancar) return;
+    if (_ehUltimaEtapa) {
+      _criarConta();
+      return;
+    }
+
+    setState(() => _indice++);
+    _paginas.animateToPage(_indice, duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
+  }
+
+  void _voltar() {
+    if (_indice == 0) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() => _indice--);
+    _paginas.animateToPage(_indice, duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
+  }
+
+  /// Tira uma selfie (ou escolhe da galeria) e manda pro mesmo recorte com
+  /// zoom que a edição de perfil usa.
+  Future<void> _escolherFoto(ImageSource origem) async {
+    setState(() => _escolhendoFoto = true);
+
+    try {
+      final arquivo = await ImagePicker().pickImage(source: origem, maxWidth: 1600, imageQuality: 90);
+      if (arquivo == null || !mounted) return;
+
+      final bytesOriginais = await arquivo.readAsBytes();
+      if (!mounted) return;
+
+      final recortada = await ModalCropFoto.abrir(context, bytesOriginais);
+      if (recortada == null || !mounted) return;
+
+      // A foto tirada passa a ser o avatar: o preset sai de cena, igual à
+      // regra de exibição (preset tem prioridade sobre fotoUrl).
+      setState(() {
+        _fotoPropria = recortada;
+        _avatarPreset = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      mostrarToast(context, mensagem: 'Não foi possível abrir a câmera.', erro: true);
+    } finally {
+      if (mounted) setState(() => _escolhendoFoto = false);
+    }
+  }
+
+  Future<void> _criarConta() async {
+    setState(() => _criando = true);
+
+    final erro = await widget.authViewModel.cadastrar(
+      nickname: _nickname.text.trim(),
+      email: _email.text.trim(),
+      senha: _senha.text,
+      telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
+      avatarPreset: _avatarPreset ?? '',
+    );
+
+    if (!mounted) return;
+
+    if (erro != null) {
+      setState(() => _criando = false);
+      mostrarToast(context, mensagem: erro, erro: true);
+      return;
+    }
+
+    // A foto sobe depois da conta existir: o caminho no Storage é por uid,
+    // que só existe a partir daqui.
+    if (_fotoPropria != null) {
+      final envio = await widget.authViewModel.atualizarFotoPerfil(bytes: _fotoPropria!);
+      if (!mounted) return;
+      if (envio.erro != null) {
+        // Conta criada, foto não subiu: não vale barrar a entrada por causa
+        // disso — a pessoa troca a foto depois na edição de perfil.
+        mostrarToast(context, mensagem: 'Conta criada! Só a foto não subiu, tente de novo no perfil.', erro: true);
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _criando = false);
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => HomePage(
+          viewmodelYT: widget.viewmodelYT,
+          apiKEY: widget.apiKey,
+          authViewModel: widget.authViewModel,
+        ),
+      ),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          FundoPTK(asset: assetDaEtapa(_etapaAtual)),
+          SafeArea(
+            child: ResponsiveCenter(
+              child: Column(
+                children: [
+                  _IndicadorDeEtapas(total: _etapas.length, atual: _indice),
+                  Expanded(
+                    child: PageView(
+                      controller: _paginas,
+                      // A navegação é só pelos botões: arrastar pularia a
+                      // checagem que impede avançar com a etapa incompleta.
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: _etapas.map(_conteudoDaEtapa).toList(),
+                    ),
+                  ),
+                  _barraDeBotoes(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _conteudoDaEtapa(EtapaCadastro etapa) {
+    switch (etapa) {
+      case EtapaCadastro.boasVindas:
+        return const _EtapaBoasVindas();
+
+      case EtapaCadastro.nickname:
+        return _Etapa(
+          titulo: 'Como a gente te chama?',
+          subtitulo: 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.',
+          campos: [
+            CampoFlutuante(
+              controller: _nickname,
+              rotulo: 'Seu nick',
+              icone: Icons.person_outline,
+              capitalizacao: TextCapitalization.words,
+              validador: validarNickname,
+              onMudou: () => setState(() {}),
+            ),
+          ],
+        );
+
+      case EtapaCadastro.email:
+        return _Etapa(
+          titulo: 'Qual é o seu e-mail?',
+          subtitulo: 'É por ele que você entra na conta e recupera a senha se esquecer.',
+          campos: [
+            CampoFlutuante(
+              controller: _email,
+              rotulo: 'E-mail',
+              icone: Icons.mail_outline,
+              tipoDeTeclado: TextInputType.emailAddress,
+              validador: validarEmail,
+              onMudou: () => setState(() {}),
+            ),
+            CampoFlutuante(
+              controller: _confirmarEmail,
+              rotulo: 'Confirme o e-mail',
+              icone: Icons.mark_email_read_outlined,
+              tipoDeTeclado: TextInputType.emailAddress,
+              validador: (valor) => validarConfirmacaoEmail(email: _email.text, confirmacao: valor),
+              onMudou: () => setState(() {}),
+            ),
+          ],
+        );
+
+      case EtapaCadastro.senha:
+        return _Etapa(
+          titulo: 'Agora crie uma senha',
+          subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Guarde bem — ela é sua chave de entrada.',
+          campos: [
+            CampoFlutuante(
+              controller: _senha,
+              rotulo: 'Senha',
+              icone: Icons.lock_outline,
+              ehSenha: true,
+              validador: validarSenha,
+              onMudou: () => setState(() {}),
+            ),
+            CampoFlutuante(
+              controller: _confirmarSenha,
+              rotulo: 'Confirme a senha',
+              icone: Icons.lock_reset_outlined,
+              ehSenha: true,
+              validador: (valor) => validarConfirmacaoSenha(senha: _senha.text, confirmacao: valor),
+              onMudou: () => setState(() {}),
+            ),
+          ],
+        );
+
+      case EtapaCadastro.foto:
+        return _EtapaFoto(
+          avatarPreset: _avatarPreset,
+          fotoPropria: _fotoPropria,
+          escolhendo: _escolhendoFoto,
+          onSelecionarPreset: (chave) => setState(() {
+            _avatarPreset = chave;
+            _fotoPropria = null;
+          }),
+          onTirarFoto: () => _escolherFoto(ImageSource.camera),
+          onEscolherDaGaleria: () => _escolherFoto(ImageSource.gallery),
+        );
+
+      case EtapaCadastro.whatsapp:
+        return _Etapa(
+          titulo: 'Seu WhatsApp',
+          subtitulo: 'Serve pra avisos do canal e pra recuperar sua conta. Aceita celular ou fixo.',
+          campos: [
+            CampoFlutuante(
+              controller: _whatsapp,
+              rotulo: 'Número com DDD',
+              icone: Icons.phone_outlined,
+              tipoDeTeclado: TextInputType.phone,
+              formatadores: [MascaraTelefoneWhatsapp()],
+              validador: validarWhatsappObrigatorio,
+              onMudou: () => setState(() {}),
+            ),
+          ],
+        );
+    }
+  }
+
+  Widget _barraDeBotoes() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      child: Row(
+        children: [
+          TextButton.icon(
+            onPressed: _criando ? null : _voltar,
+            icon: const Icon(Icons.arrow_back, size: 18),
+            label: Text(_indice == 0 ? 'Sair' : 'Voltar', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+          ),
+          const Spacer(),
+          _BotaoAvancar(
+            label: _ehUltimaEtapa ? 'Criar conta' : 'Avançar',
+            habilitado: _podeAvancar,
+            carregando: _criando,
+            onTap: _avancar,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Primeira tela: só a apresentação da comunidade, sem nada pra preencher.
+class _EtapaBoasVindas extends StatelessWidget {
+  const _EtapaBoasVindas();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _Etapa(
+      titulo: 'Bem-vindo(a) à\ncomunidade PTK Plays!',
+      subtitulo:
+          'Aqui você acompanha de perto tudo o que rola no canal: avisos de live, '
+          'os vídeos novos e as enquetes do PTK — e ainda fala com a galera no feed.\n\n'
+          'São só alguns passos pra criar sua conta. Bora?',
+      campos: [],
+    );
+  }
+}
+
+/// Molde comum das etapas: título, subtítulo e os campos daquela pergunta.
+class _Etapa extends StatelessWidget {
+  final String titulo;
+  final String subtitulo;
+  final List<Widget> campos;
+
+  const _Etapa({required this.titulo, required this.subtitulo, required this.campos});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, height: 1.15),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            subtitulo,
+            style: GoogleFonts.outfit(fontSize: 15, color: Colors.white70, height: 1.45),
+          ),
+          const SizedBox(height: 28),
+          ...campos,
+        ],
+      ),
+    );
+  }
+}
+
+/// Etapa da foto: os avatares pré-definidos, ou uma foto tirada na hora.
+class _EtapaFoto extends StatelessWidget {
+  final String? avatarPreset;
+  final Uint8List? fotoPropria;
+  final bool escolhendo;
+  final ValueChanged<String> onSelecionarPreset;
+  final VoidCallback onTirarFoto;
+  final VoidCallback onEscolherDaGaleria;
+
+  const _EtapaFoto({
+    required this.avatarPreset,
+    required this.fotoPropria,
+    required this.escolhendo,
+    required this.onSelecionarPreset,
+    required this.onTirarFoto,
+    required this.onEscolherDaGaleria,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sua foto de perfil',
+            style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
+            style: GoogleFonts.outfit(fontSize: 15, color: Colors.white70, height: 1.45),
+          ),
+          const SizedBox(height: 20),
+
+          if (fotoPropria != null) ...[
+            Center(
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AuthTheme.buttonGradient),
+                child: ClipOval(child: Image.memory(fotoPropria!, fit: BoxFit.cover)),
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
+
+          Row(
+            children: [
+              Expanded(
+                child: _BotaoDeFoto(
+                  icone: Icons.photo_camera_outlined,
+                  label: fotoPropria == null ? 'Tirar foto' : 'Tirar outra',
+                  carregando: escolhendo,
+                  onTap: onTirarFoto,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _BotaoDeFoto(
+                  icone: Icons.photo_library_outlined,
+                  label: 'Da galeria',
+                  carregando: false,
+                  onTap: onEscolherDaGaleria,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+          Text(
+            'Ou escolha um avatar:',
+            style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
+          ),
+          const SizedBox(height: 12),
+          SeletorAvatarPreset(
+            isDark: true,
+            selecionado: avatarPreset,
+            onSelecionar: onSelecionarPreset,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BotaoDeFoto extends StatelessWidget {
+  final IconData icone;
+  final String label;
+  final bool carregando;
+  final VoidCallback onTap;
+
+  const _BotaoDeFoto({required this.icone, required this.label, required this.carregando, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: carregando ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: .28),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white24, width: 1.3),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (carregando)
+              const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            else
+              Icon(icone, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bolinhas de progresso: mostram quantas etapas faltam, o que evita a
+/// sensação de formulário sem fim.
+class _IndicadorDeEtapas extends StatelessWidget {
+  final int total;
+  final int atual;
+
+  const _IndicadorDeEtapas({required this.total, required this.atual});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(total, (indice) {
+          final ativo = indice <= atual;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: indice == atual ? 22 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: ativo ? const Color(0xFFC33BE8) : Colors.white24,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+/// Botão de avançar em formato de pílula com seta, desabilitado enquanto a
+/// etapa não estiver completa.
+class _BotaoAvancar extends StatelessWidget {
+  final String label;
+  final bool habilitado;
+  final bool carregando;
+  final VoidCallback onTap;
+
+  const _BotaoAvancar({
+    required this.label,
+    required this.habilitado,
+    required this.carregando,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ativo = habilitado && !carregando;
+
+    return GestureDetector(
+      onTap: ativo ? onTap : null,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: ativo ? 1 : .45,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: AuthTheme.buttonGradient,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: const [BoxShadow(color: Color(0x66C828B4), blurRadius: 22, offset: Offset(0, 10))],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 15)),
+              const SizedBox(width: 8),
+              if (carregando)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              else
+                const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

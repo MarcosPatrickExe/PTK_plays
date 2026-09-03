@@ -1,7 +1,9 @@
-// Testa a mascara "+55 (DD) NNNNN-NNNN" do campo opcional de WhatsApp
-// adicionado no cadastro (lib/view/Cadastro.dart) e a validacao que anda
-// junto dela. O numero e usado futuramente em notificacoes/recuperacao de
-// conta/2FA via WhatsApp Business API (ver ROADMAP.md).
+// Testa a mascara de telefone do cadastro (lib/view/Cadastro.dart e o
+// fluxo novo em lib/view/CriarConta.dart) e a validacao que anda junto
+// dela. Aceita os dois formatos brasileiros: fixo "+55 (DD) NNNN-NNNN" (10
+// digitos) e celular "+55 (DD) NNNNN-NNNN" (11). O numero e usado
+// futuramente em notificacoes/recuperacao de conta/2FA via WhatsApp
+// Business API (ver ROADMAP.md).
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,20 +19,36 @@ TextEditingValue _digitar(String textoDigitado) {
 
 void main() {
   group('MascaraTelefoneWhatsapp', () {
-    test('campo vazio mostra o DDI fixo e os espacos do DDD/numero em branco', () {
-      expect(_digitar('').text, '+55 (  )      -    ');
+    test('campo vazio mostra so o DDI fixo', () {
+      expect(_digitar('').text, '+55 ');
     });
 
-    test('primeiro digito preenche o inicio do DDD, resto continua em branco', () {
+    test('a mascara cresce conforme os digitos entram', () {
       final resultado = _digitar('1');
-      expect(resultado.text, '+55 (1 )      -    ');
+      expect(resultado.text, '+55 (1');
       expect(resultado.selection.baseOffset, 6);
+
+      expect(_digitar('11').text, '+55 (11)');
+      expect(_digitar('1199').text, '+55 (11) 99');
     });
 
-    test('numero completo (DDD + 9 digitos) fica todo preenchido', () {
+    test('numero de celular (DDD + 9 digitos) fica todo preenchido', () {
       final resultado = _digitar('11999998888');
       expect(resultado.text, '+55 (11) 99999-8888');
       expect(resultado.selection.baseOffset, resultado.text.length);
+    });
+
+    test('numero fixo (DDD + 8 digitos) usa o separador uma casa antes', () {
+      final resultado = _digitar('1133334444');
+      expect(resultado.text, '+55 (11) 3333-4444');
+      expect(resultado.selection.baseOffset, resultado.text.length);
+    });
+
+    test('o 11o digito reformata de fixo pra celular', () {
+      // O usuario digitando um celular passa pelo formato de fixo no meio do
+      // caminho; ao chegar o ultimo digito, o hifen anda uma casa.
+      expect(_digitar('1199999888').text, '+55 (11) 9999-9888');
+      expect(_digitar('11999998888').text, '+55 (11) 99999-8888');
     });
 
     test('digitos alem dos 11 esperados sao truncados', () {
@@ -60,7 +78,7 @@ void main() {
       // Sem o fix, o "+55" vazava como 2 digitos extras: o DDD virava "55"
       // (o proprio prefixo, nunca o que o usuario digitou) e o ultimo digito
       // real era descartado por estourar o limite de 11.
-      expect(resultado.text, '+55 (98) 76543-210 ');
+      expect(resultado.text, '+55 (98) 7654-3210');
       expect(resultado.selection.baseOffset, 5);
     });
 
@@ -71,14 +89,14 @@ void main() {
 
       final resultado = formatador.formatEditUpdate(oldValue, newValue);
 
-      expect(resultado.text, '+55 (11) 97654-321 ');
+      expect(resultado.text, '+55 (11) 9765-4321');
       expect(resultado.selection.baseOffset, 10);
     });
 
     test('digitar um digito no meio insere ali, sem confundir com o prefixo fixo', () {
-      final oldValue = TextEditingValue(text: '+55 (11) 9765-4321 ', selection: const TextSelection.collapsed(offset: 10));
+      final oldValue = TextEditingValue(text: '+55 (11) 9765-4321', selection: const TextSelection.collapsed(offset: 10));
       // Digita '8' de volta na mesma posicao onde foi apagado no teste anterior.
-      final newValue = const TextEditingValue(text: '+55 (11) 89765-4321 ', selection: TextSelection.collapsed(offset: 11));
+      final newValue = const TextEditingValue(text: '+55 (11) 89765-4321', selection: TextSelection.collapsed(offset: 11));
 
       final resultado = formatador.formatEditUpdate(oldValue, newValue);
 
@@ -105,7 +123,19 @@ void main() {
     });
 
     test('so o DDD preenchido, sem numero, e invalido', () {
-      expect(validarTelefoneWhatsapp('+55 (11)      -    '), isNotNull);
+      expect(validarTelefoneWhatsapp('+55 (11)'), isNotNull);
+    });
+
+    test('paraSalvar devolve o numero limpo com o DDI, nos dois formatos', () {
+      expect(MascaraTelefoneWhatsapp.paraSalvar('+55 (11) 99999-8888'), '+5511999998888');
+      expect(MascaraTelefoneWhatsapp.paraSalvar('+55 (11) 3333-4444'), '+551133334444');
+      expect(MascaraTelefoneWhatsapp.paraSalvar(MascaraTelefoneWhatsapp.mascaraVazia), '');
+    });
+
+    test('aplicarEm reconstroi a mascara de um numero ja salvo', () {
+      expect(MascaraTelefoneWhatsapp.aplicarEm('+5511999998888'), '+55 (11) 99999-8888');
+      expect(MascaraTelefoneWhatsapp.aplicarEm('+551133334444'), '+55 (11) 3333-4444');
+      expect(MascaraTelefoneWhatsapp.aplicarEm(''), '+55 ');
     });
   });
 }

@@ -64,7 +64,8 @@ class AuthViewModel {
   /// Nao ha teste de ponta a ponta pra esse metodo (assim como cadastrar/
   /// login/excluirConta): ele depende do Firebase Auth/Firestore reais, que
   /// nao estao disponiveis neste ambiente de desenvolvimento. A validacao do
-  /// nickname/telefone em si (validarNickname/validarTelefoneWhatsapp) e
+  /// nickname/telefone em si (ValidacaoCadastro.validarNickname e
+  /// validarTelefoneWhatsapp) e
   /// testada isoladamente.
   Future<String?> atualizarPerfil({
     required String nicknameAtual,
@@ -194,14 +195,6 @@ String? mapearErroLoginGoogle(Object erro) {
     return traduzirErroDeAuth(erro.code);
   }
   return 'Não foi possível entrar com o Google. Tente novamente.';
-}
-
-/// Valida o nickname informado na edicao de perfil.
-/// Retorna null se valido, ou uma mensagem de erro.
-String? validarNickname(String nickname) {
-  if (nickname.trim().isEmpty) return 'Preencha o nickname.';
-  if (nickname.contains('@')) return 'O nickname não pode conter @.';
-  return null;
 }
 
 /// Valida o numero de WhatsApp opcional informado no cadastro, ja formatado
