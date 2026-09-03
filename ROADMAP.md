@@ -1066,3 +1066,58 @@ Testado: `GateDeConta` isolado (usuário nulo/ativo/banido/suspenso dentro e
 fora do prazo, conteúdo continua montado por baixo, botão "Sair" chama o
 callback). `ContaGate` em si (a parte com Firebase/navegação) não tem teste
 de ponta a ponta, mesma limitação de sempre neste ambiente.
+
+# Correções na aba Usuários do Painel ADM (03/set/2026)
+
+## Foto de perfil na lista
+
+Cada card da lista de usuários passou a mostrar o avatar da pessoa, e o
+modal de "Ver perfil" também — antes ele só listava os campos de texto,
+sem foto nenhuma.
+
+Para não repetir em cada tela o encadeamento de três casos (**preset
+escolhido > `fotoUrl` > avatar padrão**, ver `chavePresetParaExibir`), isso
+virou o componente `lib/components/AvatarUsuario.dart`.
+
+## A foto do login com Google não aparecia
+
+Duas causas somadas:
+
+1. **O modal "Ver perfil" não tinha avatar nenhum** — nem pra quem entrou
+   com Google, nem pra quem subiu foto própria. Resolvido junto do item
+   acima.
+2. **Na Web, `Image.network` cru falhava pra `lh3.googleusercontent.com`** —
+   exatamente a mesma causa raiz das miniaturas de vídeo (31/ago): o Flutter
+   baixa os bytes por XHR e decodifica, caminho que depende de CORS. O
+   `FotoPerfilRede` ganhou `webHtmlElementStrategy:
+   WebHtmlElementStrategy.fallback`, que monta um `<img>` de verdade quando
+   o download falha. Isso conserta o avatar do Google em **todas** as telas
+   (Perfil, Editar perfil e o Painel), não só no painel.
+
+Terceiro ponto, menos visível: `_sincronizarUsuarioNoFirestore` só gravava
+`fotoUrl` quando a conta era **nova**. Quem se cadastrou por e-mail/senha e
+só depois entrou pelo Google ficava sem foto pra sempre, porque o ramo de
+conta existente só tocava o `ultimoAcesso`. Agora ele preenche a `fotoUrl`
+do provedor quando a conta está sem foto **e** sem preset — foto própria já
+enviada e preset escolhido continuam intocados.
+
+## Ícones no menu de 3 pontinhos
+
+Cada opção ganhou ícone à esquerda: pessoa (Ver perfil), pause (Suspender),
+bloqueio em vermelho (Banir), check (Reativar) e balão (Mensagem privada).
+"Enviar mensagem privada" virou "Mensagem privada": com o ícone ocupando
+espaço, o rótulo antigo estourava a largura máxima do menu — o teste novo
+pegou isso.
+
+## Testes
+
+- `avatar_usuario_test.dart`: prioridade preset > foto > padrão, e o
+  `FotoPerfilRede` pedindo o fallback pra `<img>` na Web.
+- `painel_admin_test.dart`: ganhou um `FakeAdminRepository` (o `PainelAdmin`
+  já aceitava o repositório injetado, então dá pra testar a aba Usuários sem
+  Firestore) — card com avatar, ícones no menu, troca de suspender/banir por
+  reativar em conta já moderada, e a foto no "Ver perfil".
+- **Não testado de ponta a ponta**: o login social em si (Google/Apple
+  precisam de plugin nativo e conta real). O backfill da `fotoUrl` no login
+  precisa ser conferido entrando com uma conta que tenha se cadastrado por
+  e-mail/senha antes.

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
+import 'package:ptk_plays/components/AvatarUsuario.dart';
 import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/components/Toast.dart';
@@ -202,6 +203,8 @@ class _LinhaUsuario extends StatelessWidget {
       isDark: isDark,
       child: Row(
         children: [
+          AvatarUsuario(usuario: usuario),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,14 +242,46 @@ class _LinhaUsuario extends StatelessWidget {
             icon: Icon(Icons.more_vert, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
             onSelected: (opcao) => _executar(context, opcao),
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'perfil', child: Text('Ver perfil')),
+              _itemDoMenu(valor: 'perfil', icone: Icons.person_outline, label: 'Ver perfil'),
               if (usuario.estadoModeracao == 'ativo') ...[
-                const PopupMenuItem(value: 'suspender', child: Text('Suspender por 7 dias')),
-                const PopupMenuItem(value: 'banir', child: Text('Banir')),
+                _itemDoMenu(valor: 'suspender', icone: Icons.pause_circle_outline, label: 'Suspender por 7 dias'),
+                _itemDoMenu(valor: 'banir', icone: Icons.block, label: 'Banir', cor: const Color(0xFFE0264F)),
               ] else
-                const PopupMenuItem(value: 'reativar', child: Text('Reativar conta')),
-              const PopupMenuItem(value: 'mensagem', child: Text('Enviar mensagem privada')),
+                _itemDoMenu(valor: 'reativar', icone: Icons.check_circle_outline, label: 'Reativar conta'),
+              _itemDoMenu(valor: 'mensagem', icone: Icons.chat_bubble_outline, label: 'Mensagem privada'),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Item do menu de 3 pontinhos com o icone a esquerda do texto. Banir usa
+  /// a cor de acao destrutiva do app pra nao ser confundido com as opcoes
+  /// inofensivas da mesma lista.
+  PopupMenuItem<String> _itemDoMenu({
+    required String valor,
+    required IconData icone,
+    required String label,
+    Color? cor,
+  }) {
+    final corDoItem = cor ?? (isDark ? AuthTheme.titleDark : AuthTheme.titleLight);
+
+    return PopupMenuItem(
+      value: valor,
+      child: Row(
+        children: [
+          Icon(icone, size: 20, color: corDoItem),
+          const SizedBox(width: 12),
+          // Flexible + ellipsis porque o menu do PopupMenuButton tem largura
+          // maxima: com o icone ocupando espaco, o rotulo mais longo passava
+          // dela e estourava a linha.
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(color: corDoItem),
+            ),
           ),
         ],
       ),
@@ -305,15 +340,24 @@ class _LinhaUsuario extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              usuario.nickname,
-              style: GoogleFonts.outfit(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
-              ),
+            Row(
+              children: [
+                AvatarUsuario(usuario: usuario, tamanho: 56),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    usuario.nickname,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             _linha('E-mail', usuario.email),
             _linha('Cargo', usuario.cargo),
             _linha('Status', usuario.status),

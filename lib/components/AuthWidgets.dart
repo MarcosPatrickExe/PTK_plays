@@ -234,10 +234,19 @@ class CampoTexto extends StatelessWidget {
 }
 
 /// Image.network com feedback de carregamento (spinner) e de erro (icone de
-/// pessoa), usado nas fotos de perfil (Profile.dart, EditarPerfil.dart).
-/// Sem isso, uma foto que ainda esta carregando ou que falha em carregar
-/// (ex: bucket do Firebase Storage sem CORS liberado pra Web) fica um
-/// circulo em branco, sem nenhuma pista do que aconteceu.
+/// pessoa), usado nas fotos de perfil (Profile.dart, EditarPerfil.dart,
+/// AvatarUsuario.dart). Sem isso, uma foto que ainda esta carregando ou que
+/// falha em carregar (ex: bucket do Firebase Storage sem CORS liberado pra
+/// Web) fica um circulo em branco, sem nenhuma pista do que aconteceu.
+///
+/// **Por que `webHtmlElementStrategy`**: na Web o Flutter baixa os bytes da
+/// imagem por XHR e decodifica, caminho que depende de CORS. A foto que vem
+/// do login com Google (`lh3.googleusercontent.com`) falha por ai e o
+/// avatar sumia, mesmo com a URL correta e aberta numa aba do navegador —
+/// mesma causa raiz das miniaturas de video (ver `ImagemRede`). Com
+/// `fallback`, quando o download de bytes falha o Flutter monta um `<img>`
+/// de verdade, que nao passa por CORS. Em Android/iOS o parametro e
+/// ignorado.
 class FotoPerfilRede extends StatelessWidget {
   final String url;
   final double iconeErroSize;
@@ -248,6 +257,7 @@ class FotoPerfilRede extends StatelessWidget {
     return Image.network(
       url,
       fit: BoxFit.cover,
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
       loadingBuilder: (context, child, progresso) {
         if (progresso == null) return child;
         return const Center(

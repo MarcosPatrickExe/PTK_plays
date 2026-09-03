@@ -197,8 +197,22 @@ class AuthRepository {
       );
       await _firestore.collection('users').doc(user.uid).set(novoUsuario.toFirestore());
     } else {
+      // Conta que ja existia: so toca o ultimoAcesso, MENOS quando ela esta
+      // sem foto nenhuma e o provedor social traz uma. E o caso de quem se
+      // cadastrou por email/senha e so depois entrou pelo Google/Apple — o
+      // avatar do provedor nunca chegava ao Firestore porque este ramo so
+      // era escrito com o ultimoAcesso. Foto propria ja enviada e preset
+      // escolhido continuam intocados: a condicao exige os dois vazios.
+      final dados = doc.data() ?? {};
+      final semFotoPropria = (dados['fotoUrl'] as String? ?? '').isEmpty;
+      final semPreset = (dados['avatarPreset'] as String? ?? '').isEmpty;
+      final fotoDoProvedor = user.photoURL ?? '';
+
       await _firestore.collection('users').doc(user.uid).set(
-        UserModel.touchUltimoAcesso(),
+        {
+          if (semFotoPropria && semPreset && fotoDoProvedor.isNotEmpty) 'fotoUrl': fotoDoProvedor,
+          ...UserModel.touchUltimoAcesso(),
+        },
         SetOptions(merge: true),
       );
     }
