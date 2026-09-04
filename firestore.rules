@@ -114,7 +114,10 @@ service cloud.firestore {
              .hasOnly(['estadoModeracao', 'suspensoAte', 'motivoModeracao'])
         && request.resource.data.estadoModeracao in ['ativo', 'suspenso', 'banido'];
 
-      allow delete: if ehDono(userId);
+      // O dono apaga a propria conta (Configuracoes > excluir conta); o
+      // admin apaga a de qualquer um pelo Painel ADM, junto com os posts
+      // dela (ver AdminRepository.removerUsuario).
+      allow delete: if ehDono(userId) || ehAdmin();
     }
 
     // Mapeia nickname (em minusculo) -> email/uid, pra permitir login com
@@ -130,7 +133,10 @@ service cloud.firestore {
       allow update: if estaLogado()
         && request.auth.uid == resource.data.uid
         && request.auth.uid == request.resource.data.uid;
-      allow delete: if false;
+      // So o admin, e so pela remocao em cascata de uma conta: sem isso o
+      // nickname ficaria reservado pra sempre a uma conta que nao existe
+      // mais, e ninguem poderia usa-lo de novo.
+      allow delete: if ehAdmin();
     }
 
     // Feed (Home) e aba "Posts" do Painel ADM. Qualquer usuario logado
