@@ -15,6 +15,10 @@ class AuthViewModel {
   bool get usuarioLogado => _repository.usuarioAtual != null;
   String? get uidAtual => _repository.usuarioAtual?.uid;
 
+  /// Nome que veio do provedor social, usado pra sugerir o nick no cadastro
+  /// de quem entrou pelo Google/Apple — melhor que abrir o campo em branco.
+  String? get nomeDoProvedor => _repository.usuarioAtual?.displayName;
+
   /// Se a conta logada tem senha (email/senha), em vez de so login social
   /// (Google/Apple) — usado pra so mostrar a secao de trocar senha em
   /// EditarPerfil quando o usuario realmente tem uma senha pra trocar.
@@ -34,27 +38,28 @@ class AuthViewModel {
 
   Future<void> logout() => _repository.logout();
 
-  /// Retorna null em caso de sucesso (ou cancelamento pelo usuario),
-  /// ou uma mensagem de erro traduzida.
-  Future<String?> loginComGoogle() async {
+  /// [erro] vem null em caso de sucesso (ou de cancelamento pelo usuario),
+  /// ou com a mensagem traduzida. [contaNova] diz se a conta acabou de ser
+  /// criada — nesse caso o Login manda a pessoa completar o cadastro (nick,
+  /// foto e WhatsApp) em vez de ir direto pro feed.
+  Future<({String? erro, bool contaNova})> loginComGoogle() async {
     try {
-      await _repository.loginComGoogle();
-      return null;
+      final contaNova = await _repository.loginComGoogle();
+      return (erro: null, contaNova: contaNova);
     } catch (e, stack) {
       debugPrint('loginComGoogle falhou: $e\n$stack');
-      return mapearErroLoginGoogle(e);
+      return (erro: mapearErroLoginGoogle(e), contaNova: false);
     }
   }
 
-  /// Retorna null em caso de sucesso (ou cancelamento pelo usuario),
-  /// ou uma mensagem de erro traduzida.
-  Future<String?> loginComApple() async {
+  /// Ver [loginComGoogle] sobre o retorno.
+  Future<({String? erro, bool contaNova})> loginComApple() async {
     try {
-      await _repository.loginComApple();
-      return null;
+      final contaNova = await _repository.loginComApple();
+      return (erro: null, contaNova: contaNova);
     } catch (e, stack) {
       debugPrint('loginComApple falhou: $e\n$stack');
-      return mapearErroLoginApple(e);
+      return (erro: mapearErroLoginApple(e), contaNova: false);
     }
   }
 

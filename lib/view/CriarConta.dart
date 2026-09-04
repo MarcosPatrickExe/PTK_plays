@@ -45,7 +45,12 @@ String? assetDaEtapa(EtapaCadastro etapa) {
       return 'assets/ptk/ptk_email.jpg';
     case EtapaCadastro.senha:
       return 'assets/ptk/ptk_senha.jpg';
-    default:
+    case EtapaCadastro.foto:
+      return 'assets/ptk/ptk_foto.jpg';
+    case EtapaCadastro.whatsapp:
+      return 'assets/ptk/ptk_whatsapp.jpg';
+    // Boas-vindas ainda nao tem arte propria: cai no gradiente do app.
+    case EtapaCadastro.boasVindas:
       return null;
   }
 }

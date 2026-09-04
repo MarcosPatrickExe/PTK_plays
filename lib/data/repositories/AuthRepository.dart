@@ -137,7 +137,10 @@ class AuthRepository {
     _googleSignInInicializado = true;
   }
 
-  Future<void> loginComGoogle() async {
+  /// Retorna true quando a conta acabou de ser criada — e o que o Login usa
+  /// pra mandar a pessoa completar o cadastro (nick, foto e WhatsApp) em vez
+  /// de cair direto no feed.
+  Future<bool> loginComGoogle() async {
     UserCredential credential;
 
     if (kIsWeb) {
@@ -150,13 +153,14 @@ class AuthRepository {
       credential = await _auth.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
     }
 
-    await _sincronizarUsuarioNoFirestore(credential.user!);
+    return _sincronizarUsuarioNoFirestore(credential.user!);
   }
 
   /// Fluxo exigido pela Apple (guideline 4.8) como alternativa equivalente
   /// ao Google Sign-In. So funciona em iOS/macOS: nao ha configuracao de
   /// Service ID/return URL feita pro fluxo web do pacote em Android/Web.
-  Future<void> loginComApple() async {
+  /// Ver [loginComGoogle] sobre o retorno.
+  Future<bool> loginComApple() async {
     final rawNonce = _gerarNonce();
     final nonce = _sha256DoNonce(rawNonce);
 
@@ -182,10 +186,12 @@ class AuthRepository {
       if (nomeCompleto.isNotEmpty) await user.updateDisplayName(nomeCompleto);
     }
 
-    await _sincronizarUsuarioNoFirestore(user, nicknameSugerido: appleCredential.givenName);
+    return _sincronizarUsuarioNoFirestore(user, nicknameSugerido: appleCredential.givenName);
   }
 
-  Future<void> _sincronizarUsuarioNoFirestore(User user, {String? nicknameSugerido}) async {
+  /// Cria o documento do usuario no primeiro login social, ou so atualiza o
+  /// ultimo acesso nos seguintes. Retorna true quando acabou de criar.
+  Future<bool> _sincronizarUsuarioNoFirestore(User user, {String? nicknameSugerido}) async {
     final doc = await _firestore.collection('users').doc(user.uid).get();
 
     if (!doc.exists) {
@@ -196,6 +202,7 @@ class AuthRepository {
         fotoUrl: user.photoURL ?? '',
       );
       await _firestore.collection('users').doc(user.uid).set(novoUsuario.toFirestore());
+      return true;
     } else {
       // Conta que ja existia: so toca o ultimoAcesso, MENOS quando ela esta
       // sem foto nenhuma e o provedor social traz uma. E o caso de quem se
@@ -215,6 +222,7 @@ class AuthRepository {
         },
         SetOptions(merge: true),
       );
+      return false;
     }
   }
 

@@ -88,36 +88,26 @@ class _LoginState extends State<Login> {
 
   Future<void> _entrarComGoogle() async {
     setState(() => _carregando = true);
-
-    final erro = await widget.authViewModel.loginComGoogle();
-
-    if (!mounted) return;
-    setState(() => _carregando = false);
-
-    if (erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erro);
-      return;
-    }
-
-    if (!widget.authViewModel.usuarioLogado) return; // usuario cancelou o fluxo
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
-      ),
-    );
+    final resultado = await widget.authViewModel.loginComGoogle();
+    _depoisDoLoginSocial(resultado);
   }
 
   Future<void> _entrarComApple() async {
     setState(() => _carregando = true);
+    final resultado = await widget.authViewModel.loginComApple();
+    _depoisDoLoginSocial(resultado);
+  }
 
-    final erro = await widget.authViewModel.loginComApple();
-
+  /// Conta que acabou de nascer pelo Google/Apple ainda não tem nick
+  /// escolhido, foto nem WhatsApp — o provedor só resolveu e-mail e senha.
+  /// Por isso ela vai pro cadastro em etapas (sem as telas de e-mail e
+  /// senha, que já estão resolvidas), e não direto pro feed.
+  void _depoisDoLoginSocial(({String? erro, bool contaNova}) resultado) {
     if (!mounted) return;
     setState(() => _carregando = false);
 
-    if (erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erro);
+    if (resultado.erro != null) {
+      mostrarErroCustom(context, title: "Ops!", msg: resultado.erro!);
       return;
     }
 
@@ -125,7 +115,15 @@ class _LoginState extends State<Login> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
+        builder: (context) => resultado.contaNova
+            ? CriarConta(
+                viewmodelYT: widget.viewmodelYT,
+                apiKey: widget.apiKey,
+                authViewModel: widget.authViewModel,
+                contaSocial: true,
+                nicknameSugerido: widget.authViewModel.nomeDoProvedor,
+              )
+            : HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
       ),
     );
   }

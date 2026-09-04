@@ -1131,14 +1131,14 @@ fluxo de uma pergunta por tela, com a arte do PTK ao fundo mudando junto.
 
 `etapasDoCadastro(contaSocial:)` decide quais telas existem:
 
-| Etapa       | Cadastro manual | Google/Apple | Arte do PTK          |
-| ----------- | :-------------: | :----------: | -------------------- |
-| Boas-vindas |       sim       |     sim      | *(falta)*            |
-| Nick        |       sim       |     sim      | `ptk_nickname.jpg`   |
-| E-mail      |       sim       |     não      | `ptk_email.jpg`      |
-| Senha       |       sim       |     não      | `ptk_senha.jpg`      |
-| Foto        |       sim       |     sim      | *(falta)*            |
-| WhatsApp    |       sim       |     sim      | *(falta)*            |
+| Etapa       | Cadastro manual | Google/Apple | Arte do PTK        |
+| ----------- | :-------------: | :----------: | ------------------ |
+| Boas-vindas |       sim       |     sim      | *(falta)*          |
+| Nick        |       sim       |     sim      | `ptk_nickname.jpg` |
+| E-mail      |       sim       |     não      | `ptk_email.jpg`    |
+| Senha       |       sim       |     não      | `ptk_senha.jpg`    |
+| Foto        |       sim       |     sim      | `ptk_foto.jpg`     |
+| WhatsApp    |       sim       |     sim      | `ptk_whatsapp.jpg` |
 
 E-mail e senha somem no fluxo social porque o provedor já resolveu os dois
 — pedir de novo seria criar uma segunda senha pra mesma conta.
@@ -1159,10 +1159,10 @@ E-mail e senha somem no fluxo social porque o provedor já resolveu os dois
 - **A arte muda com cross-fade + deslize** (`FundoPTK`), não com corte seco:
   são todas do mesmo personagem no mesmo cenário, e o corte seco leria como
   glitch.
-- **Etapa sem arte definida cai no gradiente do app**, sem quebrar — é o
-  caso de boas-vindas, foto e WhatsApp, cujas artes ainda não chegaram.
+- **Etapa sem arte definida cai no gradiente do app**, sem quebrar — hoje
+  só as boas-vindas, cuja arte ainda não chegou.
 - As artes vieram em PNG de ~1,7 MB cada. Convertidas pra JPEG de largura
-  1080: **4,8 MB → 440 KB no total**, sem perda visível (o original já era
+  1080: **8,4 MB → 775 KB nas cinco**, sem perda visível (o original já era
   941px de largura). Fundo de tela em PNG sem transparência é desperdício,
   ainda mais na Web.
 
@@ -1196,15 +1196,23 @@ nome pro mesmo campo era pedir pra divergirem.
   + Firestore + Storage) e a câmera — dependem de infraestrutura e hardware
   que não existem neste ambiente.
 
+## Login social cai no cadastro quando a conta é nova
+
+`AuthRepository.loginComGoogle`/`loginComApple` passaram a devolver **se a
+conta acabou de ser criada** (o `_sincronizarUsuarioNoFirestore` já sabia
+disso pelo `doc.exists`; só não contava pra ninguém). O `AuthViewModel`
+propaga isso num record `({erro, contaNova})`, e o `Login` usa pra decidir
+o destino: conta nova vai pro cadastro em etapas com `contaSocial: true`
+(sem as telas de e-mail e senha, que o provedor já resolveu), conta que já
+existia vai direto pro feed.
+
+O nick já vem sugerido com o nome da conta Google/Apple
+(`AuthViewModel.nomeDoProvedor`) — melhor que abrir o campo em branco.
+
 ## Pendências deste fluxo
 
-- **Faltam 3 artes do PTK**: boas-vindas, foto e WhatsApp. Basta soltar os
-  arquivos em `assets/ptk/` e apontar em `assetDaEtapa`.
-- **Ligar o fluxo social**: hoje `CriarConta` já aceita `contaSocial: true`
-  e `nicknameSugerido`, mas o Login ainda não redireciona pra cá depois de
-  um Google/Apple de conta nova. Falta o `loginComGoogle`/`loginComApple`
-  informarem se a conta é nova (o `_sincronizarUsuarioNoFirestore` já sabe,
-  pelo `doc.exists`).
+- **Falta a arte de boas-vindas**. Basta soltar o arquivo em `assets/ptk/`
+  e apontar em `assetDaEtapa`.
 - **`Cadastro.dart` (a tela antiga) ficou só pro harness de screenshots**
   (`main_screenshots.dart`). Remover quando o fluxo novo estiver validado
   em produção.

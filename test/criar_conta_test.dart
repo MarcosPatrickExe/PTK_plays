@@ -49,13 +49,14 @@ class FakeYoutubeViewModel implements YoutubeViewModel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _tela({bool contaSocial = false}) {
+Widget _tela({bool contaSocial = false, String? nicknameSugerido}) {
   return MaterialApp(
     home: CriarConta(
       viewmodelYT: FakeYoutubeViewModel(),
       apiKey: 'chave-de-teste',
       authViewModel: FakeAuthViewModel(),
       contaSocial: contaSocial,
+      nicknameSugerido: nicknameSugerido,
     ),
   );
 }
@@ -97,12 +98,12 @@ void main() {
       expect(assetDaEtapa(EtapaCadastro.nickname), 'assets/ptk/ptk_nickname.jpg');
       expect(assetDaEtapa(EtapaCadastro.email), 'assets/ptk/ptk_email.jpg');
       expect(assetDaEtapa(EtapaCadastro.senha), 'assets/ptk/ptk_senha.jpg');
+      expect(assetDaEtapa(EtapaCadastro.foto), 'assets/ptk/ptk_foto.jpg');
+      expect(assetDaEtapa(EtapaCadastro.whatsapp), 'assets/ptk/ptk_whatsapp.jpg');
     });
 
-    test('etapa sem arte ainda não quebra — cai no gradiente do app', () {
+    test('boas-vindas ainda não tem arte, e isso não quebra a tela', () {
       expect(assetDaEtapa(EtapaCadastro.boasVindas), isNull);
-      expect(assetDaEtapa(EtapaCadastro.foto), isNull);
-      expect(assetDaEtapa(EtapaCadastro.whatsapp), isNull);
     });
   });
 
@@ -191,6 +192,17 @@ void main() {
 
       expect(find.text('Como a gente te chama?'), findsOneWidget);
       expect(find.text('PTKzin'), findsOneWidget);
+    });
+
+    testWidgets('nick vem preenchido com o nome da conta Google/Apple', (tester) async {
+      await tester.pumpWidget(_tela(contaSocial: true, nicknameSugerido: 'Marcos Patrick'));
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Marcos Patrick'), findsOneWidget);
+      // Já vindo válido, a etapa libera sem a pessoa digitar nada.
+      await _tocarEmAvancar(tester);
+      expect(find.text('Sua foto de perfil'), findsOneWidget);
     });
 
     testWidgets('conta social vai do nick direto pra foto', (tester) async {
