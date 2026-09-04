@@ -248,15 +248,16 @@ class _CriarContaState extends State<CriarConta> {
 
   @override
   Widget build(BuildContext context) {
-    final onda = ondaDaEtapa(_indice);
-    final altura = MediaQuery.sizeOf(context).height;
     final tecladoAberto = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final onda = ondaDaEtapa(_indice, tecladoAberto: tecladoAberto);
+    final altura = MediaQuery.sizeOf(context).height;
 
-    // Quanto da tela a arte ocupa antes de a onda começar. Com o teclado
-    // aberto sobra pouca altura, então a arte encolhe pela metade pra o
-    // formulário continuar caber — a onda acompanha, porque é o mesmo
-    // número que desenha as duas coisas.
-    final espacoDaArte = altura * onda.topoMaisAlto * (tecladoAberto ? .5 : 1);
+    // Onde o formulário começa. Sai do ponto mais BAIXO da curva (é dali
+    // pra baixo que a faixa branca existe em toda a largura) mais uma
+    // folga, pra o texto não nascer colado nela. Enquanto a pessoa digita
+    // a onda já subiu quase até o topo, então a folga diminui — ali o que
+    // importa é caber, não respirar.
+    final topoDoFormulario = altura * onda.topoDoConteudo(fracaoDeFolga: tecladoAberto ? .06 : .2);
 
     // Esta tela não tem botão de trocar tema, de propósito: é a única do
     // app com identidade visual própria (arte + onda branca), e o
@@ -267,13 +268,15 @@ class _CriarContaState extends State<CriarConta> {
         children: [
           FundoPTK(asset: assetDaEtapa(_etapaAtual), onda: onda),
 
-          // O formulário ocupa a parte branca, abaixo da onda. Anima junto
-          // com ela (mesma duração) pra não pular de posição enquanto a
-          // curva ainda está escorrendo pro novo desenho.
+          // O formulário ocupa a parte branca, abaixo da onda. O `bottom: 0`
+          // já respeita o teclado, porque o Scaffold encolhe o corpo — é o
+          // que mantém os campos visíveis com o teclado aberto.
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 520),
-            curve: Curves.easeInOut,
-            top: espacoDaArte,
+            // Mesma duração e curva da onda: o formulário sobe junto com o
+            // "líquido", em vez de saltar pro lugar antes dela chegar.
+            duration: const Duration(milliseconds: 480),
+            curve: Curves.easeOutCubic,
+            top: topoDoFormulario,
             left: 0,
             right: 0,
             bottom: 0,
@@ -299,15 +302,20 @@ class _CriarContaState extends State<CriarConta> {
           ),
 
           // As bolinhas ficam sobre a arte, no alto: ali elas não roubam
-          // espaço do formulário, e a arte é escura o bastante pro branco
-          // aparecer.
+          // espaço do formulário. Com o teclado aberto a onda cobre esse
+          // pedaço, então elas trocam pro tom escuro — brancas sobre branco
+          // sumiriam.
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
               bottom: false,
-              child: _IndicadorDeEtapas(total: _etapas.length, atual: _indice),
+              child: _IndicadorDeEtapas(
+                total: _etapas.length,
+                atual: _indice,
+                sobreFundoClaro: tecladoAberto,
+              ),
             ),
           ),
         ],
@@ -628,7 +636,15 @@ class _IndicadorDeEtapas extends StatelessWidget {
   final int total;
   final int atual;
 
-  const _IndicadorDeEtapas({required this.total, required this.atual});
+  /// true quando a onda já cobriu o topo (teclado aberto): aí as bolinhas
+  /// apagadas precisam ser escuras, senão somem no branco.
+  final bool sobreFundoClaro;
+
+  const _IndicadorDeEtapas({
+    required this.total,
+    required this.atual,
+    this.sobreFundoClaro = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -644,7 +660,9 @@ class _IndicadorDeEtapas extends StatelessWidget {
             width: indice == atual ? 22 : 8,
             height: 8,
             decoration: BoxDecoration(
-              color: ativo ? const Color(0xFFC33BE8) : Colors.white24,
+              color: ativo
+                  ? const Color(0xFFC33BE8)
+                  : (sobreFundoClaro ? const Color(0x332D1B4E) : Colors.white24),
               borderRadius: BorderRadius.circular(4),
             ),
           );
