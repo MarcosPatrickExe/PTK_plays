@@ -269,16 +269,28 @@ class _CriarContaState extends State<CriarConta> {
         builder: (context, restricoes) {
           final altura = restricoes.maxHeight;
 
-          // Onde o formulário começa. Sai do ponto mais BAIXO da curva (é
-          // dali pra baixo que a faixa branca existe em toda a largura) mais
-          // uma folga, pra o texto não nascer colado nela. Enquanto a pessoa
-          // digita, a folga diminui — ali o que importa é caber, não
-          // respirar.
-          final topoDoFormulario = altura * onda.topoDoConteudo(fracaoDeFolga: tecladoAberto ? .06 : .2);
+          // O texto começa logo abaixo do **cume** da onda (a metade mais
+          // alta da curva), encostado naquele lado — um bloco que não ocupa
+          // a largura toda não precisa esperar a curva descer do outro
+          // lado. É o que tira o vazio que sobrava entre a onda e o título.
+          final topoDoTexto = altura * onda.topoDoTexto(fracaoDeFolga: tecladoAberto ? .03 : .04);
+
+          // Já os campos têm largura cheia, então precisam esperar a curva
+          // inteira passar. A distância entre um e outro vira a altura
+          // mínima do cabeçalho, pra um título curto não deixar os campos
+          // subirem pra cima da curva.
+          final topoDosCampos = altura * onda.topoDoConteudo(fracaoDeFolga: tecladoAberto ? .06 : .12);
 
           return Stack(
             children: [
-              FundoPTK(asset: assetDaEtapa(_etapaAtual), onda: onda),
+              FundoPTK(
+                asset: assetDaEtapa(_etapaAtual),
+                onda: onda,
+                // A etapa de boas-vindas não tem arte do PTK: no lugar dela
+                // vai a logo do canal, que é o que a pessoa reconhece antes
+                // mesmo de ler o texto.
+                logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/login_logo.png' : null,
+              ),
 
               // O formulário ocupa a parte branca, abaixo da onda. O `bottom: 0`
               // já respeita o teclado, porque o Scaffold encolhe o corpo — é o
@@ -288,7 +300,7 @@ class _CriarContaState extends State<CriarConta> {
                 // "líquido", em vez de saltar pro lugar antes dela chegar.
                 duration: const Duration(milliseconds: 480),
                 curve: Curves.easeOutCubic,
-                top: topoDoFormulario,
+                top: topoDoTexto,
                 left: 0,
                 right: 0,
                 bottom: 0,
@@ -303,7 +315,16 @@ class _CriarContaState extends State<CriarConta> {
                             // A navegação é só pelos botões: arrastar pularia a
                             // checagem que impede avançar com a etapa incompleta.
                             physics: const NeverScrollableScrollPhysics(),
-                            children: _etapas.map(_conteudoDaEtapa).toList(),
+                            children: _etapas
+                                .map(
+                                  (etapa) => _conteudoDaEtapa(
+                                    etapa,
+                                    onda: onda,
+                                    tecladoAberto: tecladoAberto,
+                                    alturaDoCabecalho: topoDosCampos - topoDoTexto,
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
                         _barraDeBotoes(),
@@ -337,13 +358,28 @@ class _CriarContaState extends State<CriarConta> {
     );
   }
 
-  Widget _conteudoDaEtapa(EtapaCadastro etapa) {
+  Widget _conteudoDaEtapa(
+    EtapaCadastro etapa, {
+    required FormaDaOnda onda,
+    required bool tecladoAberto,
+    required double alturaDoCabecalho,
+  }) {
+    // Repassado a toda etapa: é o que faz o texto se encostar no lado do
+    // cume, o subtítulo sumir enquanto a pessoa digita, e os campos
+    // começarem sempre abaixo da curva inteira.
+    final estilo = _EstiloDaEtapa(
+      cumeEhAEsquerda: onda.cumeEhAEsquerda,
+      tecladoAberto: tecladoAberto,
+      alturaDoCabecalho: alturaDoCabecalho,
+    );
+
     switch (etapa) {
       case EtapaCadastro.boasVindas:
-        return const _EtapaBoasVindas();
+        return _EtapaBoasVindas(estilo: estilo);
 
       case EtapaCadastro.nickname:
         return _Etapa(
+          estilo: estilo,
           titulo: 'Como a gente te chama?',
           subtitulo: 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.',
           campos: [
@@ -360,6 +396,7 @@ class _CriarContaState extends State<CriarConta> {
 
       case EtapaCadastro.email:
         return _Etapa(
+          estilo: estilo,
           titulo: 'Qual é o seu e-mail?',
           subtitulo: 'É por ele que você entra na conta e recupera a senha se esquecer.',
           campos: [
@@ -384,6 +421,7 @@ class _CriarContaState extends State<CriarConta> {
 
       case EtapaCadastro.senha:
         return _Etapa(
+          estilo: estilo,
           titulo: 'Agora crie uma senha',
           subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Guarde bem — ela é sua chave de entrada.',
           campos: [
@@ -408,6 +446,7 @@ class _CriarContaState extends State<CriarConta> {
 
       case EtapaCadastro.foto:
         return _EtapaFoto(
+          estilo: estilo,
           avatarPreset: _avatarPreset,
           fotoPropria: _fotoPropria,
           escolhendo: _escolhendoFoto,
@@ -421,6 +460,7 @@ class _CriarContaState extends State<CriarConta> {
 
       case EtapaCadastro.whatsapp:
         return _Etapa(
+          estilo: estilo,
           titulo: 'Seu WhatsApp',
           subtitulo: 'Serve pra avisos do canal e pra recuperar sua conta. Aceita celular ou fixo.',
           campos: [
@@ -465,53 +505,133 @@ class _CriarContaState extends State<CriarConta> {
   }
 }
 
+/// O que a onda e o teclado ditam pro conteúdo de cada etapa.
+class _EstiloDaEtapa {
+  /// De que lado a onda subiu mais. O cabeçalho se encosta nesse lado, que
+  /// é onde sobra espaço livre logo abaixo da curva.
+  final bool cumeEhAEsquerda;
+
+  final bool tecladoAberto;
+
+  /// Altura reservada pro cabeçalho, medida entre o topo do texto e o
+  /// ponto em que os campos podem começar. Garante que um título curto não
+  /// deixe os campos subirem pra cima da curva.
+  final double alturaDoCabecalho;
+
+  const _EstiloDaEtapa({
+    required this.cumeEhAEsquerda,
+    required this.tecladoAberto,
+    required this.alturaDoCabecalho,
+  });
+
+  Alignment get alinhamento => cumeEhAEsquerda ? Alignment.centerLeft : Alignment.centerRight;
+  TextAlign get alinhamentoDoTexto => cumeEhAEsquerda ? TextAlign.left : TextAlign.right;
+  CrossAxisAlignment get colunaDoTexto => cumeEhAEsquerda ? CrossAxisAlignment.start : CrossAxisAlignment.end;
+}
+
 /// Primeira tela: só a apresentação da comunidade, sem nada pra preencher.
 class _EtapaBoasVindas extends StatelessWidget {
-  const _EtapaBoasVindas();
+  final _EstiloDaEtapa estilo;
+
+  const _EtapaBoasVindas({required this.estilo});
 
   @override
   Widget build(BuildContext context) {
-    return const _Etapa(
+    return _Etapa(
+      estilo: estilo,
       titulo: 'Bem-vindo(a) à\ncomunidade PTK Plays!',
       subtitulo:
           'Aqui você acompanha de perto tudo o que rola no canal: avisos de live, '
           'os vídeos novos e as enquetes do PTK — e ainda fala com a galera no feed.\n\n'
           'São só alguns passos pra criar sua conta. Bora?',
-      campos: [],
+      campos: const [],
     );
   }
 }
 
-/// Molde comum das etapas: título, subtítulo e os campos daquela pergunta.
+/// Cabeçalho da etapa: título sempre, subtítulo só quando o teclado está
+/// fechado. Encostado no lado do cume da onda, ocupando parte da largura —
+/// é assim que ele consegue subir até quase a curva.
+class _CabecalhoDaEtapa extends StatelessWidget {
+  final _EstiloDaEtapa estilo;
+  final String titulo;
+  final String subtitulo;
+
+  const _CabecalhoDaEtapa({required this.estilo, required this.titulo, required this.subtitulo});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: estilo.alturaDoCabecalho.clamp(0, 400)),
+      child: Align(
+        alignment: estilo.alinhamento,
+        child: FractionallySizedBox(
+          // Não ocupa a largura toda de propósito: é o que permite o texto
+          // subir até o cume sem esbarrar na curva do outro lado.
+          widthFactor: estilo.tecladoAberto ? 1 : .78,
+          alignment: estilo.alinhamento,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: estilo.colunaDoTexto,
+            children: [
+              Text(
+                titulo,
+                textAlign: estilo.alinhamentoDoTexto,
+                style: GoogleFonts.outfit(
+                  fontSize: estilo.tecladoAberto ? 22 : 26,
+                  fontWeight: FontWeight.w800,
+                  color: corDeTituloDoCadastro,
+                  height: 1.15,
+                ),
+              ),
+              // Com o teclado aberto o subtítulo sai de cena: o título já
+              // diz o que a pessoa está preenchendo, e o espaço vale mais
+              // pro campo do que pra explicação.
+              AnimatedSize(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: estilo.tecladoAberto
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          subtitulo,
+                          textAlign: estilo.alinhamentoDoTexto,
+                          style: GoogleFonts.outfit(
+                            fontSize: 14.5,
+                            color: corDeApoioDoCadastro,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Molde comum das etapas: cabeçalho e os campos daquela pergunta.
 class _Etapa extends StatelessWidget {
+  final _EstiloDaEtapa estilo;
   final String titulo;
   final String subtitulo;
   final List<Widget> campos;
 
-  const _Etapa({required this.titulo, required this.subtitulo, required this.campos});
+  const _Etapa({required this.estilo, required this.titulo, required this.subtitulo, required this.campos});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+    return _RolagemDaEtapa(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            titulo,
-            style: GoogleFonts.outfit(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: corDeTituloDoCadastro,
-              height: 1.15,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            subtitulo,
-            style: GoogleFonts.outfit(fontSize: 14.5, color: corDeApoioDoCadastro, height: 1.45),
-          ),
-          const SizedBox(height: 28),
+          _CabecalhoDaEtapa(estilo: estilo, titulo: titulo, subtitulo: subtitulo),
+          const SizedBox(height: 16),
           ...campos,
         ],
       ),
@@ -519,8 +639,42 @@ class _Etapa extends StatelessWidget {
   }
 }
 
+/// Área rolável das etapas, sem barra e sem o brilho de "puxou demais".
+///
+/// O conteúdo é dimensionado pra caber sem rolar; a rolagem existe só como
+/// rede de segurança (fonte grande do sistema, tela muito baixa). Deixar a
+/// barra à mostra num formulário que cabe passa a impressão errada de que
+/// há mais coisa escondida embaixo.
+class _RolagemDaEtapa extends StatelessWidget {
+  final Widget child;
+
+  const _RolagemDaEtapa({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ScrollConfiguration(
+      behavior: const _SemBarraDeRolagem(),
+      child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(24, 4, 24, 12), child: child),
+    );
+  }
+}
+
+class _SemBarraDeRolagem extends ScrollBehavior {
+  const _SemBarraDeRolagem();
+
+  @override
+  Widget buildScrollbar(BuildContext context, Widget child, ScrollableDetails details) => child;
+
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) => const ClampingScrollPhysics();
+}
+
 /// Etapa da foto: os avatares pré-definidos, ou uma foto tirada na hora.
 class _EtapaFoto extends StatelessWidget {
+  final _EstiloDaEtapa estilo;
   final String? avatarPreset;
   final Uint8List? fotoPropria;
   final bool escolhendo;
@@ -529,6 +683,7 @@ class _EtapaFoto extends StatelessWidget {
   final VoidCallback onEscolherDaGaleria;
 
   const _EtapaFoto({
+    required this.estilo,
     required this.avatarPreset,
     required this.fotoPropria,
     required this.escolhendo,
@@ -539,25 +694,16 @@ class _EtapaFoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+    return _RolagemDaEtapa(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Sua foto de perfil',
-            style: GoogleFonts.outfit(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: corDeTituloDoCadastro,
-            ),
+          _CabecalhoDaEtapa(
+            estilo: estilo,
+            titulo: 'Sua foto de perfil',
+            subtitulo: 'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
-            style: GoogleFonts.outfit(fontSize: 14.5, color: corDeApoioDoCadastro, height: 1.45),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           if (fotoPropria != null) ...[
             Center(
