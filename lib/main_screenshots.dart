@@ -57,6 +57,9 @@ class FakeAuthViewModel implements AuthViewModel {
   bool get temSenhaEmail => true;
 
   @override
+  String? get nomeDoProvedor => _usuarioFake.nickname;
+
+  @override
   Stream<UserModel?> streamUsuarioAtual() => Stream.value(_usuarioFake);
 
   @override
@@ -66,10 +69,10 @@ class FakeAuthViewModel implements AuthViewModel {
   Future<void> logout() async {}
 
   @override
-  Future<String?> loginComGoogle() async => null;
+  Future<({String? erro, bool contaNova})> loginComGoogle() async => (erro: null, contaNova: false);
 
   @override
-  Future<String?> loginComApple() async => null;
+  Future<({String? erro, bool contaNova})> loginComApple() async => (erro: null, contaNova: false);
 
   @override
   Future<String?> excluirConta({required String senha}) async => null;

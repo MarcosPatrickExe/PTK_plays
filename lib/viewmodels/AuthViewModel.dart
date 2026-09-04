@@ -15,6 +15,10 @@ class AuthViewModel {
   bool get usuarioLogado => _repository.usuarioAtual != null;
   String? get uidAtual => _repository.usuarioAtual?.uid;
 
+  /// Nome que veio do provedor social, usado pra sugerir o nick no cadastro
+  /// de quem entrou pelo Google/Apple — melhor que abrir o campo em branco.
+  String? get nomeDoProvedor => _repository.usuarioAtual?.displayName;
+
   /// Se a conta logada tem senha (email/senha), em vez de so login social
   /// (Google/Apple) — usado pra so mostrar a secao de trocar senha em
   /// EditarPerfil quando o usuario realmente tem uma senha pra trocar.
@@ -34,27 +38,28 @@ class AuthViewModel {
 
   Future<void> logout() => _repository.logout();
 
-  /// Retorna null em caso de sucesso (ou cancelamento pelo usuario),
-  /// ou uma mensagem de erro traduzida.
-  Future<String?> loginComGoogle() async {
+  /// [erro] vem null em caso de sucesso (ou de cancelamento pelo usuario),
+  /// ou com a mensagem traduzida. [contaNova] diz se a conta acabou de ser
+  /// criada — nesse caso o Login manda a pessoa completar o cadastro (nick,
+  /// foto e WhatsApp) em vez de ir direto pro feed.
+  Future<({String? erro, bool contaNova})> loginComGoogle() async {
     try {
-      await _repository.loginComGoogle();
-      return null;
+      final contaNova = await _repository.loginComGoogle();
+      return (erro: null, contaNova: contaNova);
     } catch (e, stack) {
       debugPrint('loginComGoogle falhou: $e\n$stack');
-      return mapearErroLoginGoogle(e);
+      return (erro: mapearErroLoginGoogle(e), contaNova: false);
     }
   }
 
-  /// Retorna null em caso de sucesso (ou cancelamento pelo usuario),
-  /// ou uma mensagem de erro traduzida.
-  Future<String?> loginComApple() async {
+  /// Ver [loginComGoogle] sobre o retorno.
+  Future<({String? erro, bool contaNova})> loginComApple() async {
     try {
-      await _repository.loginComApple();
-      return null;
+      final contaNova = await _repository.loginComApple();
+      return (erro: null, contaNova: contaNova);
     } catch (e, stack) {
       debugPrint('loginComApple falhou: $e\n$stack');
-      return mapearErroLoginApple(e);
+      return (erro: mapearErroLoginApple(e), contaNova: false);
     }
   }
 
@@ -64,7 +69,8 @@ class AuthViewModel {
   /// Nao ha teste de ponta a ponta pra esse metodo (assim como cadastrar/
   /// login/excluirConta): ele depende do Firebase Auth/Firestore reais, que
   /// nao estao disponiveis neste ambiente de desenvolvimento. A validacao do
-  /// nickname/telefone em si (validarNickname/validarTelefoneWhatsapp) e
+  /// nickname/telefone em si (ValidacaoCadastro.validarNickname e
+  /// validarTelefoneWhatsapp) e
   /// testada isoladamente.
   Future<String?> atualizarPerfil({
     required String nicknameAtual,
@@ -194,14 +200,6 @@ String? mapearErroLoginGoogle(Object erro) {
     return traduzirErroDeAuth(erro.code);
   }
   return 'Não foi possível entrar com o Google. Tente novamente.';
-}
-
-/// Valida o nickname informado na edicao de perfil.
-/// Retorna null se valido, ou uma mensagem de erro.
-String? validarNickname(String nickname) {
-  if (nickname.trim().isEmpty) return 'Preencha o nickname.';
-  if (nickname.contains('@')) return 'O nickname não pode conter @.';
-  return null;
 }
 
 /// Valida o numero de WhatsApp opcional informado no cadastro, ja formatado

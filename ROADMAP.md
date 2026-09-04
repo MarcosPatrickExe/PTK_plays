@@ -1066,3 +1066,153 @@ Testado: `GateDeConta` isolado (usuário nulo/ativo/banido/suspenso dentro e
 fora do prazo, conteúdo continua montado por baixo, botão "Sair" chama o
 callback). `ContaGate` em si (a parte com Firebase/navegação) não tem teste
 de ponta a ponta, mesma limitação de sempre neste ambiente.
+
+# Correções na aba Usuários do Painel ADM (03/set/2026)
+
+## Foto de perfil na lista
+
+Cada card da lista de usuários passou a mostrar o avatar da pessoa, e o
+modal de "Ver perfil" também — antes ele só listava os campos de texto,
+sem foto nenhuma.
+
+Para não repetir em cada tela o encadeamento de três casos (**preset
+escolhido > `fotoUrl` > avatar padrão**, ver `chavePresetParaExibir`), isso
+virou o componente `lib/components/AvatarUsuario.dart`.
+
+## A foto do login com Google não aparecia
+
+Duas causas somadas:
+
+1. **O modal "Ver perfil" não tinha avatar nenhum** — nem pra quem entrou
+   com Google, nem pra quem subiu foto própria. Resolvido junto do item
+   acima.
+2. **Na Web, `Image.network` cru falhava pra `lh3.googleusercontent.com`** —
+   exatamente a mesma causa raiz das miniaturas de vídeo (31/ago): o Flutter
+   baixa os bytes por XHR e decodifica, caminho que depende de CORS. O
+   `FotoPerfilRede` ganhou `webHtmlElementStrategy:
+   WebHtmlElementStrategy.fallback`, que monta um `<img>` de verdade quando
+   o download falha. Isso conserta o avatar do Google em **todas** as telas
+   (Perfil, Editar perfil e o Painel), não só no painel.
+
+Terceiro ponto, menos visível: `_sincronizarUsuarioNoFirestore` só gravava
+`fotoUrl` quando a conta era **nova**. Quem se cadastrou por e-mail/senha e
+só depois entrou pelo Google ficava sem foto pra sempre, porque o ramo de
+conta existente só tocava o `ultimoAcesso`. Agora ele preenche a `fotoUrl`
+do provedor quando a conta está sem foto **e** sem preset — foto própria já
+enviada e preset escolhido continuam intocados.
+
+## Ícones no menu de 3 pontinhos
+
+Cada opção ganhou ícone à esquerda: pessoa (Ver perfil), pause (Suspender),
+bloqueio em vermelho (Banir), check (Reativar) e balão (Mensagem privada).
+"Enviar mensagem privada" virou "Mensagem privada": com o ícone ocupando
+espaço, o rótulo antigo estourava a largura máxima do menu — o teste novo
+pegou isso.
+
+## Testes
+
+- `avatar_usuario_test.dart`: prioridade preset > foto > padrão, e o
+  `FotoPerfilRede` pedindo o fallback pra `<img>` na Web.
+- `painel_admin_test.dart`: ganhou um `FakeAdminRepository` (o `PainelAdmin`
+  já aceitava o repositório injetado, então dá pra testar a aba Usuários sem
+  Firestore) — card com avatar, ícones no menu, troca de suspender/banir por
+  reativar em conta já moderada, e a foto no "Ver perfil".
+- **Não testado de ponta a ponta**: o login social em si (Google/Apple
+  precisam de plugin nativo e conta real). O backfill da `fotoUrl` no login
+  precisa ser conferido entrando com uma conta que tenha se cadastrado por
+  e-mail/senha antes.
+
+# Criação de conta em etapas (03/set/2026)
+
+Substitui a tela única `Cadastro.dart` (que pedia tudo de uma vez) por um
+fluxo de uma pergunta por tela, com a arte do PTK ao fundo mudando junto.
+
+## As etapas
+
+`etapasDoCadastro(contaSocial:)` decide quais telas existem:
+
+| Etapa       | Cadastro manual | Google/Apple | Arte do PTK        |
+| ----------- | :-------------: | :----------: | ------------------ |
+| Boas-vindas |       sim       |     sim      | *(falta)*          |
+| Nick        |       sim       |     sim      | `ptk_nickname.jpg` |
+| E-mail      |       sim       |     não      | `ptk_email.jpg`    |
+| Senha       |       sim       |     não      | `ptk_senha.jpg`    |
+| Foto        |       sim       |     sim      | `ptk_foto.jpg`     |
+| WhatsApp    |       sim       |     sim      | `ptk_whatsapp.jpg` |
+
+E-mail e senha somem no fluxo social porque o provedor já resolveu os dois
+— pedir de novo seria criar uma segunda senha pra mesma conta.
+
+## Decisões que valem registrar
+
+- **Tudo é obrigatório**, e o "Avançar" fica desabilitado até a etapa estar
+  completa. A mesma função pura de `ValidacaoCadastro.dart` alimenta o aviso
+  embaixo do campo **e** a liberação do botão — assim os dois nunca
+  discordam.
+- **O aviso de erro é em tempo real, embaixo do campo, e não em modal.** A
+  regra do CLAUDE.md (erro de formulário em modal bloqueante) continua
+  valendo pro envio; aqui é checagem contínua a cada tecla, e um modal pra
+  fechar a cada caractere seria insuportável. O aviso só aparece depois que
+  a pessoa mexe no campo — acusar um campo intocado seria injusto.
+- **O `PageView` não deixa arrastar** (`NeverScrollableScrollPhysics`):
+  arrastar pularia a checagem da etapa.
+- **A arte muda com cross-fade + deslize** (`FundoPTK`), não com corte seco:
+  são todas do mesmo personagem no mesmo cenário, e o corte seco leria como
+  glitch.
+- **Etapa sem arte definida cai no gradiente do app**, sem quebrar — hoje
+  só as boas-vindas, cuja arte ainda não chegou.
+- As artes vieram em PNG de ~1,7 MB cada. Convertidas pra JPEG de largura
+  1080: **8,4 MB → 775 KB nas cinco**, sem perda visível (o original já era
+  941px de largura). Fundo de tela em PNG sem transparência é desperdício,
+  ainda mais na Web.
+
+## Máscara de telefone agora aceita fixo
+
+`MascaraTelefoneWhatsapp` passou a decidir o formato pela quantidade de
+dígitos: até 10 é fixo (`+55 (DD) NNNN-NNNN`), no 11º vira celular (`+55
+(DD) NNNNN-NNNN`). Por isso ela deixou de mostrar um gabarito de espaços em
+branco e passou a **crescer** conforme a digitação — com dois formatos
+possíveis, um gabarito fixo estaria errado pra metade dos números. A
+validação já aceitava os dois tamanhos; só a máscara visual não.
+
+## Uma regra de nickname só
+
+Existiam duas: `validarNickname` no `AuthViewModel` (só checava vazio e
+"@") e a nova, mais completa (3 a 20 caracteres). A do `AuthViewModel` foi
+removida e o `EditarPerfil` passou a usar a nova — duas regras com o mesmo
+nome pro mesmo campo era pedir pra divergirem.
+
+## Testes
+
+- `validacao_cadastro_test.dart`: as sete validações, incluindo e-mail que
+  ignora maiúsculas na confirmação e senha que **não** ignora.
+- `criar_conta_test.dart`: as etapas por modo (manual x social), o mapa de
+  artes, e o fluxo em si — avançar travado com campo vazio, aviso em tempo
+  real, e-mails divergentes travando a etapa, voltar sem perder o que foi
+  digitado, e o social pulando do nick pra foto.
+- `whatsapp_telefone_test.dart`: atualizado pro formato dinâmico, com casos
+  novos de fixo e da reformatação no 11º dígito.
+- **Não testado de ponta a ponta**: a criação da conta em si (Firebase Auth
+  + Firestore + Storage) e a câmera — dependem de infraestrutura e hardware
+  que não existem neste ambiente.
+
+## Login social cai no cadastro quando a conta é nova
+
+`AuthRepository.loginComGoogle`/`loginComApple` passaram a devolver **se a
+conta acabou de ser criada** (o `_sincronizarUsuarioNoFirestore` já sabia
+disso pelo `doc.exists`; só não contava pra ninguém). O `AuthViewModel`
+propaga isso num record `({erro, contaNova})`, e o `Login` usa pra decidir
+o destino: conta nova vai pro cadastro em etapas com `contaSocial: true`
+(sem as telas de e-mail e senha, que o provedor já resolveu), conta que já
+existia vai direto pro feed.
+
+O nick já vem sugerido com o nome da conta Google/Apple
+(`AuthViewModel.nomeDoProvedor`) — melhor que abrir o campo em branco.
+
+## Pendências deste fluxo
+
+- **Falta a arte de boas-vindas**. Basta soltar o arquivo em `assets/ptk/`
+  e apontar em `assetDaEtapa`.
+- **`Cadastro.dart` (a tela antiga) ficou só pro harness de screenshots**
+  (`main_screenshots.dart`). Remover quando o fluxo novo estiver validado
+  em produção.

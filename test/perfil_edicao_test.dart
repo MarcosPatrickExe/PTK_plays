@@ -6,6 +6,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ptk_plays/data/models/AvatarPreset.dart';
 import 'package:ptk_plays/utils/MascaraTelefoneWhatsapp.dart';
+import 'package:ptk_plays/utils/ValidacaoCadastro.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 
 void main() {
