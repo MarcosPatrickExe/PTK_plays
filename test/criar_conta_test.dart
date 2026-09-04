@@ -205,6 +205,28 @@ void main() {
       expect(find.text('Sua foto de perfil'), findsOneWidget);
     });
 
+    testWidgets('o subtítulo some quando o teclado abre, mas o título fica', (tester) async {
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      const subtitulo = 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.';
+      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text(subtitulo), findsOneWidget);
+
+      // O teclado aparece como viewInsets no rodapé.
+      final view = tester.view;
+      view.viewInsets = const FakeViewPadding(bottom: 600);
+      addTearDown(view.resetViewInsets);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      // O título continua: é ele que diz o que está sendo preenchido.
+      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text(subtitulo), findsNothing);
+    });
+
     testWidgets('conta social vai do nick direto pra foto', (tester) async {
       await tester.pumpWidget(_tela(contaSocial: true));
       await tester.pump();

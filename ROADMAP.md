@@ -1394,3 +1394,59 @@ apertado. Agora as duas leem a mesma altura, do `LayoutBuilder`.
 `deslocamentoDaArte` (12% por padrão) puxa a imagem pra cima. As artes têm
 o PTK de corpo inteiro, mas o que interessa na tela é o rosto. A faixa que
 sobra vazia embaixo fica sempre coberta pela onda, então não aparece.
+
+
+# Ajustes finos da tela de cadastro (05/set/2026)
+
+Segunda rodada, depois de ver a primeira rodando no preview.
+
+## O texto aproveitando o cume da onda
+
+Sobrava um vazio grande entre a curva e o título. A causa: o texto era
+posicionado abaixo do ponto mais baixo da curva — o que é obrigatório pra
+conteúdo de **largura cheia**, mas desnecessário pro título, que não ocupa
+a largura toda.
+
+Agora o cabeçalho se encosta no lado do **cume** (a metade em que a curva
+subiu mais, `cumeEhAEsquerda`), ocupa 78% da largura e começa logo abaixo
+da curva **daquela metade** (`topoDoTexto`). O alinhamento do texto
+acompanha o lado. Os campos continuam esperando a curva inteira passar,
+porque esses sim ocupam tudo.
+
+A distância entre os dois virou a **altura mínima do cabeçalho** — sem
+isso, um título curto ("Seu WhatsApp") deixaria os campos subirem pra cima
+da curva.
+
+## Enquanto a pessoa digita
+
+- **O subtítulo sai de cena**, com `AnimatedSize` pra sair escorregando, e
+  o título encolhe um pouco mas fica: é ele que diz o que está sendo
+  preenchido. O espaço vale mais pro campo do que pra explicação.
+- A folga acima do texto cai pra 3%.
+
+## Rolagem invisível nos campos
+
+O `SingleChildScrollView` deixava barra e brilho de overscroll à mostra num
+formulário que cabia — passando a impressão errada de que havia mais coisa
+escondida embaixo. `_RolagemDaEtapa` desliga os dois. A rolagem continua
+existindo como rede de segurança (fonte grande do sistema, tela muito
+baixa), só não se anuncia.
+
+## A arte afastada
+
+`escalaDaArte` (.84) dá um passo pra trás, pra o PTK aparecer inteiro com o
+objeto que segura — o @, a logo do WhatsApp — sem cortar. A borda que sobra
+cai no `gradienteDoCenario`, com as cores tiradas do próprio fundo das
+artes, e por isso passa despercebida.
+
+## Logo na tela de boas-vindas
+
+A única etapa sem arte agora mostra a logo do canal na área colorida,
+nítida em cima e se perdendo conforme desce: embaçada e coberta por um roxo
+escuro ao encostar na onda.
+
+O embaçamento progressivo sai de **duas camadas com máscaras opostas** — o
+Flutter não tem blur de intensidade variável. Uma é a logo nítida, revelada
+só no topo; a outra é a mesma logo borrada, revelada só embaixo. Onde as
+duas se cruzam, a passagem de uma pra outra é o que dá a impressão de foco
+se perdendo.
