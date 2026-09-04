@@ -57,6 +57,7 @@ class VideoCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
+        color: isDark ? AuthTheme.cardVideoBgDark : AuthTheme.cardBgLight,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? AuthTheme.cardBorderDark : AuthTheme.cardBorderLight),
         boxShadow: const [
@@ -88,13 +89,18 @@ class VideoCard extends StatelessWidget {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                     child: Container(
-                      color: isDark ? AuthTheme.cardBgDark : AuthTheme.cardBgLight,
+                      color: isDark ? AuthTheme.cardVideoBgDark : AuthTheme.cardBgLight,
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           CircleAvatar(
                             backgroundImage: NetworkImage(notification.avatarUrl),
+                            // Sem esse callback, uma falha ao baixar o avatar
+                            // (rede fora, URL vencida) sobe como excecao nao
+                            // tratada do Flutter em vez de so deixar o
+                            // circulo com a cor de fundo.
+                            onBackgroundImageError: (_, __) {},
                             backgroundColor: Colors.grey[800],
                             radius: 20,
                           ),
@@ -135,11 +141,18 @@ class VideoCard extends StatelessWidget {
                                         color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
                                       ),
                                       const SizedBox(width: 6),
-                                      Text(
-                                        'Publicado em ${_dataPublicacao()}',
-                                        style: GoogleFonts.outfit(
-                                          color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
-                                          fontSize: 13,
+                                      // Flexible porque em card estreito
+                                      // (celular pequeno, ou duas colunas em
+                                      // tela larga) a linha da data estourava
+                                      // a largura.
+                                      Flexible(
+                                        child: Text(
+                                          'Publicado em ${_dataPublicacao()}',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.outfit(
+                                            color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                                            fontSize: 13,
+                                          ),
                                         ),
                                       ),
                                     ],
