@@ -42,18 +42,23 @@ List<EtapaCadastro> etapasDoCadastro({required bool contaSocial}) {
 
 /// A arte do PTK que fica ao fundo de cada etapa. Etapas sem arte definida
 /// ainda caem no gradiente do app (ver [FundoPTK]).
+///
+/// São WebP com transparência, e não os JPEGs de antes: com o fundo do
+/// desenho recortado, o PTK se funde no gradiente da tela em vez de aparecer
+/// dentro de um retângulo com emenda visível. O WebP é o formato porque o
+/// PNG equivalente passava de 1 MB por arte.
 String? assetDaEtapa(EtapaCadastro etapa) {
   switch (etapa) {
     case EtapaCadastro.nickname:
-      return 'assets/ptk/ptk_nickname.jpg';
+      return 'assets/ptk/ptk_nickname.webp';
     case EtapaCadastro.email:
-      return 'assets/ptk/ptk_email.jpg';
+      return 'assets/ptk/ptk_email.webp';
     case EtapaCadastro.senha:
-      return 'assets/ptk/ptk_senha.jpg';
+      return 'assets/ptk/ptk_senha.webp';
     case EtapaCadastro.foto:
-      return 'assets/ptk/ptk_foto.jpg';
+      return 'assets/ptk/ptk_foto.webp';
     case EtapaCadastro.whatsapp:
-      return 'assets/ptk/ptk_whatsapp.jpg';
+      return 'assets/ptk/ptk_whatsapp.webp';
     // Boas-vindas ainda nao tem arte propria: cai no gradiente do app.
     case EtapaCadastro.boasVindas:
       return null;
@@ -288,8 +293,10 @@ class _CriarContaState extends State<CriarConta> {
                 onda: onda,
                 // A etapa de boas-vindas não tem arte do PTK: no lugar dela
                 // vai a logo do canal, que é o que a pessoa reconhece antes
-                // mesmo de ler o texto.
-                logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/login_logo.png' : null,
+                // mesmo de ler o texto. É a versão sem o fundo roxo quadrado
+                // (o `login_logo.png` continua com fundo, porque lá ele é
+                // recortado num círculo e o quadrado nunca aparece).
+                logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/ptk/ptk_logo.webp' : null,
               ),
 
               // O formulário ocupa a parte branca, abaixo da onda. O `bottom: 0`
@@ -368,7 +375,10 @@ class _CriarContaState extends State<CriarConta> {
     // cume, o subtítulo sumir enquanto a pessoa digita, e os campos
     // começarem sempre abaixo da curva inteira.
     final estilo = _EstiloDaEtapa(
-      cumeEhAEsquerda: onda.cumeEhAEsquerda,
+      // O cume vem da onda **da etapa**, não da onda do momento: com o
+      // teclado aberto a onda vira a `ondaCheia` e o cume dela muda de lado,
+      // o que faria o título quebrar de outro jeito no meio da digitação.
+      cumeEhAEsquerda: ondaDaEtapa(_indice).cumeEhAEsquerda,
       tecladoAberto: tecladoAberto,
       alturaDoCabecalho: alturaDoCabecalho,
     );
@@ -380,8 +390,9 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.nickname:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Como a gente te chama?',
+          titulo: 'Como a gente\nte chama?',
           subtitulo: 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.',
+          subtituloCurto: 'É o nick que aparece nos seus posts e comentários.',
           campos: [
             CampoFlutuante(
               controller: _nickname,
@@ -397,8 +408,9 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.email:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Qual é o seu e-mail?',
+          titulo: 'Qual é o\nseu e-mail?',
           subtitulo: 'É por ele que você entra na conta e recupera a senha se esquecer.',
+          subtituloCurto: 'Serve pra entrar e recuperar a senha.',
           campos: [
             CampoFlutuante(
               controller: _email,
@@ -422,8 +434,9 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.senha:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Agora crie uma senha',
+          titulo: 'Agora crie\numa senha',
           subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Guarde bem — ela é sua chave de entrada.',
+          subtituloCurto: 'Pelo menos $minimoCaracteresSenha caracteres.',
           campos: [
             CampoFlutuante(
               controller: _senha,
@@ -463,6 +476,7 @@ class _CriarContaState extends State<CriarConta> {
           estilo: estilo,
           titulo: 'Seu WhatsApp',
           subtitulo: 'Serve pra avisos do canal e pra recuperar sua conta. Aceita celular ou fixo.',
+          subtituloCurto: 'Pra avisos do canal. Aceita celular ou fixo.',
           campos: [
             CampoFlutuante(
               controller: _whatsapp,
@@ -506,9 +520,20 @@ class _CriarContaState extends State<CriarConta> {
 }
 
 /// O que a onda e o teclado ditam pro conteúdo de cada etapa.
+///
+/// O texto fica **sempre à esquerda**, em toda etapa: alternar o lado a cada
+/// tela cansava a leitura. O que o cume muda é o quanto de espaço o texto
+/// tem em cima da esquerda, e daí saem as três diferenças abaixo —
+/// quebra de linha, tamanho da fonte e tamanho do subtítulo.
 class _EstiloDaEtapa {
-  /// De que lado a onda subiu mais. O cabeçalho se encosta nesse lado, que
-  /// é onde sobra espaço livre logo abaixo da curva.
+  /// De que lado a onda subiu mais.
+  ///
+  /// Cume à esquerda: sobra bastante branco no alto da esquerda, o título
+  /// nasce lá em cima e pode quebrar em duas linhas com folga.
+  ///
+  /// Cume à direita: a curva desce do lado esquerdo, então o título nasce
+  /// mais baixo, com menos altura disponível — daí a fonte menor e o
+  /// subtítulo resumido, pra tudo caber antes dos campos.
   final bool cumeEhAEsquerda;
 
   final bool tecladoAberto;
@@ -524,9 +549,36 @@ class _EstiloDaEtapa {
     required this.alturaDoCabecalho,
   });
 
-  Alignment get alinhamento => cumeEhAEsquerda ? Alignment.centerLeft : Alignment.centerRight;
-  TextAlign get alinhamentoDoTexto => cumeEhAEsquerda ? TextAlign.left : TextAlign.right;
-  CrossAxisAlignment get colunaDoTexto => cumeEhAEsquerda ? CrossAxisAlignment.start : CrossAxisAlignment.end;
+  Alignment get alinhamento => Alignment.centerLeft;
+  TextAlign get alinhamentoDoTexto => TextAlign.left;
+  CrossAxisAlignment get colunaDoTexto => CrossAxisAlignment.start;
+
+  /// Quanto da largura o cabeçalho ocupa. Com o cume à esquerda ele é mais
+  /// estreito de propósito: é o que segura o texto embaixo do cume, sem
+  /// esbarrar na curva descendo do outro lado.
+  double get larguraDoTexto {
+    if (tecladoAberto) return 1;
+    return cumeEhAEsquerda ? .70 : .84;
+  }
+
+  double get tamanhoDoTitulo {
+    if (tecladoAberto) return 22;
+    return cumeEhAEsquerda ? 26 : 22.5;
+  }
+
+  /// O `\n` que vem no título é a quebra pensada pro caso do cume à
+  /// esquerda, onde o texto sobe e o espaço é mais estreito que alto. Com o
+  /// cume à direita é o contrário — a faixa livre é baixa e larga —, então
+  /// a quebra sai e o título deixa a linha fluir.
+  String tituloComQuebra(String titulo) {
+    return cumeEhAEsquerda ? titulo : titulo.replaceAll('\n', ' ');
+  }
+
+  /// Com o cume à direita o cabeçalho começa mais baixo e tem menos altura
+  /// até os campos, então entra a versão resumida do subtítulo.
+  String subtituloQueCabe(String longo, String curto) {
+    return cumeEhAEsquerda ? longo : curto;
+  }
 }
 
 /// Primeira tela: só a apresentação da comunidade, sem nada pra preencher.
@@ -544,20 +596,31 @@ class _EtapaBoasVindas extends StatelessWidget {
           'Aqui você acompanha de perto tudo o que rola no canal: avisos de live, '
           'os vídeos novos e as enquetes do PTK — e ainda fala com a galera no feed.\n\n'
           'São só alguns passos pra criar sua conta. Bora?',
+      subtituloCurto: 'Avisos de live, vídeos novos, enquetes e o feed da galera. '
+          'Bora criar sua conta?',
       campos: const [],
     );
   }
 }
 
 /// Cabeçalho da etapa: título sempre, subtítulo só quando o teclado está
-/// fechado. Encostado no lado do cume da onda, ocupando parte da largura —
-/// é assim que ele consegue subir até quase a curva.
+/// fechado. Sempre à esquerda, ocupando parte da largura — é assim que ele
+/// consegue subir até quase a curva.
+///
+/// O [subtituloCurto] é a versão que entra quando o cume está à direita e
+/// sobra menos altura pro cabeçalho (ver [_EstiloDaEtapa]).
 class _CabecalhoDaEtapa extends StatelessWidget {
   final _EstiloDaEtapa estilo;
   final String titulo;
   final String subtitulo;
+  final String subtituloCurto;
 
-  const _CabecalhoDaEtapa({required this.estilo, required this.titulo, required this.subtitulo});
+  const _CabecalhoDaEtapa({
+    required this.estilo,
+    required this.titulo,
+    required this.subtitulo,
+    required this.subtituloCurto,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +631,7 @@ class _CabecalhoDaEtapa extends StatelessWidget {
         child: FractionallySizedBox(
           // Não ocupa a largura toda de propósito: é o que permite o texto
           // subir até o cume sem esbarrar na curva do outro lado.
-          widthFactor: estilo.tecladoAberto ? 1 : .78,
+          widthFactor: estilo.larguraDoTexto,
           alignment: estilo.alinhamento,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -576,10 +639,10 @@ class _CabecalhoDaEtapa extends StatelessWidget {
             crossAxisAlignment: estilo.colunaDoTexto,
             children: [
               Text(
-                titulo,
+                estilo.tituloComQuebra(titulo),
                 textAlign: estilo.alinhamentoDoTexto,
                 style: GoogleFonts.outfit(
-                  fontSize: estilo.tecladoAberto ? 22 : 26,
+                  fontSize: estilo.tamanhoDoTitulo,
                   fontWeight: FontWeight.w800,
                   color: corDeTituloDoCadastro,
                   height: 1.15,
@@ -597,7 +660,7 @@ class _CabecalhoDaEtapa extends StatelessWidget {
                     : Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Text(
-                          subtitulo,
+                          estilo.subtituloQueCabe(subtitulo, subtituloCurto),
                           textAlign: estilo.alinhamentoDoTexto,
                           style: GoogleFonts.outfit(
                             fontSize: 14.5,
@@ -620,9 +683,16 @@ class _Etapa extends StatelessWidget {
   final _EstiloDaEtapa estilo;
   final String titulo;
   final String subtitulo;
+  final String subtituloCurto;
   final List<Widget> campos;
 
-  const _Etapa({required this.estilo, required this.titulo, required this.subtitulo, required this.campos});
+  const _Etapa({
+    required this.estilo,
+    required this.titulo,
+    required this.subtitulo,
+    required this.subtituloCurto,
+    required this.campos,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -630,7 +700,12 @@ class _Etapa extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CabecalhoDaEtapa(estilo: estilo, titulo: titulo, subtitulo: subtitulo),
+          _CabecalhoDaEtapa(
+            estilo: estilo,
+            titulo: titulo,
+            subtitulo: subtitulo,
+            subtituloCurto: subtituloCurto,
+          ),
           const SizedBox(height: 16),
           ...campos,
         ],
@@ -700,8 +775,9 @@ class _EtapaFoto extends StatelessWidget {
         children: [
           _CabecalhoDaEtapa(
             estilo: estilo,
-            titulo: 'Sua foto de perfil',
+            titulo: 'Sua foto\nde perfil',
             subtitulo: 'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
+            subtituloCurto: 'Escolha um avatar ou tire uma selfie.',
           ),
           const SizedBox(height: 16),
 
