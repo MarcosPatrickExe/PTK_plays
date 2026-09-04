@@ -17,6 +17,10 @@ import 'package:google_fonts/google_fonts.dart';
 /// pra fechar a cada tecla. A regra do CLAUDE.md (erro de formulário em
 /// modal bloqueante) continua valendo pra validação no envio do formulário
 /// — aqui é a checagem contínua que roda a cada caractere.
+///
+/// As cores são fixas em vez de seguirem o tema: o cadastro é a única tela
+/// do app sem troca de tema, e o formulário dele vive sempre sobre a parte
+/// branca da onda (ver `FundoPTK`).
 class CampoFlutuante extends StatefulWidget {
   final TextEditingController controller;
   final String rotulo;
@@ -86,7 +90,7 @@ class _CampoFlutuanteState extends State<CampoFlutuante> {
         ? _corDeErro
         : temFoco
             ? _corDeDestaque
-            : Colors.white24;
+            : const Color(0xFFD9D0EC);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,7 +102,7 @@ class _CampoFlutuanteState extends State<CampoFlutuante> {
           keyboardType: widget.tipoDeTeclado,
           inputFormatters: widget.formatadores,
           textCapitalization: widget.capitalizacao,
-          style: GoogleFonts.outfit(fontSize: 16, color: Colors.white),
+          style: GoogleFonts.outfit(fontSize: 16, color: _corDoTexto),
           cursorColor: _corDeDestaque,
           onChanged: (_) {
             if (!_jaMexeu) _jaMexeu = true;
@@ -109,24 +113,24 @@ class _CampoFlutuanteState extends State<CampoFlutuante> {
             // floatingLabelBehavior.auto: o rótulo começa dentro do campo,
             // como placeholder, e sobe pra borda ao focar/digitar.
             labelText: widget.rotulo,
-            labelStyle: GoogleFonts.outfit(color: Colors.white70),
+            labelStyle: GoogleFonts.outfit(color: _corApagada),
             floatingLabelStyle: GoogleFonts.outfit(
               color: erro != null ? _corDeErro : _corDeDestaque,
               fontWeight: FontWeight.w600,
             ),
-            prefixIcon: Icon(widget.icone, color: temFoco ? _corDeDestaque : Colors.white60, size: 22),
+            prefixIcon: Icon(widget.icone, color: temFoco ? _corDeDestaque : _corApagada, size: 22),
             suffixIcon: widget.ehSenha
                 ? IconButton(
                     icon: Icon(
                       _senhaVisivel ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: Colors.white60,
+                      color: _corApagada,
                       size: 20,
                     ),
                     onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
                   )
                 : null,
             filled: true,
-            fillColor: Colors.black.withValues(alpha: .28),
+            fillColor: const Color(0xFFF4F0FA),
             contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
             // O erro sai do InputDecoration e vira uma linha própria abaixo:
             // assim ele pode ter ícone e não empurra o layout a cada tecla.
@@ -161,8 +165,10 @@ class _CampoFlutuanteState extends State<CampoFlutuante> {
     );
   }
 
-  static const _corDeDestaque = Color(0xFFC33BE8);
-  static const _corDeErro = Color(0xFFFF6B8A);
+  static const _corDeDestaque = Color(0xFFA12EE0);
+  static const _corDeErro = Color(0xFFE0264F);
+  static const _corDoTexto = Color(0xFF2D1B4E);
+  static const _corApagada = Color(0xFF8A7BA8);
 
   OutlineInputBorder _borda(Color cor, {double largura = 1.3}) {
     return OutlineInputBorder(
