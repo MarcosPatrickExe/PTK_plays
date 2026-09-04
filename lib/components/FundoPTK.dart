@@ -69,16 +69,35 @@ class FormaDaOnda {
     return maior;
   }
 
-  /// De que lado a onda subiu mais — é ali que sobra espaço livre logo
-  /// abaixo do cume, e é pra esse lado que o texto se encosta.
+  /// O ponto **mais alto** por onde a curva passa — o cume. Acima dele a
+  /// área colorida existe em toda a largura, então é até aí que a logo da
+  /// tela de boas-vindas pode descer sem a onda cortar um pedaço dela.
+  double get topoDaCurva {
+    var menor = alturaEsquerda;
+    const amostras = 48;
+    for (var i = 0; i <= amostras; i++) {
+      final altura = alturaEm(i / amostras);
+      if (altura < menor) menor = altura;
+    }
+    return menor;
+  }
+
+  /// De que lado a onda subiu mais. O texto fica sempre à esquerda, então
+  /// isso não decide mais *onde* ele fica — decide quanto espaço livre ele
+  /// tem: com o cume à esquerda o texto sobe alto e pode quebrar em mais
+  /// linhas; com o cume à direita ele nasce mais baixo e precisa ser mais
+  /// compacto.
   bool get cumeEhAEsquerda => fundoDaMetade(esquerda: true) < fundoDaMetade(esquerda: false);
 
-  /// Onde o texto começa: logo abaixo do cume (a metade mais alta da
-  /// curva), com uma folga pequena. É mais alto que [topoDoConteudo]
-  /// justamente porque o texto se encosta no lado do cume e não ocupa a
-  /// largura toda.
+  /// Onde o texto começa: logo abaixo da curva **na metade esquerda**, com
+  /// uma folga pequena. É a metade esquerda porque é aí que o texto fica,
+  /// sempre — medir pelo lado do cume deixaria a curva passar por cima do
+  /// título toda vez que o cume caísse à direita.
+  ///
+  /// Ainda assim sobe mais que [topoDoConteudo], que precisa esperar a
+  /// curva inteira passar porque os campos ocupam a largura toda.
   double topoDoTexto({double fracaoDeFolga = .04}) {
-    final fundo = fundoDaMetade(esquerda: cumeEhAEsquerda);
+    final fundo = fundoDaMetade(esquerda: true);
     return fundo + (1 - fundo) * fracaoDeFolga;
   }
 
@@ -150,9 +169,12 @@ FormaDaOnda ondaDaEtapa(int indice, {bool tecladoAberto = false}) {
 /// como glitch. A **onda** troca junto, animada, o que dá a cada tela um
 /// desenho próprio em vez de seis telas iguais com o texto trocado.
 ///
-/// O fundo colorido que já vem em cada arte é aproveitado como o fundo da
-/// parte de cima: por isso a imagem entra em `cover` alinhada ao topo, e
-/// não recebe escurecimento — o texto todo vive na parte branca.
+/// As artes têm o fundo recortado (PNG/WebP com transparência), então quem
+/// pinta a área de cima é o [gradienteDoCenario] daqui — o PTK fica por
+/// cima dele sem nenhuma emenda visível. Foi por isso que o fundo original
+/// das artes saiu: o retângulo delas denunciava onde a imagem acabava.
+/// A imagem entra em `cover` alinhada ao topo e não recebe escurecimento —
+/// o texto todo vive na parte branca.
 class FundoPTK extends StatelessWidget {
   final String? asset;
   final FormaDaOnda onda;
@@ -200,7 +222,7 @@ class FundoPTK extends StatelessWidget {
         // Aparece enquanto a arte carrega, nas bordas que sobram ao afastá-la
         // e nas etapas que não têm arte.
         const DecoratedBox(decoration: BoxDecoration(gradient: gradienteDoCenario)),
-        if (logo != null) _LogoComDegrade(asset: logo!),
+        if (logo != null) _LogoComDegrade(asset: logo!, onda: onda),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 520),
           switchInCurve: Curves.easeOut,
@@ -311,39 +333,68 @@ class _PintorDaOnda extends CustomPainter {
 class _LogoComDegrade extends StatelessWidget {
   final String asset;
 
-  const _LogoComDegrade({required this.asset});
+  /// A onda daquela etapa: é o cume dela que diz até onde vai a área
+  /// colorida visível, e portanto onde a logo cabe inteira.
+  final FormaDaOnda onda;
+
+  const _LogoComDegrade({required this.asset, required this.onda});
 
   @override
   Widget build(BuildContext context) {
-    final logo = Center(
-      child: FractionallySizedBox(
-        widthFactor: .58,
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 40),
-          child: Image.asset(asset, fit: BoxFit.contain),
-        ),
-      ),
-    );
+    return LayoutBuilder(
+      builder: (context, restricoes) {
+        // A logo fica centralizada na faixa colorida que sobra acima do
+        // cume — não no meio da tela. Centralizar na tela inteira jogava
+        // ela pra baixo e a onda comia um pedaço.
+        final faixaVisivel = restricoes.maxHeight * onda.topoDaCurva;
+        final lado = (faixaVisivel * .62).clamp(0.0, restricoes.maxWidth * .5);
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        _comMascara(child: logo, revelarNoTopo: false, borrar: true),
-        _comMascara(child: logo, revelarNoTopo: true, borrar: false),
-        // Degradê por cima de tudo: transparente no alto, roxo escuro
-        // encostando na onda.
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Color(0x662A1163), Color(0xE62A1163)],
-              stops: [.25, .65, 1],
+        // A logo e as duas máscaras vivem dentro da faixa, e não da tela
+        // inteira: é o que faz o desfoque e o escurecimento acompanharem a
+        // altura que sobrou, em vez de pegarem só o comecinho da imagem.
+        final logo = SizedBox(
+          height: faixaVisivel,
+          child: Center(
+            child: SizedBox(
+              width: lado,
+              height: lado,
+              child: Image.asset(asset, fit: BoxFit.contain),
             ),
           ),
-        ),
-      ],
+        );
+
+        return Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Stack(
+                children: [
+                  _comMascara(child: logo, revelarNoTopo: false, borrar: true),
+                  _comMascara(child: logo, revelarNoTopo: true, borrar: false),
+                ],
+              ),
+            ),
+            // Degradê por cima de tudo: transparente no alto, roxo escuro
+            // encostando na onda. As paradas seguem a curva — o escuro
+            // fecha só onde a onda já cobre tudo (fundoDaCurva), pra não
+            // sobrar um corte reto no meio da área colorida.
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: const [Colors.transparent, Color(0x662A1163), Color(0xE62A1163)],
+                    stops: [onda.topoDaCurva * .35, onda.topoDaCurva * .85, onda.fundoDaCurva],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
