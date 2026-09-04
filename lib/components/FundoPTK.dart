@@ -22,11 +22,42 @@ class FormaDaOnda {
     required this.curvaDireita,
   });
 
-  /// O ponto mais alto que a onda alcança — é o que o formulário usa pra
-  /// saber onde pode começar sem passar por cima da arte.
-  double get topoMaisAlto => [alturaEsquerda, alturaDireita, curvaEsquerda, curvaDireita].reduce(
-        (menor, atual) => atual < menor ? atual : menor,
-      );
+  /// Altura da curva em `t` (0 na borda esquerda, 1 na direita), como
+  /// fração da tela. É a Bézier cúbica que o pintor desenha.
+  double alturaEm(double t) {
+    final u = 1 - t;
+    return u * u * u * alturaEsquerda +
+        3 * u * u * t * curvaEsquerda +
+        3 * u * t * t * curvaDireita +
+        t * t * t * alturaDireita;
+  }
+
+  /// O ponto **mais baixo** por onde a curva passa. É daí pra baixo que a
+  /// faixa branca existe em toda a largura da tela — e por isso é ele, e
+  /// não o ponto mais alto, que diz onde o texto pode começar sem escapar
+  /// pra cima da arte num canto ou noutro.
+  ///
+  /// Vem de amostragem, e não dos quatro números direto: [curvaEsquerda] e
+  /// [curvaDireita] são pontos de **controle** da Bézier — a curva é puxada
+  /// na direção deles, mas nunca chega neles. Usar o número cru daria uma
+  /// altura que a curva não tem.
+  double get fundoDaCurva {
+    var maior = alturaEsquerda;
+    const amostras = 48;
+    for (var i = 0; i <= amostras; i++) {
+      final altura = alturaEm(i / amostras);
+      if (altura > maior) maior = altura;
+    }
+    return maior;
+  }
+
+  /// Onde o conteúdo começa: [fracaoDeFolga] da altura da faixa branca
+  /// (medida do fundo da curva até o rodapé da tela) fica livre acima do
+  /// texto, pra ele não nascer colado na curva.
+  double topoDoConteudo({double fracaoDeFolga = .2}) {
+    final fundo = fundoDaCurva;
+    return fundo + (1 - fundo) * fracaoDeFolga;
+  }
 
   // Igualdade por valor: é o que deixa o repaint acontecer só quando a onda
   // realmente muda, e o tween saber que chegou ao destino.
@@ -63,7 +94,22 @@ const List<FormaDaOnda> ondasDoCadastro = [
   FormaDaOnda(alturaEsquerda: .42, alturaDireita: .46, curvaEsquerda: .60, curvaDireita: .58),
 ];
 
-FormaDaOnda ondaDaEtapa(int indice) => ondasDoCadastro[indice % ondasDoCadastro.length];
+/// A onda quando o teclado está aberto: sobe quase até o topo, cobrindo
+/// quase toda a arte. Perder o PTK de vista nesse momento é de propósito —
+/// o que importa ali é a pessoa conseguir digitar sem o campo espremido
+/// contra o teclado.
+const FormaDaOnda ondaCheia = FormaDaOnda(
+  alturaEsquerda: .10,
+  alturaDireita: .07,
+  curvaEsquerda: .05,
+  curvaDireita: .12,
+);
+
+/// A onda da etapa, ou a [ondaCheia] enquanto a pessoa digita.
+FormaDaOnda ondaDaEtapa(int indice, {bool tecladoAberto = false}) {
+  if (tecladoAberto) return ondaCheia;
+  return ondasDoCadastro[indice % ondasDoCadastro.length];
+}
 
 /// Fundo das etapas do cadastro: a arte do PTK ocupando o alto da tela e
 /// uma onda branca subindo de baixo, onde o formulário fica.
@@ -80,7 +126,18 @@ class FundoPTK extends StatelessWidget {
   final String? asset;
   final FormaDaOnda onda;
 
-  const FundoPTK({super.key, required this.asset, required this.onda});
+  /// Quanto a arte sobe, como fração da altura da tela. As artes têm o PTK
+  /// de corpo inteiro, mas o que interessa aqui é o rosto: puxando pra
+  /// cima, ele aparece inteiro em vez de ficar espremido no cantinho de
+  /// cima. A faixa que sobra vazia embaixo fica sempre coberta pela onda.
+  final double deslocamentoDaArte;
+
+  const FundoPTK({
+    super.key,
+    required this.asset,
+    required this.onda,
+    this.deslocamentoDaArte = .12,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -96,25 +153,33 @@ class FundoPTK extends StatelessWidget {
           transitionBuilder: (filho, animacao) => FadeTransition(opacity: animacao, child: filho),
           child: asset == null
               ? const SizedBox.expand(key: ValueKey('sem-arte'))
-              : Image.asset(
-                  asset!,
-                  key: ValueKey(asset),
-                  fit: BoxFit.cover,
-                  // Topo, e não centro: é onde está o rosto do PTK em todas
-                  // as artes. Centralizado, a cabeça sairia do enquadramento
-                  // em tela larga.
-                  alignment: Alignment.topCenter,
-                  width: double.infinity,
-                  height: double.infinity,
+              : FractionalTranslation(
+                  translation: Offset(0, -deslocamentoDaArte),
+                  child: Image.asset(
+                    asset!,
+                    key: ValueKey(asset),
+                    fit: BoxFit.cover,
+                    // Topo, e não centro: é onde está o rosto do PTK em
+                    // todas as artes. Centralizado, a cabeça sairia do
+                    // enquadramento em tela larga.
+                    alignment: Alignment.topCenter,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
                 ),
         ),
         // A onda é animada por interpolação dos quatro números da forma, e
         // não por cross-fade: assim ela "escorre" de um desenho pro outro,
-        // em vez de uma sumir enquanto a outra aparece.
+        // em vez de uma sumir enquanto a outra aparece. É esse mesmo
+        // mecanismo que faz a onda "encher a tela" quando o teclado abre —
+        // a forma vira a ondaCheia e a curva sobe escorrendo, como líquido
+        // subindo num copo.
         TweenAnimationBuilder<FormaDaOnda>(
           tween: _TweenDeOnda(fim: onda),
-          duration: const Duration(milliseconds: 520),
-          curve: Curves.easeInOut,
+          duration: const Duration(milliseconds: 480),
+          // easeOutCubic sobe rápido e desacelera no fim, que é como um
+          // líquido se acomoda ao parar de encher.
+          curve: Curves.easeOutCubic,
           builder: (context, formaAtual, _) => CustomPaint(painter: _PintorDaOnda(formaAtual)),
         ),
       ],

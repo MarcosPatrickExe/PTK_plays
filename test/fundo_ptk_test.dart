@@ -4,9 +4,60 @@ import 'package:ptk_plays/components/FundoPTK.dart';
 
 void main() {
   group('FormaDaOnda', () {
-    test('topoMaisAlto é o menor dos quatro pontos — onde a onda sobe mais', () {
+    test('a curva começa e termina nas alturas das bordas', () {
       const onda = FormaDaOnda(alturaEsquerda: .52, alturaDireita: .46, curvaEsquerda: .58, curvaDireita: .40);
-      expect(onda.topoMaisAlto, .40);
+
+      expect(onda.alturaEm(0), closeTo(.52, .0001));
+      expect(onda.alturaEm(1), closeTo(.46, .0001));
+    });
+
+    test('a curva nunca alcança os pontos de controle — foi o que causou o bug', () {
+      // O texto escapava pra cima da arte porque o cálculo antigo tratava
+      // curvaEsquerda/curvaDireita como alturas por onde a curva passa. Ela
+      // é só puxada na direção deles.
+      const onda = FormaDaOnda(alturaEsquerda: .52, alturaDireita: .46, curvaEsquerda: .58, curvaDireita: .40);
+
+      for (var i = 0; i <= 20; i++) {
+        final altura = onda.alturaEm(i / 20);
+        expect(altura, greaterThan(.40), reason: 'chegou no ponto de controle de cima');
+        expect(altura, lessThan(.58), reason: 'chegou no ponto de controle de baixo');
+      }
+    });
+
+    test('fundoDaCurva é o ponto mais baixo por onde a curva passa', () {
+      const onda = FormaDaOnda(alturaEsquerda: .52, alturaDireita: .46, curvaEsquerda: .58, curvaDireita: .40);
+      final fundo = onda.fundoDaCurva;
+
+      // Nenhuma amostra pode ficar abaixo dele, senão a faixa branca não
+      // existiria em toda a largura naquele ponto.
+      for (var i = 0; i <= 40; i++) {
+        expect(onda.alturaEm(i / 40), lessThanOrEqualTo(fundo + .0001));
+      }
+      // E ele é uma altura real da curva, não um dos números crus.
+      expect(fundo, greaterThanOrEqualTo(.52));
+    });
+
+    test('topoDoConteudo desce a folga pedida dentro da faixa branca', () {
+      const onda = FormaDaOnda(alturaEsquerda: .5, alturaDireita: .5, curvaEsquerda: .5, curvaDireita: .5);
+
+      // Curva reta em .5: a faixa branca é a metade de baixo, e 20% dela
+      // são 10% da tela.
+      expect(onda.fundoDaCurva, closeTo(.5, .0001));
+      expect(onda.topoDoConteudo(), closeTo(.6, .0001));
+      expect(onda.topoDoConteudo(fracaoDeFolga: 0), closeTo(.5, .0001));
+    });
+
+    test('o conteúdo sempre começa abaixo da curva inteira', () {
+      for (final onda in [...ondasDoCadastro, ondaCheia]) {
+        final topo = onda.topoDoConteudo();
+        for (var i = 0; i <= 40; i++) {
+          expect(
+            onda.alturaEm(i / 40),
+            lessThan(topo),
+            reason: 'a curva passaria por cima do texto nessa onda',
+          );
+        }
+      }
     });
 
     test('formas iguais são iguais, pra evitar repintura à toa', () {
@@ -47,10 +98,20 @@ void main() {
       expect(ondaDaEtapa(ondasDoCadastro.length + 2), ondaDaEtapa(2));
     });
 
+    test('com o teclado aberto, qualquer etapa usa a onda cheia', () {
+      for (var etapa = 0; etapa < ondasDoCadastro.length; etapa++) {
+        expect(ondaDaEtapa(etapa, tecladoAberto: true), ondaCheia);
+      }
+    });
+
+    test('a onda cheia sobe quase até o topo, liberando a tela pro teclado', () {
+      expect(ondaCheia.fundoDaCurva, lessThan(.15));
+    });
+
     test('toda onda deixa espaço pra arte e pro formulário', () {
       for (final onda in ondasDoCadastro) {
-        expect(onda.topoMaisAlto, greaterThan(.3), reason: 'a arte ficaria espremida demais');
-        expect(onda.topoMaisAlto, lessThan(.65), reason: 'sobraria pouco espaço pro formulário');
+        expect(onda.fundoDaCurva, greaterThan(.3), reason: 'a arte ficaria espremida demais');
+        expect(onda.topoDoConteudo(), lessThan(.75), reason: 'sobraria pouco espaço pro formulário');
       }
     });
   });

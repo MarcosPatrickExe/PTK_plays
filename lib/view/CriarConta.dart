@@ -227,7 +227,11 @@ class _CriarContaState extends State<CriarConta> {
       if (envio.erro != null) {
         // Conta criada, foto não subiu: não vale barrar a entrada por causa
         // disso — a pessoa troca a foto depois na edição de perfil.
-        mostrarToast(context, mensagem: 'Conta criada! Só a foto não subiu, tente de novo no perfil.', erro: true);
+        mostrarToast(
+          context,
+          mensagem: 'Conta criada! Só a foto não subiu, tente de novo no perfil.',
+          erro: true,
+        );
       }
     }
 
@@ -248,69 +252,87 @@ class _CriarContaState extends State<CriarConta> {
 
   @override
   Widget build(BuildContext context) {
-    final onda = ondaDaEtapa(_indice);
-    final altura = MediaQuery.sizeOf(context).height;
     final tecladoAberto = MediaQuery.viewInsetsOf(context).bottom > 0;
-
-    // Quanto da tela a arte ocupa antes de a onda começar. Com o teclado
-    // aberto sobra pouca altura, então a arte encolhe pela metade pra o
-    // formulário continuar caber — a onda acompanha, porque é o mesmo
-    // número que desenha as duas coisas.
-    final espacoDaArte = altura * onda.topoMaisAlto * (tecladoAberto ? .5 : 1);
+    final onda = ondaDaEtapa(_indice, tecladoAberto: tecladoAberto);
 
     // Esta tela não tem botão de trocar tema, de propósito: é a única do
     // app com identidade visual própria (arte + onda branca), e o
     // formulário vive sempre sobre o branco. Por isso as cores aqui são
     // fixas, e não vindas do ThemeController.
     return Scaffold(
-      body: Stack(
-        children: [
-          FundoPTK(asset: assetDaEtapa(_etapaAtual), onda: onda),
+      // LayoutBuilder, e não MediaQuery: com o teclado aberto o Scaffold
+      // encolhe o corpo, e é essa altura menor que a onda usa pra se
+      // desenhar. Medir o formulário pela altura da tela inteira deixaria
+      // os dois em escalas diferentes, e a folga sairia errada justo no
+      // momento em que o espaço é mais apertado.
+      body: LayoutBuilder(
+        builder: (context, restricoes) {
+          final altura = restricoes.maxHeight;
 
-          // O formulário ocupa a parte branca, abaixo da onda. Anima junto
-          // com ela (mesma duração) pra não pular de posição enquanto a
-          // curva ainda está escorrendo pro novo desenho.
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 520),
-            curve: Curves.easeInOut,
-            top: espacoDaArte,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: ResponsiveCenter(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: PageView(
-                        controller: _paginas,
-                        // A navegação é só pelos botões: arrastar pularia a
-                        // checagem que impede avançar com a etapa incompleta.
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: _etapas.map(_conteudoDaEtapa).toList(),
-                      ),
+          // Onde o formulário começa. Sai do ponto mais BAIXO da curva (é
+          // dali pra baixo que a faixa branca existe em toda a largura) mais
+          // uma folga, pra o texto não nascer colado nela. Enquanto a pessoa
+          // digita, a folga diminui — ali o que importa é caber, não
+          // respirar.
+          final topoDoFormulario = altura * onda.topoDoConteudo(fracaoDeFolga: tecladoAberto ? .06 : .2);
+
+          return Stack(
+            children: [
+              FundoPTK(asset: assetDaEtapa(_etapaAtual), onda: onda),
+
+              // O formulário ocupa a parte branca, abaixo da onda. O `bottom: 0`
+              // já respeita o teclado, porque o Scaffold encolhe o corpo — é o
+              // que mantém os campos visíveis com o teclado aberto.
+              AnimatedPositioned(
+                // Mesma duração e curva da onda: o formulário sobe junto com o
+                // "líquido", em vez de saltar pro lugar antes dela chegar.
+                duration: const Duration(milliseconds: 480),
+                curve: Curves.easeOutCubic,
+                top: topoDoFormulario,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: ResponsiveCenter(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: PageView(
+                            controller: _paginas,
+                            // A navegação é só pelos botões: arrastar pularia a
+                            // checagem que impede avançar com a etapa incompleta.
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: _etapas.map(_conteudoDaEtapa).toList(),
+                          ),
+                        ),
+                        _barraDeBotoes(),
+                      ],
                     ),
-                    _barraDeBotoes(),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
 
-          // As bolinhas ficam sobre a arte, no alto: ali elas não roubam
-          // espaço do formulário, e a arte é escura o bastante pro branco
-          // aparecer.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: _IndicadorDeEtapas(total: _etapas.length, atual: _indice),
-            ),
-          ),
-        ],
+              // As bolinhas ficam sobre a arte, no alto: ali elas não roubam
+              // espaço do formulário. Com o teclado aberto a onda cobre esse
+              // pedaço, então elas trocam pro tom escuro — brancas sobre branco
+              // sumiriam.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: _IndicadorDeEtapas(
+                    total: _etapas.length,
+                    atual: _indice,
+                    sobreFundoClaro: tecladoAberto,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -424,7 +446,10 @@ class _CriarContaState extends State<CriarConta> {
           TextButton.icon(
             onPressed: _criando ? null : _voltar,
             icon: const Icon(Icons.arrow_back, size: 18),
-            label: Text(_indice == 0 ? 'Sair' : 'Voltar', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            label: Text(
+              _indice == 0 ? 'Sair' : 'Voltar',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+            ),
             style: TextButton.styleFrom(foregroundColor: corDeApoioDoCadastro),
           ),
           const Spacer(),
@@ -521,7 +546,11 @@ class _EtapaFoto extends StatelessWidget {
         children: [
           Text(
             'Sua foto de perfil',
-            style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.w800, color: corDeTituloDoCadastro),
+            style: GoogleFonts.outfit(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: corDeTituloDoCadastro,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
@@ -589,7 +618,12 @@ class _BotaoDeFoto extends StatelessWidget {
   final bool carregando;
   final VoidCallback onTap;
 
-  const _BotaoDeFoto({required this.icone, required this.label, required this.carregando, required this.onTap});
+  const _BotaoDeFoto({
+    required this.icone,
+    required this.label,
+    required this.carregando,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -614,7 +648,10 @@ class _BotaoDeFoto extends StatelessWidget {
             else
               Icon(icone, color: corDeTituloDoCadastro, size: 20),
             const SizedBox(width: 8),
-            Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: corDeTituloDoCadastro)),
+            Text(
+              label,
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: corDeTituloDoCadastro),
+            ),
           ],
         ),
       ),
@@ -628,7 +665,11 @@ class _IndicadorDeEtapas extends StatelessWidget {
   final int total;
   final int atual;
 
-  const _IndicadorDeEtapas({required this.total, required this.atual});
+  /// true quando a onda já cobriu o topo (teclado aberto): aí as bolinhas
+  /// apagadas precisam ser escuras, senão somem no branco.
+  final bool sobreFundoClaro;
+
+  const _IndicadorDeEtapas({required this.total, required this.atual, this.sobreFundoClaro = false});
 
   @override
   Widget build(BuildContext context) {
@@ -644,7 +685,9 @@ class _IndicadorDeEtapas extends StatelessWidget {
             width: indice == atual ? 22 : 8,
             height: 8,
             decoration: BoxDecoration(
-              color: ativo ? const Color(0xFFC33BE8) : Colors.white24,
+              color: ativo
+                  ? const Color(0xFFC33BE8)
+                  : (sobreFundoClaro ? const Color(0x332D1B4E) : Colors.white24),
               borderRadius: BorderRadius.circular(4),
             ),
           );
@@ -688,7 +731,10 @@ class _BotaoAvancar extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 15)),
+              Text(
+                label,
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 15),
+              ),
               const SizedBox(width: 8),
               if (carregando)
                 const SizedBox(
