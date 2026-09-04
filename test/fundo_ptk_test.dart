@@ -47,7 +47,51 @@ void main() {
       expect(onda.topoDoConteudo(fracaoDeFolga: 0), closeTo(.5, .0001));
     });
 
-    test('o conteúdo sempre começa abaixo da curva inteira', () {
+    test('o cume é o lado onde a curva subiu mais', () {
+      // Sobe à direita (altura menor = mais alto na tela).
+      const subindoADireita = FormaDaOnda(
+        alturaEsquerda: .55,
+        alturaDireita: .40,
+        curvaEsquerda: .55,
+        curvaDireita: .40,
+      );
+      expect(subindoADireita.cumeEhAEsquerda, isFalse);
+
+      const subindoAEsquerda = FormaDaOnda(
+        alturaEsquerda: .40,
+        alturaDireita: .55,
+        curvaEsquerda: .40,
+        curvaDireita: .55,
+      );
+      expect(subindoAEsquerda.cumeEhAEsquerda, isTrue);
+    });
+
+    test('o texto sobe mais que os campos, porque só ocupa o lado do cume', () {
+      for (final onda in ondasDoCadastro) {
+        expect(
+          onda.topoDoTexto(),
+          lessThan(onda.topoDoConteudo()),
+          reason: 'o texto não estaria aproveitando o espaço livre do cume',
+        );
+      }
+    });
+
+    test('o texto ainda começa abaixo da curva no lado em que ele fica', () {
+      for (final onda in ondasDoCadastro) {
+        final topo = onda.topoDoTexto();
+        final de = onda.cumeEhAEsquerda ? 0.0 : .5;
+
+        for (var i = 0; i <= 24; i++) {
+          expect(
+            onda.alturaEm(de + .5 * i / 24),
+            lessThan(topo),
+            reason: 'a curva passaria por cima do texto no lado do cume',
+          );
+        }
+      }
+    });
+
+    test('o conteúdo de largura cheia sempre começa abaixo da curva inteira', () {
       for (final onda in [...ondasDoCadastro, ondaCheia]) {
         final topo = onda.topoDoConteudo();
         for (var i = 0; i <= 40; i++) {
