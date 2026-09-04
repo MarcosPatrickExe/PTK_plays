@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
+import 'package:ptk_plays/components/FundoPTK.dart';
 import 'package:ptk_plays/view/CriarConta.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -95,11 +96,11 @@ void main() {
 
   group('assetDaEtapa', () {
     test('cada etapa com arte definida aponta pro arquivo dela', () {
-      expect(assetDaEtapa(EtapaCadastro.nickname), 'assets/ptk/ptk_nickname.jpg');
-      expect(assetDaEtapa(EtapaCadastro.email), 'assets/ptk/ptk_email.jpg');
-      expect(assetDaEtapa(EtapaCadastro.senha), 'assets/ptk/ptk_senha.jpg');
-      expect(assetDaEtapa(EtapaCadastro.foto), 'assets/ptk/ptk_foto.jpg');
-      expect(assetDaEtapa(EtapaCadastro.whatsapp), 'assets/ptk/ptk_whatsapp.jpg');
+      expect(assetDaEtapa(EtapaCadastro.nickname), 'assets/ptk/ptk_nickname.webp');
+      expect(assetDaEtapa(EtapaCadastro.email), 'assets/ptk/ptk_email.webp');
+      expect(assetDaEtapa(EtapaCadastro.senha), 'assets/ptk/ptk_senha.webp');
+      expect(assetDaEtapa(EtapaCadastro.foto), 'assets/ptk/ptk_foto.webp');
+      expect(assetDaEtapa(EtapaCadastro.whatsapp), 'assets/ptk/ptk_whatsapp.webp');
     });
 
     test('boas-vindas ainda não tem arte, e isso não quebra a tela', () {
@@ -123,12 +124,12 @@ void main() {
       await tester.pump();
 
       await _tocarEmAvancar(tester);
-      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.text('Voltar'), findsOneWidget);
 
       // Nick vazio: tocar em avançar não sai do lugar.
       await _tocarEmAvancar(tester);
-      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
     });
 
     testWidgets('nick curto avisa embaixo do campo enquanto a pessoa digita', (tester) async {
@@ -173,7 +174,7 @@ void main() {
       await tester.enterText(campos.at(1), 'fulano@teste.com');
       await tester.pump();
       await _tocarEmAvancar(tester);
-      expect(find.text('Agora crie uma senha'), findsOneWidget);
+      expect(find.text('Agora crie\numa senha'), findsOneWidget);
     });
 
     testWidgets('voltar desfaz a etapa sem perder o que já foi digitado', (tester) async {
@@ -190,7 +191,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
 
-      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.text('PTKzin'), findsOneWidget);
     });
 
@@ -211,7 +212,7 @@ void main() {
       await _tocarEmAvancar(tester);
 
       const subtitulo = 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.';
-      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.text(subtitulo), findsOneWidget);
 
       // O teclado aparece como viewInsets no rodapé.
@@ -223,7 +224,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       // O título continua: é ele que diz o que está sendo preenchido.
-      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.text(subtitulo), findsNothing);
     });
 
@@ -237,6 +238,45 @@ void main() {
       await _tocarEmAvancar(tester);
 
       expect(find.text('Sua foto de perfil'), findsOneWidget);
+    });
+
+    testWidgets('com o cume à esquerda o título quebra a linha e o subtítulo vem inteiro', (tester) async {
+      // A etapa do nick é a segunda, e a onda dela sobe à esquerda.
+      expect(ondaDaEtapa(1).cumeEhAEsquerda, isTrue);
+
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
+      expect(
+        find.text('Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('com o cume à direita o título fica em uma linha só e o subtítulo é o resumido', (tester) async {
+      // A etapa do e-mail é a terceira, e a onda dela sobe à direita: sobra
+      // menos altura à esquerda, onde o texto fica.
+      expect(ondaDaEtapa(2).cumeEhAEsquerda, isFalse);
+
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Qual é o seu e-mail?'), findsOneWidget);
+      expect(find.text('Serve pra entrar e recuperar a senha.'), findsOneWidget);
+      expect(
+        find.text('É por ele que você entra na conta e recupera a senha se esquecer.'),
+        findsNothing,
+      );
+
+      // Fonte menor, pra tudo caber na faixa mais baixa que sobra.
+      final titulo = tester.widget<Text>(find.text('Qual é o seu e-mail?'));
+      expect(titulo.style!.fontSize, lessThan(26));
     });
   });
 }
