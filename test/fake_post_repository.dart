@@ -14,8 +14,12 @@ class FakePostRepository implements PostRepository {
   /// encontrar.
   List<PostModel> antigos = const [];
 
+  /// O que o stream do feed devolve. Vazio por padrão; os testes que
+  /// precisam de posts na tela preenchem antes de montar o widget.
+  List<PostModel> postagensDoStream = const [];
+
   @override
-  Stream<List<PostModel>> streamPostagens() => Stream.value(const []);
+  Stream<List<PostModel>> streamPostagens() => Stream.value(postagensDoStream);
 
   @override
   Future<void> votar({required String postId, required int indiceOpcao, required String uid}) async {}

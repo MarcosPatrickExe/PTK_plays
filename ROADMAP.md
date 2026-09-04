@@ -1216,3 +1216,68 @@ O nick já vem sugerido com o nome da conta Google/Apple
 - **`Cadastro.dart` (a tela antiga) ficou só pro harness de screenshots**
   (`main_screenshots.dart`). Remover quando o fluxo novo estiver validado
   em produção.
+
+# Painel ADM: contraste no escuro e remoção de usuário (04/set/2026)
+
+## Três correções visuais
+
+- **O menu de 3 pontinhos abria branco no tema escuro**, com o texto dos
+  itens também branco — ilegível. O `PopupMenuButton` usava o branco padrão
+  do Material; agora ele recebe a cor de superfície do app conforme o tema.
+- **A lixeira do post ficava vermelha no escuro**, sumindo no fundo roxo.
+  Passou a ser branca só no modo escuro; no claro o vermelho continua,
+  porque ali ele contrasta e sinaliza o risco.
+- **O post aparecia cortado em 2 linhas** na aba Posts, escondendo
+  justamente o que o admin precisa ler antes de apagar. Agora aparece
+  inteiro.
+
+## Remoção de usuário em cascata
+
+Opção nova no menu (`AdminRepository.removerUsuario`), que apaga em
+sequência:
+
+1. todos os posts do feed com `autorUid` da pessoa;
+2. a reserva do nickname em `nicknamesParaEmail` — sem isso o nick ficaria
+   preso pra sempre a uma conta que não existe mais;
+3. o documento do usuário, **por último**: as regras leem o cargo de quem
+   chama a partir de `users/{uid}`, e apagar o documento no meio derrubaria
+   a permissão do próprio admin se ele estivesse removendo a si mesmo.
+
+Mensagens do grupo e conversas privadas entram nesse mesmo método quando
+existirem (Etapa 3) — o lugar já está marcado no código.
+
+**`firestore.rules`** precisou de duas mudanças: o admin não podia apagar
+documento de outro usuário (`allow delete: if ehDono(userId)`), e
+`nicknamesParaEmail` tinha `allow delete: if false` pra todo mundo.
+
+### O que a remoção NÃO faz
+
+- **Não apaga a conta do Firebase Auth.** Só o Admin SDK, numa Cloud
+  Function, consegue. Na prática: se a pessoa entrar de novo pelo
+  Google/Apple, uma conta nova e vazia é criada. O diálogo de confirmação
+  avisa isso, porque é o tipo de coisa que o clique não deixa óbvia.
+- **Não apaga os arquivos do Storage** (foto de perfil, mídia dos posts).
+  Regra de Storage não lê o Firestore, então não há como autorizar o admin
+  lá — os arquivos ficam órfãos. Mesma limitação que já vale pro upload de
+  mídia; a saída de verdade é um *custom claim* de admin, já anotado.
+
+## Testes
+
+`painel_admin_test.dart` cresceu: opção no menu, cancelar não removendo
+nada, confirmar removendo e dizendo quantos posts foram junto, o menu não
+abrindo branco no escuro (e seguindo branco no claro), a lixeira branca, e
+o post sem `maxLines`.
+
+Dois detalhes do arquivo de teste que valem registro: o painel encadeia
+animações (troca de aba, menu, diálogo) e o fundo anima em loop, então
+`pumpAndSettle` trava — os testes usam vários `pump` espaçados. E a TabBar
+tem 6 abas, que não cabem na janela padrão de 800x600 do teste; o grupo que
+usa a aba Posts abre uma janela de desktop.
+
+**Não testado de ponta a ponta**: a cascata em si e a regra `ehAdmin()`,
+que dependem do Firestore real ou do emulador.
+
+## Pendência de deploy
+
+`firebase deploy --only firestore:rules` — sem isso a remoção falha com
+`permission-denied` na hora de apagar o documento do usuário.

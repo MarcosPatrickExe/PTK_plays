@@ -240,6 +240,10 @@ class _LinhaUsuario extends StatelessWidget {
           ),
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
+            // Sem isso o popup usa o branco do tema Material tambem no modo
+            // escuro, onde o texto dos itens e branco — texto branco em
+            // fundo branco, ilegivel.
+            color: isDark ? const Color(0xFF2C0F55) : Colors.white,
             onSelected: (opcao) => _executar(context, opcao),
             itemBuilder: (context) => [
               _itemDoMenu(valor: 'perfil', icone: Icons.person_outline, label: 'Ver perfil'),
@@ -249,6 +253,12 @@ class _LinhaUsuario extends StatelessWidget {
               ] else
                 _itemDoMenu(valor: 'reativar', icone: Icons.check_circle_outline, label: 'Reativar conta'),
               _itemDoMenu(valor: 'mensagem', icone: Icons.chat_bubble_outline, label: 'Mensagem privada'),
+              _itemDoMenu(
+                valor: 'remover',
+                icone: Icons.person_remove_outlined,
+                label: 'Remover usuário',
+                cor: const Color(0xFFE0264F),
+              ),
             ],
           ),
         ],
@@ -310,6 +320,10 @@ class _LinhaUsuario extends StatelessWidget {
       mostrarToast(context, mensagem: 'Mensagem privada ainda não está pronta.', erro: true);
       return;
     }
+    if (opcao == 'remover') {
+      await _removerUsuario(context);
+      return;
+    }
 
     try {
       switch (opcao) {
@@ -326,6 +340,46 @@ class _LinhaUsuario extends StatelessWidget {
       if (context.mounted) mostrarToast(context, mensagem: 'Usuário atualizado.', erro: false);
     } catch (e) {
       if (context.mounted) mostrarToast(context, mensagem: 'Não foi possível atualizar: $e', erro: true);
+    }
+  }
+
+  /// Remoção em cascata: some a conta e tudo que ela publicou. Como é
+  /// irreversível e mexe em mais coisa do que o clique sugere, o diálogo
+  /// lista o que vai embora — e o que **não** vai.
+  Future<void> _removerUsuario(BuildContext context) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Remover ${usuario.nickname}?'),
+        content: const Text(
+          'Some a conta e, junto com ela, todos os posts, mensagens e conversas '
+          'dessa pessoa. Não dá pra desfazer.\n\n'
+          'O login dela no Firebase continua existindo: se entrar de novo pelo '
+          'Google/Apple, uma conta nova e vazia é criada.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remover', style: TextStyle(color: Color(0xFFE0264F))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !context.mounted) return;
+
+    try {
+      final postsApagados = await repository.removerUsuario(usuario.uid);
+      if (!context.mounted) return;
+      mostrarToast(
+        context,
+        mensagem: 'Usuário removido, com $postsApagados post(s).',
+        erro: false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      mostrarToast(context, mensagem: 'Não foi possível remover: $e', erro: true);
     }
   }
 
@@ -601,8 +655,6 @@ class _LinhaPost extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   resumo,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
                     color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
                     fontWeight: FontWeight.w600,
@@ -614,7 +666,10 @@ class _LinhaPost extends StatelessWidget {
           if (podeApagar)
             IconButton(
               tooltip: 'Excluir post',
-              icon: const Icon(Icons.delete_outline, color: Color(0xFFE0264F)),
+              // No escuro o vermelho de acao destrutiva se perde no fundo
+              // roxo; o branco le melhor. No claro o vermelho continua,
+              // porque ali ele contrasta e sinaliza o risco.
+              icon: Icon(Icons.delete_outline, color: isDark ? Colors.white : const Color(0xFFE0264F)),
               onPressed: () => _confirmarExclusao(context),
             ),
         ],

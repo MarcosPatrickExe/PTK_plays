@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AvatarUsuario.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/data/models/Conquista.dart';
+import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/AdminRepository.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
@@ -15,6 +16,11 @@ import 'fake_post_repository.dart';
 /// teste montou, e guarda as ações de moderação em vez de escrever.
 class FakeAdminRepository implements AdminRepository {
   final List<UserModel> usuarios;
+  final List<String> removidos = [];
+
+  /// Quantos posts a remoção em cascata diz ter apagado junto.
+  int postsApagadosNaRemocao = 0;
+
   FakeAdminRepository(this.usuarios);
 
   @override
@@ -30,17 +36,32 @@ class FakeAdminRepository implements AdminRepository {
   Future<void> reativarUsuario(String uid) async {}
 
   @override
+  Future<int> removerUsuario(String uid) async {
+    removidos.add(uid);
+    return postsApagadosNaRemocao;
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _telaDoPainel(List<UserModel> usuarios) {
+Widget _telaDoPainel(
+  List<UserModel> usuarios, {
+  FakeAdminRepository? repositorio,
+  FakePostRepository? postRepositorio,
+  bool escuro = false,
+}) {
   return ChangeNotifierProvider(
-    create: (_) => ThemeController(),
+    create: (_) {
+      final tema = ThemeController();
+      if (escuro) tema.toggleTheme();
+      return tema;
+    },
     child: MaterialApp(
       home: PainelAdmin(
         admin: _usuario(cargo: 'admin'),
-        repository: FakeAdminRepository(usuarios),
-        postRepository: FakePostRepository(),
+        repository: repositorio ?? FakeAdminRepository(usuarios),
+        postRepository: postRepositorio ?? FakePostRepository(),
       ),
     ),
   );
@@ -86,6 +107,17 @@ Widget _telaComMenu({required bool ehAdmin, VoidCallback onPainelAdmin = _noop})
       body: Builder(builder: (context) => Center(child: BotaoMenuLateral(isDark: false))),
     ),
   );
+}
+
+/// O painel encadeia animações (troca de aba, menu que fecha, diálogo que
+/// abre) e ainda espera o `StreamBuilder` da lista resolver — e o fundo
+/// anima em loop, então `pumpAndSettle` nunca terminaria. Alguns frames
+/// espaçados cobrem tudo isso.
+Future<void> _esperar(WidgetTester tester) async {
+  await tester.pump();
+  for (var frame = 0; frame < 5; frame++) {
+    await tester.pump(const Duration(milliseconds: 400));
+  }
 }
 
 void main() {
@@ -193,8 +225,139 @@ void main() {
     });
   });
 
-  // Banir/suspender de verdade não tem teste de ponta a ponta: a escrita
-  // depende do Firestore real e a regra que barra um não-admin está em
-  // firestore.rules (`ehAdmin()`), que precisa do emulador ou de produção
-  // pra validar — ver ROADMAP.md.
+  group('Painel ADM > remover usuário', () {
+    testWidgets('a opção aparece no menu, junto das de moderação', (tester) async {
+      await tester.pumpWidget(_telaDoPainel([_usuario(cargo: 'inscrito')]));
+      await _esperar(tester);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await _esperar(tester);
+
+      expect(find.text('Remover usuário'), findsOneWidget);
+      expect(find.byIcon(Icons.person_remove_outlined), findsOneWidget);
+    });
+
+    testWidgets('cancelar no diálogo não remove nada', (tester) async {
+      final repo = FakeAdminRepository([_usuario(cargo: 'inscrito', nickname: 'Antônio')]);
+      await tester.pumpWidget(_telaDoPainel(const [], repositorio: repo));
+      await _esperar(tester);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await _esperar(tester);
+      await tester.tap(find.text('Remover usuário'));
+      await _esperar(tester);
+
+      // O diálogo avisa que o login no Firebase sobrevive — é a parte que
+      // o clique não deixa óbvia.
+      expect(find.textContaining('login dela no Firebase continua existindo'), findsOneWidget);
+
+      await tester.tap(find.text('Cancelar'));
+      await _esperar(tester);
+
+      expect(repo.removidos, isEmpty);
+    });
+
+    testWidgets('confirmar remove a conta e diz quantos posts foram junto', (tester) async {
+      final repo = FakeAdminRepository([_usuario(cargo: 'inscrito', nickname: 'Antônio')])
+        ..postsApagadosNaRemocao = 3;
+      await tester.pumpWidget(_telaDoPainel(const [], repositorio: repo));
+      await _esperar(tester);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await _esperar(tester);
+      await tester.tap(find.text('Remover usuário'));
+      await _esperar(tester);
+      await tester.tap(find.text('Remover'));
+      await _esperar(tester);
+
+      expect(repo.removidos, ['uid-1']);
+      expect(find.textContaining('3 post(s)'), findsOneWidget);
+    });
+  });
+
+  group('Painel ADM no tema escuro', () {
+    // A TabBar tem 6 abas: na janela padrão do teste (800x600) as últimas
+    // ficam fora da área tocável. Uma janela de desktop deixa todas
+    // alcançáveis, que é como o admin usa o painel de verdade.
+    setUp(() {
+      final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher.views.first;
+      view.physicalSize = const Size(1400, 1000);
+      view.devicePixelRatio = 1;
+      addTearDown(() {
+        view.resetPhysicalSize();
+        view.resetDevicePixelRatio();
+      });
+    });
+
+    testWidgets('o menu de 3 pontinhos não abre branco (texto sumia no fundo)', (tester) async {
+      await tester.pumpWidget(_telaDoPainel([_usuario(cargo: 'inscrito')], escuro: true));
+      await _esperar(tester);
+
+      final menu = tester.widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>));
+      expect(menu.color, isNot(Colors.white));
+    });
+
+    testWidgets('no tema claro o menu segue branco', (tester) async {
+      await tester.pumpWidget(_telaDoPainel([_usuario(cargo: 'inscrito')]));
+      await _esperar(tester);
+
+      final menu = tester.widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>));
+      expect(menu.color, Colors.white);
+    });
+
+    testWidgets('a lixeira do post fica branca, e não vermelha no fundo roxo', (tester) async {
+      final posts = FakePostRepository()
+        ..postagensDoStream = [
+          PostModel(
+            id: 'p1',
+            tipo: PostModel.tipoAvisoTexto,
+            autorUid: 'uid-1',
+            autorNickname: 'PTKzin',
+            criadoEm: DateTime(2026, 9, 1),
+            texto: 'Aviso de teste',
+          ),
+        ];
+
+      await tester.pumpWidget(_telaDoPainel(const [], postRepositorio: posts, escuro: true));
+      await _esperar(tester);
+
+      // Vai pra aba Posts, onde a lixeira mora.
+      await tester.tap(find.text('Posts'));
+      await _esperar(tester);
+
+      final lixeira = tester.widget<Icon>(find.byIcon(Icons.delete_outline));
+      expect(lixeira.color, Colors.white);
+    });
+
+    testWidgets('o post aparece inteiro, sem cortar em duas linhas', (tester) async {
+      const textoLongo = 'Primeira linha do aviso. Segunda linha do aviso. '
+          'Terceira linha do aviso, que antes era cortada e escondia justamente '
+          'o que o admin precisa ler antes de apagar o post.';
+
+      final posts = FakePostRepository()
+        ..postagensDoStream = [
+          PostModel(
+            id: 'p1',
+            tipo: PostModel.tipoAvisoTexto,
+            autorUid: 'uid-1',
+            autorNickname: 'PTKzin',
+            criadoEm: DateTime(2026, 9, 1),
+            texto: textoLongo,
+          ),
+        ];
+
+      await tester.pumpWidget(_telaDoPainel(const [], postRepositorio: posts));
+      await _esperar(tester);
+      await tester.tap(find.text('Posts'));
+      await _esperar(tester);
+
+      final texto = tester.widget<Text>(find.text(textoLongo));
+      expect(texto.maxLines, isNull);
+    });
+  });
+
+  // A cascata em si (posts + reserva de nickname + documento) e a regra que
+  // barra um não-admin (`ehAdmin()` em firestore.rules) não têm teste de
+  // ponta a ponta: dependem do Firestore real ou do emulador — ver
+  // ROADMAP.md.
 }
