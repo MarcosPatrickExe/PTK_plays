@@ -1340,3 +1340,57 @@ duas limitações já registradas: fechar a escrita no Storage (hoje qualquer
 logado pode subir arquivo na própria pasta, ainda que não consiga publicar)
 e permitir que a remoção em cascata apague também a conta do Firebase Auth
 e os arquivos órfãos do Storage.
+
+
+# Correções da tela de cadastro (05/set/2026)
+
+Três problemas reportados com print do preview, todos na mesma tela.
+
+## O texto escapava pra cima da arte
+
+Era um erro de conta meu, em duas camadas:
+
+1. O formulário era posicionado pelo ponto **mais alto** da onda. O certo é
+   o mais **baixo**: a faixa branca só existe em toda a largura dali pra
+   baixo. Onde a curva descia numa borda, o texto ficava por cima da arte.
+2. Esse "ponto mais alto" era o menor dos quatro números da forma — mas
+   dois deles são **pontos de controle** da Bézier. A curva é puxada na
+   direção deles e nunca chega neles, então o valor nem correspondia a uma
+   altura que a curva tem.
+
+`FormaDaOnda` agora sabe calcular a curva de verdade: `alturaEm(t)` é a
+Bézier, `fundoDaCurva` acha o ponto mais baixo por amostragem, e
+`topoDoConteudo(fracaoDeFolga)` desce mais 20% da altura da faixa branca
+pra o texto não nascer colado na curva.
+
+O teste que fecha o assunto percorre **todas** as ondas do cadastro
+(incluindo a cheia) e confirma que o conteúdo começa abaixo da curva
+inteira, ponto a ponto.
+
+## A onda enche a tela quando o teclado abre
+
+Enquanto a pessoa digita, a forma vira `ondaCheia` e a curva sobe até ~10%
+do topo, cobrindo quase toda a arte. Perder o PTK de vista nesse momento é
+de propósito: o que importa ali é digitar sem o campo espremido contra o
+teclado.
+
+- A animação já existente (interpolação dos quatro números) faz a subida
+  parecer líquido enchendo a tela. A curva passou pra `easeOutCubic`, que
+  sobe rápido e desacelera no fim, como líquido se acomodando.
+- O formulário sobe junto, na mesma duração e curva — senão saltaria pro
+  lugar antes de a onda chegar.
+- A folga cai de 20% pra 6% nesse estado: ali o que importa é caber.
+- As bolinhas de progresso trocam pro tom escuro, senão sumiriam no branco
+  que passou a cobrir o topo.
+
+**Detalhe que quase passou**: com o teclado aberto o `Scaffold` encolhe o
+corpo, e é essa altura menor que a onda usa pra se desenhar. O formulário
+estava sendo medido por `MediaQuery`, ou seja, pela tela inteira — as duas
+coisas em escalas diferentes, e a folga errada justo no momento mais
+apertado. Agora as duas leem a mesma altura, do `LayoutBuilder`.
+
+## A arte subiu
+
+`deslocamentoDaArte` (12% por padrão) puxa a imagem pra cima. As artes têm
+o PTK de corpo inteiro, mas o que interessa na tela é o rosto. A faixa que
+sobra vazia embaixo fica sempre coberta pela onda, então não aparece.
