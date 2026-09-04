@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:ptk_plays/components/AuthWidgets.dart';
 import 'package:ptk_plays/components/CampoFlutuante.dart';
 import 'package:ptk_plays/components/FundoPTK.dart';
 import 'package:ptk_plays/components/ModalCropFoto.dart';
@@ -20,6 +19,12 @@ import 'package:ptk_plays/view/Home.dart';
 
 /// As telas do cadastro, na ordem em que aparecem.
 enum EtapaCadastro { boasVindas, nickname, email, senha, foto, whatsapp }
+
+/// Cores do formulário do cadastro. Fixas de propósito: essa é a única tela
+/// do app sem troca de tema, e o conteúdo vive sempre sobre a parte branca
+/// da onda (ver `FundoPTK`).
+const Color corDeTituloDoCadastro = Color(0xFF2D1B4E);
+const Color corDeApoioDoCadastro = Color(0xFF6E5B92);
 
 /// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve
 /// e-mail e senha resolvidos pelo provedor, então essas duas etapas somem —
@@ -243,27 +248,66 @@ class _CriarContaState extends State<CriarConta> {
 
   @override
   Widget build(BuildContext context) {
+    final onda = ondaDaEtapa(_indice);
+    final altura = MediaQuery.sizeOf(context).height;
+    final tecladoAberto = MediaQuery.viewInsetsOf(context).bottom > 0;
+
+    // Quanto da tela a arte ocupa antes de a onda começar. Com o teclado
+    // aberto sobra pouca altura, então a arte encolhe pela metade pra o
+    // formulário continuar caber — a onda acompanha, porque é o mesmo
+    // número que desenha as duas coisas.
+    final espacoDaArte = altura * onda.topoMaisAlto * (tecladoAberto ? .5 : 1);
+
+    // Esta tela não tem botão de trocar tema, de propósito: é a única do
+    // app com identidade visual própria (arte + onda branca), e o
+    // formulário vive sempre sobre o branco. Por isso as cores aqui são
+    // fixas, e não vindas do ThemeController.
     return Scaffold(
       body: Stack(
         children: [
-          FundoPTK(asset: assetDaEtapa(_etapaAtual)),
-          SafeArea(
-            child: ResponsiveCenter(
-              child: Column(
-                children: [
-                  _IndicadorDeEtapas(total: _etapas.length, atual: _indice),
-                  Expanded(
-                    child: PageView(
-                      controller: _paginas,
-                      // A navegação é só pelos botões: arrastar pularia a
-                      // checagem que impede avançar com a etapa incompleta.
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: _etapas.map(_conteudoDaEtapa).toList(),
+          FundoPTK(asset: assetDaEtapa(_etapaAtual), onda: onda),
+
+          // O formulário ocupa a parte branca, abaixo da onda. Anima junto
+          // com ela (mesma duração) pra não pular de posição enquanto a
+          // curva ainda está escorrendo pro novo desenho.
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 520),
+            curve: Curves.easeInOut,
+            top: espacoDaArte,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: ResponsiveCenter(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: PageView(
+                        controller: _paginas,
+                        // A navegação é só pelos botões: arrastar pularia a
+                        // checagem que impede avançar com a etapa incompleta.
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: _etapas.map(_conteudoDaEtapa).toList(),
+                      ),
                     ),
-                  ),
-                  _barraDeBotoes(),
-                ],
+                    _barraDeBotoes(),
+                  ],
+                ),
               ),
+            ),
+          ),
+
+          // As bolinhas ficam sobre a arte, no alto: ali elas não roubam
+          // espaço do formulário, e a arte é escura o bastante pro branco
+          // aparecer.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: _IndicadorDeEtapas(total: _etapas.length, atual: _indice),
             ),
           ),
         ],
@@ -381,7 +425,7 @@ class _CriarContaState extends State<CriarConta> {
             onPressed: _criando ? null : _voltar,
             icon: const Icon(Icons.arrow_back, size: 18),
             label: Text(_indice == 0 ? 'Sair' : 'Voltar', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            style: TextButton.styleFrom(foregroundColor: corDeApoioDoCadastro),
           ),
           const Spacer(),
           _BotaoAvancar(
@@ -430,12 +474,17 @@ class _Etapa extends StatelessWidget {
         children: [
           Text(
             titulo,
-            style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, height: 1.15),
+            style: GoogleFonts.outfit(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: corDeTituloDoCadastro,
+              height: 1.15,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             subtitulo,
-            style: GoogleFonts.outfit(fontSize: 15, color: Colors.white70, height: 1.45),
+            style: GoogleFonts.outfit(fontSize: 14.5, color: corDeApoioDoCadastro, height: 1.45),
           ),
           const SizedBox(height: 28),
           ...campos,
@@ -472,12 +521,12 @@ class _EtapaFoto extends StatelessWidget {
         children: [
           Text(
             'Sua foto de perfil',
-            style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.w800, color: corDeTituloDoCadastro),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
-            style: GoogleFonts.outfit(fontSize: 15, color: Colors.white70, height: 1.45),
+            style: GoogleFonts.outfit(fontSize: 14.5, color: corDeApoioDoCadastro, height: 1.45),
           ),
           const SizedBox(height: 20),
 
@@ -518,11 +567,13 @@ class _EtapaFoto extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             'Ou escolha um avatar:',
-            style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
+            style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: corDeApoioDoCadastro),
           ),
           const SizedBox(height: 12),
           SeletorAvatarPreset(
-            isDark: true,
+            // false porque aqui o fundo é a parte branca da onda, não o
+            // gradiente escuro do resto do app.
+            isDark: false,
             selecionado: avatarPreset,
             onSelecionar: onSelecionarPreset,
           ),
@@ -547,9 +598,9 @@ class _BotaoDeFoto extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: .28),
+          color: const Color(0xFFF4F0FA),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white24, width: 1.3),
+          border: Border.all(color: const Color(0xFFD9D0EC), width: 1.3),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -558,12 +609,12 @@ class _BotaoDeFoto extends StatelessWidget {
               const SizedBox(
                 height: 18,
                 width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: corDeTituloDoCadastro),
               )
             else
-              Icon(icone, color: Colors.white, size: 20),
+              Icon(icone, color: corDeTituloDoCadastro, size: 20),
             const SizedBox(width: 8),
-            Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white)),
+            Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: corDeTituloDoCadastro)),
           ],
         ),
       ),

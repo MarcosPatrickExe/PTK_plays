@@ -46,6 +46,12 @@ class AuthTheme {
   static const cardBgLight = Color(0xB8FFFFFF);
   static const cardBorderLight = Color(0x38A046DC);
 
+  /// Fundo do card da aba Videos no tema escuro: branco a 20%, contra os
+  /// 12% do [cardBgDark] comum. O card de video e quase todo ocupado pela
+  /// miniatura, entao com o fundo do vidro padrao sobrava tao pouca
+  /// superficie visivel que a miniatura parecia flutuar solta na tela.
+  static const cardVideoBgDark = Color(0x33FFFFFF);
+
   static const labelDark = Color(0xD9FFFFFF);
   static const labelLight = Color(0xFF6A2FA0);
 

@@ -1281,3 +1281,62 @@ que dependem do Firestore real ou do emulador.
 
 `firebase deploy --only firestore:rules` — sem isso a remoção falha com
 `permission-denied` na hora de apagar o documento do usuário.
+
+
+# Onda no cadastro e cards de vídeo no escuro (04/set/2026)
+
+## Cards da aba Vídeos
+
+No tema escuro o card era quase todo miniatura, e o vidro padrão
+(`cardBgDark`, branco a 12%) deixava tão pouca superfície visível que a
+miniatura parecia flutuar solta na tela. Constante nova
+`AuthTheme.cardVideoBgDark` (branco a 20%), aplicada no card inteiro e na
+faixa de texto — separada de propósito, pra não mexer nos cards do feed e
+do painel, onde os 12% funcionam.
+
+Dois consertos que apareceram junto, ao escrever o teste:
+
+- o `CircleAvatar` do canal não tinha `onBackgroundImageError`, então uma
+  falha ao baixar o avatar subia como exceção não tratada do Flutter em vez
+  de só deixar o círculo com a cor de fundo;
+- a linha "Publicado em ..." estourava a largura em card estreito (celular
+  pequeno); virou `Flexible` com ellipsis.
+
+## Cadastro com onda
+
+O fundo deixou de escurecer a arte inteira. Agora a tela é dividida em
+duas: a arte do PTK no alto (aproveitando o fundo colorido que já vem
+nela, alinhada ao topo porque é onde está o rosto) e uma **onda branca**
+subindo de baixo, onde o formulário vive.
+
+`FormaDaOnda` descreve a curva em quatro frações da altura, então ela
+acompanha qualquer aparelho: duas alturas de borda — a diferença entre elas
+dá a inclinação — e dois pontos de controle, que decidem se a curva forma
+crista ou vale. `ondasDoCadastro` traz uma forma por etapa, alternando o
+lado da inclinação, pra as telas não parecerem a mesma tela com o texto
+trocado.
+
+Decisões que valem registrar:
+
+- **A onda anima por interpolação dos quatro números**, não por cross-fade:
+  assim ela escorre de um desenho pro outro, em vez de uma sumir enquanto a
+  outra aparece.
+- **O formulário anima junto** (mesma duração), num `AnimatedPositioned`
+  que começa no ponto mais alto da curva — senão ele pularia de posição
+  enquanto a onda ainda estivesse escorrendo.
+- **Com o teclado aberto a arte encolhe pela metade.** É o mesmo número que
+  desenha a onda, então as duas coisas acompanham e o formulário continua
+  cabendo.
+- **As bolinhas de progresso ficam sobre a arte**, no alto: ali não roubam
+  espaço do formulário, e o branco delas aparece bem no fundo escuro.
+- **Sem botão de trocar tema, de propósito.** É a única tela do app com
+  identidade visual própria, e o conteúdo vive sempre sobre o branco — por
+  isso as cores do formulário são fixas, e não vindas do `ThemeController`.
+
+## Pendência anotada pra próxima
+
+**Custom claim de admin no Auth**, via Cloud Function. Resolve de uma vez
+duas limitações já registradas: fechar a escrita no Storage (hoje qualquer
+logado pode subir arquivo na própria pasta, ainda que não consiga publicar)
+e permitir que a remoção em cascata apague também a conta do Firebase Auth
+e os arquivos órfãos do Storage.
