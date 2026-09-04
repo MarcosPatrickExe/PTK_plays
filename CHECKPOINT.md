@@ -1,218 +1,247 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **27/ago/2026**, escrito pra retomar o
-trabalho numa sessão nova do Claude sem perder contexto (esta sessão vai
-passar por um `/clear`). Ver também `ROADMAP.md` (pendências e decisões
-técnicas mais detalhadas, principalmente do backend) e `CLAUDE.md` (regras
-permanentes: testes unitários, Toast/loading, commits, tags, Google Play,
-signing).
+Snapshot do estado do projeto em **04/set/2026**, escrito pra retomar o
+trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
+passou por um `/clear` aqui). Ver também:
 
-## ⚠️ O que precisa de atenção AGORA (nesta ordem)
+- **`ROADMAP.md`** — o registro detalhado, em ordem cronológica, de cada
+  entrega e das decisões técnicas por trás delas. Quando algo aqui parecer
+  raso, a explicação inteira está lá.
+- **`CLAUDE.md`** — regras permanentes (testes unitários obrigatórios,
+  Toast/loading, convenção de commits, tags de release, Google Play,
+  signing do Android).
+- **`REGRAS_DA_COMUNIDADE.md`** — as regras de convivência do feed e onde
+  cada uma é aplicada no código.
 
-1. **App Store — aguardando revisão da Apple.** Build **1.2.1 (17)**
-   submetido pra revisão oficial em 25/ago/2026 23:48 (ID do envio
-   `6db9576f-1f55-4ba0-aa62-6d06009a9495`), status **"Aguardando
-   revisão"** na última checagem. TestFlight externo foi **pulado de
-   propósito** (usuário não tem testadores com iPhone) — Apple não exige
-   isso pra revisão oficial, diferente do Google Play. Só falta esperar a
-   resposta (aprovação ou rejeição com motivo) — não fazer nada até lá.
-2. **Branch de dev com 3 commits não mergeados em `main`**:
-   `claude/ptk-plays-setup-2q86aw` está em `e1c156e`, `main` em `49e8e2f`
-   (3 commits atrás: `cef29b6`, `0780210`, `e1c156e` — todo o trabalho de
-   detecção de live + `transmissoes` do PTK AI Studio, ver seção
-   dedicada abaixo). Já foi **deployado direto da dev branch** via Cloud
-   Shell (não depende de merge pra funcionar), mas os commits ainda não
-   viraram PR pra `main`. Perguntar ao usuário se quer abrir/mergear esse
-   PR (não fazer sem pedir).
-3. **PTK AI Studio: escrita confirmada, leitura não verificada.** O
-   Firestore do projeto `ptk-ai-studio` já tem a coleção `transmissoes`
-   populada (127 documentos: 124 lives do YouTube + 3 VODs da Twitch via
-   backfill, mais o que a detecção em tempo real for gravando dali pra
-   frente) — confirmado visualmente no Console pelo usuário. **Não
-   verificado**: se o código do próprio app/dashboard do PTK AI Studio já
-   lê essa coleção — isso está num repositório separado que esta sessão
-   nunca viu. Se o usuário quiser essa ponta conferida, anexar o repo do
-   PTK AI Studio (`add_repo`).
+## ⚠️ O que precisa de atenção AGORA
+
+1. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
+   arte do PTK — ela cai no fundo roxo liso, com a onda igual às outras.
+   Pra resolver: soltar o arquivo em `assets/ptk/` e apontar em
+   `assetDaEtapa` (`lib/view/CriarConta.dart`). As outras cinco artes já
+   estão lá, convertidas pra JPEG 1080px.
+2. **Custom claim de admin no Auth** — a pendência que o usuário pediu
+   explicitamente pra fazer "na próxima". É uma Cloud Function que marca o
+   admin com um custom claim, e resolve **duas** limitações de uma vez:
+   - fechar a escrita no Storage (hoje qualquer logado pode subir arquivo
+     na própria pasta `posts_midia/{uid}/`, mesmo sem conseguir publicar);
+   - permitir que a remoção em cascata de usuário apague também a conta do
+     Firebase Auth e os arquivos órfãos do Storage.
+3. **App Store — status não verificado nesta sessão.** O build **1.2.1
+   (17)** foi submetido à Apple em 25/ago/2026. Nenhuma sessão desde então
+   checou o resultado. Perguntar ao usuário antes de assumir qualquer
+   coisa.
+4. **Google Play — aviso de nível de API.** O código está certo
+   (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
+   `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
+   Console olha é o **artefato publicado** — o aviso só some quando um
+   build feito a partir dessa versão for promovido. Ver `CLAUDE.md`.
 
 ## Estado do git
 
-- Branch de dev: `claude/ptk-plays-setup-2q86aw` — commit atual `e1c156e`.
-- `main` (deploy automático via Vercel, `plays.vercel.app`) em `49e8e2f`,
-  3 commits atrás da dev branch (ver item 2 acima).
-- Fluxo usado: feature branch → PR pra `claude/ptk-plays-setup-2q86aw` →
-  merge → PR pra `main` → merge.
-- iOS/Android buildam via Codemagic só quando uma tag `v*` é criada e
-  enviada — **nunca criar/enviar tag sem o usuário pedir explicitamente**,
-  e mesmo assim **esta sessão (CCR) não consegue dar `git push` de tags**
-  — quem faz isso é o usuário, da própria máquina dele.
-- `pubspec.yaml`: `version: 1.2.1+17` (build já enviado pra Apple, ver
-  acima).
+- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**, sincronizada com
+  `main` em **`26eca4e`** (merge do PR #63).
+- **`main` → deploy automático no Vercel em `https://ptk-plays.vercel.app`**
+  (atenção: `plays.vercel.app`, que consta em versões antigas deste
+  arquivo, **dá 404** — não é o endereço certo).
+- Cada PR gera um **preview próprio no Vercel**, comentado no próprio PR —
+  é assim que o usuário revisa mudança visual antes de mesclar.
+- `pubspec.yaml`: `version: 1.2.1+17`.
+- iOS/Android buildam via Codemagic **só** quando uma tag `v*` é criada e
+  enviada — nunca criar/enviar tag sem o usuário pedir, e esta sessão não
+  consegue dar `git push` de tag de qualquer forma.
 
-## Funcionalidades implementadas recentemente (já mergeadas em `main`)
+### Como o usuário trabalha (importante)
 
-- **Menu lateral pós-login** (`lib/components/MenuLateral.dart`):
-  `Drawer` deslizante (62% da largura), fundo branco opaco no claro,
-  gradiente branco→roxo opaco no escuro, atalhos pra Recuperação de
-  Senha, Privacidade, Política de Privacidade e Configurações.
-- **Política de Privacidade dentro do app** (`lib/utils/PoliticaPrivacidade.dart`,
-  `lib/view/PoliticaPrivacidadeWeb.dart`): renderiza a página num
-  `InAppWebView` com botões flutuantes de voltar/tema, **exceto na Web**
-  (o proxy de tradução `translate.goog` recusa ser embutido em iframe —
-  corrigido abrindo em aba nova via `url_launcher` só nesse caso,
-  `kIsWeb`).
-- **Tradução automática por localização**: Brasil → português (via
-  `translate.goog`), qualquer outro país → inglês, decidido pelo
-  `countryCode` do locale do dispositivo/navegador (não por IP/GPS —
-  Portugal, por exemplo, fica em inglês mesmo sendo `pt`).
-- Ícones dos botões voltar/tema corrigidos pra preto no modo escuro
-  (estavam amarelos sobre fundo branco).
+- **Ele mescla os PRs.** Nas últimas sessões ele pediu pra eu abrir **e**
+  mesclar; na última, pediu só pra abrir, porque queria ver o preview do
+  Vercel antes. **Perguntar, ou seguir o que ele disse no pedido.**
+- **Um commit por arquivo alterado** — pedido explícito dele em
+  04/set/2026. Não juntar vários arquivos num commit só.
+- **Deploys de Firebase são feitos por ele**, no Cloud Shell. Esta sessão
+  não tem `firebase`/`gcloud` CLI.
 
-Tudo isso com teste unitário/widget cobrindo, `flutter test` (78+ testes)
-e `flutter analyze` rodados sem regressão.
+## Saúde do projeto
 
-## Backend — WhatsApp (webhook de recuperação de senha)
+- **267 testes** passando (`flutter test`).
+- `flutter analyze`: **0 erros, 0 warnings**. Há uma baseline conhecida de
+  ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
+  deprecated) — não são regressão, não mexer sem pedir.
+- Ocasionalmente o analyze mostra **um warning fantasma** em
+  `lib/view/Videos.dart:120` na primeira execução após edições; ele some na
+  segunda. É pré-existente e não relacionado às mudanças.
 
-- `functions/index.js` (`whatsappWebhook`) implementado, deployado no
-  projeto `ptk-plays`, **região `us-central1`** (sem região explícita —
-  importante não mudar isso num deploy futuro, ver nota abaixo).
-- Bug de deploy já resolvido: o secret `WHATSAPP_VERIFY_TOKEN` tinha 2
-  caracteres a mais (parênteses perdidos ao colar) causando 403 — corrigido
-  e confirmado via `curl` retornando 200/challenge corretamente.
-- **Não confirmado nesta sessão**: se a URL da function + o verify token
-  já foram colados no formulário "Configurar webhooks" do Meta for
-  Developers (Etapa 2), e se o número de telefone de produção já foi
-  registrado lá. Perguntar ao usuário antes de assumir que essa etapa
-  está fechada.
-- Próximo passo, depois do webhook aceito pelo Meta: implementar
-  `enviarCodigoRecuperacaoWhatsapp`/`verificarCodigoRecuperacaoWhatsapp` +
-  criar um template de mensagem categoria "Authentication" no WhatsApp
-  Manager (não dá pra mandar texto livre sem isso).
+## Deploys — o que já está publicado
 
-## Backend — detecção de live + `transmissoes` no PTK AI Studio (27/ago/2026)
+Tudo abaixo **já foi deployado** pelo usuário (confirmado por print do
+Cloud Shell):
 
-### Descoberta importante
+- `firestore.rules` — última publicação em 04/set, com a remoção em
+  cascata.
+- `storage.rules` — publicado em 01/set (mídia em posts).
+- Functions `twitchWebhook`, `kickWebhook`, `verificarYoutubeAoVivo` —
+  publicadas em 02/set.
 
-As Functions de detecção de live (`verificarYoutubeAoVivo`, `twitchWebhook`,
-`kickWebhook`, `kickAuthStart`, `kickOAuthCallback`, `notificarAoVivo`) já
-estavam **implantadas em produção** desde 15/jul/2026, mas o código só
-existia numa branch antiga `feat/notificacoes-ao-vivo`, **nunca
-mergeada**, que tinha divergido do `main` antes do webhook do WhatsApp.
-Trazido pra dev branch e mesclado nesta sessão — resolve o "ponto em
-aberto" que ficava documentado aqui antes sobre o backend do AI Studio
-estar rodando dentro do projeto GCP `ptk-plays` (continua lá, não foi
-movido).
+**Não há deploy pendente no momento.** Atenção: `firebase deploy --only
+storage:rules` **não funciona** (o CLI interpreta "rules" como nome de
+target); o comando certo é `firebase deploy --only storage`.
 
-**Cuidado ao mexer em `functions/index.js` de novo**: não usar
-`setGlobalOptions` global pra região — isso mudaria também a região do
-`whatsappWebhook` (que fica sem região explícita, logo `us-central1`) e
-quebraria a URL cadastrada no Meta. As functions de live usam
-`region: "southamerica-east1"` explícita cada uma.
+## O que foi feito nas últimas sessões (28/ago → 04/set)
 
-### O que foi implementado
+Resumo; o detalhe de cada decisão está no `ROADMAP.md`, seção por data.
 
-`functions/lib/transmissoes.js` escreve em `transmissoes` no Firestore do
-projeto **separado** `ptk-ai-studio`, via Application Default Credentials
-(`@google-cloud/firestore`, `projectId: 'ptk-ai-studio'` — **sem** chave
-de service account; IAM `roles/datastore.user` concedido no console pra
-conta de serviço `696548413882-compute@developer.gserviceaccount.com`).
-ID determinístico `${plataforma}_${idDaTransmissao}`, sempre
-`merge: true`. Campos: `plataforma`, `iniciadaEm`, `urlDaLive`,
-`idDaTransmissao`, `titulo`, `encerrada`, `encerradaEm`,
-`duracaoSegundos`, `vodId`, `vodUrl`.
+### Painel ADM (`lib/view/PainelAdmin.dart`)
 
-- **YouTube**: `vodId` de graça (é o próprio `videoId`). `titulo` vem do
-  `search.list` que a checagem agendada já faz.
-- **Twitch**: id da transmissão vem do `event.id` do `stream.online`. VOD
-  buscado via Helix `GET /videos?type=archive` depois do `stream.offline`
-  (o evento em si não traz VOD). Título via Helix `GET /streams` no
-  momento do `stream.online` (`stream.online` não traz título — só o
-  `channel.update`, que não assinamos — confirmado em
-  `dev.twitch.tv/docs/eventsub`).
-- **Kick**: confirmado em `docs.kick.com/events/event-types` que o
-  payload do `livestream.status.updated` traz `title` mas **não** tem
-  nenhum id de transmissão dedicado — o id é derivado do `started_at`
-  (`extrairIdDaTransmissaoKick`, `functions/lib/kick.js`). **Sem VOD**: a
-  Kick não expõe isso nesse webhook, campo fica ausente (não inventado).
+6 abas: **Usuários, Posts, Cargos, Badges, Notificações, WhatsApp**. Só as
+duas primeiras são funcionais; as outras explicam o que falta.
 
-### Backfill de lives passadas
+- **Usuários**: lista com avatar, selo de cargo e menu de 3 pontinhos com
+  ícones — ver perfil, suspender (7 dias), banir, reativar, mensagem
+  privada (ainda não pronta) e **remover usuário**.
+- **Remoção em cascata** (`AdminRepository.removerUsuario`): apaga os posts
+  da pessoa, a reserva do nickname em `nicknamesParaEmail` e, **por
+  último**, o documento do usuário — nessa ordem porque as regras leem o
+  cargo de quem chama a partir de `users/{uid}`. **Não** apaga a conta do
+  Auth nem os arquivos do Storage (ver pendência 2 lá em cima).
+- **Posts**: publicar, ver o post inteiro e apagar, mais a ação "Limpar
+  avisos de live antigos".
 
-`functions/scripts/backfill-transmissoes-passadas.js` — script avulso
-(não Function implantada), já **rodado com sucesso** pelo usuário via
-Cloud Shell: **124 lives do YouTube + 3 VODs da Twitch** gravados,
-confirmados no Console do Firestore do `ptk-ai-studio`.
+### Feed (`lib/view/Home.dart`)
 
-- **YouTube**: usa a playlist de uploads do canal + `videos.list` em
-  lote filtrando `liveStreamingDetails` (bem mais barato em cota que
-  `search.list`).
-- **Twitch**: pagina `Get Videos` (`type=archive`). Usa `vod.id` (id do
-  próprio VOD) como `idDaTransmissao` — **não** `vod.stream_id`: esse
-  campo existe mas não há garantia documentada de que seja o mesmo espaço
-  de id do `event.id` do `stream.online` em tempo real, então apostar
-  nisso com `merge: true` arriscava uma duplicata **silenciosa**.
-  Documentos do backfill ficam "congelados" de propósito, sem tentar
-  fundir com o que a detecção ao vivo grava depois — seguro porque são
-  eventos passados.
-- **Kick**: de fora do backfill — confirmado em `docs.kick.com` que não
-  existe nenhum endpoint oficial pra listar VODs/lives passadas do canal.
-- **Credenciais do script**: `gcloud auth application-default login` com
-  a própria conta do usuário (Owner do `ptk-ai-studio`) — não precisa de
-  chave de service account nem role adicional.
+- **Inscritos publicam** aviso de texto; **admin** publica também enquete e
+  mídia. Post de admin tem prioridade e fica no topo
+  (`PostModel.ordenarParaFeed`).
+- **Mídia (`avisoMidia`)**: foto e vídeo no mesmo post, só do admin. Vídeo
+  toca dentro do card (`video_player`), começando parado.
+- **Card de imagem no formato do Instagram**: a proporção acompanha a foto,
+  entre 9:16 e 1.91:1.
+- **Feed enxuto**: abre com 10 posts e nenhum com mais de 30 dias; rolando
+  além disso o histórico entra, sempre depois dos recentes.
+- **Avisos de live no formato antigo** (sem plataforma gravada) não são
+  mais desenhados.
 
-### Deploy confirmado (27/ago/2026)
+### Moderação de verdade
 
-Deploy rodado com sucesso via Cloud Shell (`firebase deploy --only
-functions`, projeto `ptk-plays`) — as 8 functions aparecem íntegras no
-Console (`kickWebhook`, `notificarAoVivo`, `twitchWebhook`,
-`kickOAuthCallback`, `kickAuthStart`, `verificarYoutubeAoVivo` em
-`southamerica-east1`; `whatsappWebhook` em `us-central1`, região
-preservada; `ptk-ai-studio-dashboard` no Cloud Run, pré-existente e
-intocado). Secrets `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` já existiam
-no Secret Manager do `ptk-plays` (usados antes só pelo script
-`setup-twitch-eventsub.js`, agora também pela própria `twitchWebhook` em
-runtime pra buscar VOD/título).
+Antes, banir só marcava um campo — nada no app usava. Agora:
 
-**Não testado de ponta a ponta** (sem credenciais reais nesta sessão de
-dev): payload real de produção da Kick, resposta real da Helix da Twitch
-em uso — só a lógica pura tem teste automatizado (`functions/test/`, 18
-testes Jest). Ver `ROADMAP.md` pra detalhes completos de cada decisão e
-teste.
+- `UserModel.estaBloqueado()` — banido sempre; suspenso só dentro do prazo
+  (suspensão vencida libera sozinha).
+- `ContaGate` (`lib/components/ContaGate.dart`) fica no `builder` do
+  `MaterialApp`, **acima de toda a navegação**: cobre qualquer tela com o
+  aviso de bloqueio, em tempo real, sem trocar de rota — o conteúdo segue
+  montado por baixo, então uma suspensão que vence com o app aberto
+  devolve a pessoa exatamente onde estava.
+- `firestore.rules` trava `estadoModeracao`/`suspensoAte`/`motivoModeracao`
+  contra escrita do próprio dono (antes, um banido se desbania sozinho numa
+  escrita comum de perfil) e barra post/voto de conta bloqueada.
 
-## Recuperação de senha — decisão de canais
+### Cadastro em etapas (`lib/view/CriarConta.dart`)
 
-- **E-mail**: implementado (`AuthRepository.enviarEmailRedefinicaoSenha`,
-  `FirebaseAuth.sendPasswordResetEmail`).
-- **SMS**: não implementado (Firebase Phone Auth nativo, precisa habilitar
-  "Phone" em Authentication → Sign-in method + reCAPTCHA pra Web).
-- **WhatsApp**: em andamento, ver seção do backend acima.
+Substituiu a tela única. Uma pergunta por tela: **boas-vindas, nick,
+e-mail, senha, foto, WhatsApp**. E-mail e senha somem no fluxo social.
 
-## O que já está implementado e funcionando (sessões mais antigas, resumido)
+- **Layout de onda**: arte do PTK no alto, onda branca subindo de baixo com
+  o formulário sobre ela. Cada etapa tem uma curva diferente
+  (`FormaDaOnda`/`ondasDoCadastro` em `lib/components/FundoPTK.dart`) — se
+  o usuário quiser ajustar, é só mexer nos quatro números de cada linha.
+- **Esta é a única tela do app sem troca de tema**, de propósito: as cores
+  do formulário são fixas, não vêm do `ThemeController`.
+- Campos com rótulo flutuante, ícone interno e **validação em tempo real**
+  embaixo do campo (que só aparece depois que a pessoa mexe nele). A mesma
+  função pura de `ValidacaoCadastro.dart` alimenta o aviso **e** a
+  liberação do "Avançar".
+- **Máscara de telefone aceita fixo** (10 dígitos) além de celular (11),
+  decidindo o formato pela quantidade de dígitos.
+- **Login social de conta nova cai aqui** em vez de ir pro feed, com o nick
+  já sugerido pelo provedor.
 
-- Avatares pré-definidos (6 personas), máscara de telefone WhatsApp
-  corrigida, troca de senha em Editar Perfil, avatar padrão pra contas
-  legadas, upload de foto de perfil com crop/zoom (Firebase Storage +
-  CORS configurado), Toast não-bloqueante pra feedback de ação (regra
-  permanente em `CLAUDE.md` — Login/Cadastro/exclusão de conta ainda não
-  retrofitados), loading spinners padronizados, botões circulares com
-  fundo opaco branco.
-- Todos com teste cobrindo. `flutter analyze` tem uma baseline conhecida
-  de ~55 issues antigas (nomes de arquivo em PascalCase, `withOpacity`
-  deprecated, etc.) — não são regressão, não mexer nisso sem pedir.
+### Correções visuais
 
-## Notas úteis de ambiente (sandbox de dev)
+- Foto do Google não aparecia na Web: `Image.network` cru falha para
+  `lh3.googleusercontent.com` pelo caminho XHR+decode (que exige CORS) — a
+  **mesma causa raiz** das miniaturas de vídeo. Resolvido com
+  `WebHtmlElementStrategy.fallback` no `FotoPerfilRede` e no `ImagemRede`.
+  **Se alguma imagem sumir na Web, suspeitar disso primeiro.**
+- Menu de 3 pontinhos abria branco no tema escuro (texto branco em fundo
+  branco); lixeira vermelha sumia no fundo roxo; card da aba Vídeos
+  transparente demais (`cardVideoBgDark`, branco a 20%).
 
-- Flutter fica em `/opt/flutter/bin`, fora do PATH — rodar
-  `export PATH="$PATH:/opt/flutter/bin"` antes de comandos `flutter`.
-- `flutter analyze`/`flutter build` sujam `analysis_options.yaml`
-  automaticamente — conferir `git status` e `git checkout --
-  analysis_options.yaml` antes de commitar, se não for intencional.
-- Este sandbox **não tem** `firebase`/`gcloud` CLI — todo deploy
-  (Functions, tags de release) é feito pelo usuário na própria máquina
-  ou no Cloud Shell, nunca por esta sessão diretamente.
-- `node`/`npm` disponíveis aqui (`/opt/node22`) — dá pra rodar
-  `npm test`/`npm install` dentro de `functions/` normalmente.
-- Projeto Firebase `ptk-plays` está no plano Blaze. Projeto separado
-  `ptk-ai-studio` também está no Blaze e tem Firestore ativo (confirmado
-  via Console, coleção `transmissoes` populada).
+## Backend
+
+### WhatsApp (webhook de recuperação de senha)
+
+- `whatsappWebhook` implementada e deployada no projeto `ptk-plays`,
+  **região `us-central1`** (sem região explícita).
+- **Cuidado ao mexer em `functions/index.js`**: não usar `setGlobalOptions`
+  pra região — isso mudaria a região do `whatsappWebhook` e quebraria a URL
+  cadastrada no Meta. As functions de live usam `region:
+  "southamerica-east1"` explícita, cada uma.
+- **Não confirmado**: se a URL + verify token já foram colados no
+  formulário do Meta for Developers, e se o número de produção foi
+  registrado. Perguntar antes de assumir.
+
+### Detecção de live + `transmissoes` no PTK AI Studio
+
+`functions/lib/transmissoes.js` escreve na coleção `transmissoes` do
+projeto **separado** `ptk-ai-studio`, via Application Default Credentials.
+O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
+
+- **YouTube**: `vodId` é o próprio `videoId`.
+- **Twitch**: VOD buscado via Helix depois do `stream.offline`; título via
+  Helix no `stream.online`.
+- **Kick**: sem VOD (a plataforma não expõe) e o id da transmissão é
+  derivado do `started_at`.
+- **Não verificado**: se o app/dashboard do PTK AI Studio já **lê** essa
+  coleção — está num repositório separado que nenhuma sessão viu. Se o
+  usuário quiser essa ponta conferida, anexar o repo com `add_repo`.
+
+## Pendências, em ordem de esforço
+
+1. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
+2. **Custom claim de admin** no Auth (ver atenção 2).
+3. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
+   tela de chat. A opção já existe no menu e avisa que não está pronta.
+   Quando existir, entra também na remoção em cascata (o lugar já está
+   marcado no código).
+4. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
+   vez, com detector de visibilidade).
+5. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
+   cliente de propósito, então precisa de Cloud Function.
+6. **Etapa 6 — notificações push por cargo.**
+7. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
+   reescreve boa parte do `firestore.rules`.
+8. **Etapa 8 — aviso por WhatsApp**: bloqueada até o usuário ter número
+   virtual + verificação na Meta.
+
+**Ideias registradas, ainda não pedidas**: log de auditoria de moderação
+(quem baniu quem e quando), campo de motivo ao banir (hoje o clique bane
+direto, sem motivo), busca/paginação na lista de usuários, denúncia dentro
+do app e moderação de mídia, `avisoFoto` legado, envelhecimento da
+prioridade dos posts de admin.
+
+**Faxina pendente**: `lib/view/Cadastro.dart` (a tela antiga) ficou só pro
+harness de screenshots (`lib/main_screenshots.dart`) — remover quando o
+fluxo novo estiver validado em produção.
+
+## Notas de ambiente (sandbox de dev)
+
+- Flutter fica em `/opt/flutter/bin`, **fora do PATH** — rodar
+  `export PATH="$PATH:/opt/flutter/bin"` antes de qualquer comando
+  `flutter`.
+- `flutter analyze`/`build` sujam `analysis_options.yaml` — conferir
+  `git status` antes de commitar.
+- **Sem `firebase`/`gcloud` CLI** e sem credenciais: nenhum deploy, nenhum
+  acesso ao Firestore real, e **nenhum teste de regra do Firestore** (não
+  há emulador). Sempre avisar o usuário quando algo depender disso.
+- `node`/`npm` disponíveis (`/opt/node22`) — `npm test` roda dentro de
+  `functions/` (18 testes Jest).
+- **Python com PIL disponível** — foi assim que as artes do PTK foram
+  convertidas de PNG (1,7 MB cada) pra JPEG 1080px (~150 KB).
+- Testes de widget: `pumpAndSettle` **trava** em várias telas do app,
+  porque o `AuthBackground` anima em loop infinito. Usar `pump()` com
+  durações. O Painel ADM ainda precisa de janela larga (as 6 abas não
+  cabem em 800x600) e de vários frames (o `StreamBuilder` da lista demora
+  a resolver).
+- Projeto Firebase `ptk-plays` no plano Blaze; `ptk-ai-studio` idem.
 - Pasta local `appstore_screenshots/` (só na máquina do usuário) **não**
-  deve ser commitada — decisão explícita do usuário, é só material de
-  referência visual, não faz parte do repositório.
+  deve ser commitada — decisão explícita.
