@@ -66,28 +66,63 @@ void main() {
       expect(subindoAEsquerda.cumeEhAEsquerda, isTrue);
     });
 
-    test('o texto sobe mais que os campos, porque só ocupa o lado do cume', () {
+    test('o texto sobe mais que os campos, porque não ocupa a largura toda', () {
       for (final onda in ondasDoCadastro) {
         expect(
           onda.topoDoTexto(),
           lessThan(onda.topoDoConteudo()),
-          reason: 'o texto não estaria aproveitando o espaço livre do cume',
+          reason: 'o texto não estaria aproveitando o espaço livre embaixo da curva',
         );
       }
     });
 
-    test('o texto ainda começa abaixo da curva no lado em que ele fica', () {
+    test('o texto começa abaixo da curva na metade esquerda, onde ele fica', () {
       for (final onda in ondasDoCadastro) {
         final topo = onda.topoDoTexto();
-        final de = onda.cumeEhAEsquerda ? 0.0 : .5;
 
+        // Metade esquerda porque o texto do cadastro é sempre alinhado à
+        // esquerda — inclusive quando o cume está do outro lado, caso em
+        // que ele simplesmente nasce mais baixo.
         for (var i = 0; i <= 24; i++) {
           expect(
-            onda.alturaEm(de + .5 * i / 24),
+            onda.alturaEm(.5 * i / 24),
             lessThan(topo),
-            reason: 'a curva passaria por cima do texto no lado do cume',
+            reason: 'a curva passaria por cima do texto',
           );
         }
+      }
+    });
+
+    test('com o cume à direita o texto nasce mais baixo que com o cume à esquerda', () {
+      const cumeAEsquerda = FormaDaOnda(
+        alturaEsquerda: .40,
+        alturaDireita: .55,
+        curvaEsquerda: .40,
+        curvaDireita: .55,
+      );
+      const cumeADireita = FormaDaOnda(
+        alturaEsquerda: .55,
+        alturaDireita: .40,
+        curvaEsquerda: .55,
+        curvaDireita: .40,
+      );
+
+      expect(cumeAEsquerda.cumeEhAEsquerda, isTrue);
+      expect(cumeADireita.cumeEhAEsquerda, isFalse);
+      expect(cumeAEsquerda.topoDoTexto(), lessThan(cumeADireita.topoDoTexto()));
+    });
+
+    test('o topo da curva é o ponto mais alto por onde ela passa', () {
+      for (final onda in [...ondasDoCadastro, ondaCheia]) {
+        final topo = onda.topoDaCurva;
+        for (var i = 0; i <= 40; i++) {
+          expect(
+            onda.alturaEm(i / 40),
+            greaterThanOrEqualTo(topo - 1e-9),
+            reason: 'a logo seria cortada pela onda nesse ponto',
+          );
+        }
+        expect(topo, lessThanOrEqualTo(onda.fundoDaCurva));
       }
     });
 
@@ -163,7 +198,7 @@ void main() {
   group('FundoPTK', () {
     testWidgets('desenha a onda por cima da arte', (tester) async {
       await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(body: FundoPTK(asset: 'assets/ptk/ptk_nickname.jpg', onda: FormaDaOnda(
+        home: Scaffold(body: FundoPTK(asset: 'assets/ptk/ptk_nickname.webp', onda: FormaDaOnda(
           alturaEsquerda: .5, alturaDireita: .45, curvaEsquerda: .55, curvaDireita: .4,
         ))),
       ));
@@ -171,6 +206,27 @@ void main() {
 
       expect(find.byType(CustomPaint), findsWidgets);
       expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('a logo das boas-vindas cabe inteira na faixa colorida acima do cume', (tester) async {
+      const onda = FormaDaOnda(
+        alturaEsquerda: .5,
+        alturaDireita: .45,
+        curvaEsquerda: .55,
+        curvaDireita: .4,
+      );
+
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(body: FundoPTK(asset: null, onda: onda, logo: 'assets/ptk/ptk_logo.webp')),
+      ));
+      await tester.pump();
+
+      final tela = tester.getSize(find.byType(FundoPTK));
+      // Duas cópias da logo (a nítida e a borrada) compõem o degradê.
+      final caixa = tester.getRect(find.byType(Image).first);
+
+      expect(caixa.bottom, lessThanOrEqualTo(tela.height * onda.topoDaCurva + 1));
+      expect(caixa.top, greaterThan(0));
     });
 
     testWidgets('etapa sem arte não quebra — fica só o fundo e a onda', (tester) async {
