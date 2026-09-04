@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 /// Formato da onda branca que separa a arte do PTK (em cima) do formulário
@@ -51,9 +53,38 @@ class FormaDaOnda {
     return maior;
   }
 
-  /// Onde o conteúdo começa: [fracaoDeFolga] da altura da faixa branca
-  /// (medida do fundo da curva até o rodapé da tela) fica livre acima do
-  /// texto, pra ele não nascer colado na curva.
+  /// O ponto mais baixo da curva **dentro de uma metade** da tela. Serve
+  /// pra o texto poder subir até o cume: um bloco que ocupa só metade da
+  /// largura não precisa esperar a curva descer do outro lado.
+  double fundoDaMetade({required bool esquerda}) {
+    final de = esquerda ? 0.0 : .5;
+    final ate = esquerda ? .5 : 1.0;
+
+    var maior = alturaEm(de);
+    const amostras = 24;
+    for (var i = 0; i <= amostras; i++) {
+      final altura = alturaEm(de + (ate - de) * i / amostras);
+      if (altura > maior) maior = altura;
+    }
+    return maior;
+  }
+
+  /// De que lado a onda subiu mais — é ali que sobra espaço livre logo
+  /// abaixo do cume, e é pra esse lado que o texto se encosta.
+  bool get cumeEhAEsquerda => fundoDaMetade(esquerda: true) < fundoDaMetade(esquerda: false);
+
+  /// Onde o texto começa: logo abaixo do cume (a metade mais alta da
+  /// curva), com uma folga pequena. É mais alto que [topoDoConteudo]
+  /// justamente porque o texto se encosta no lado do cume e não ocupa a
+  /// largura toda.
+  double topoDoTexto({double fracaoDeFolga = .04}) {
+    final fundo = fundoDaMetade(esquerda: cumeEhAEsquerda);
+    return fundo + (1 - fundo) * fracaoDeFolga;
+  }
+
+  /// Onde o conteúdo de largura cheia (os campos) pode começar:
+  /// [fracaoDeFolga] da altura da faixa branca fica livre acima dele, pra
+  /// não nascer colado na curva.
   double topoDoConteudo({double fracaoDeFolga = .2}) {
     final fundo = fundoDaCurva;
     return fundo + (1 - fundo) * fracaoDeFolga;
@@ -132,20 +163,44 @@ class FundoPTK extends StatelessWidget {
   /// cima. A faixa que sobra vazia embaixo fica sempre coberta pela onda.
   final double deslocamentoDaArte;
 
+  /// Afasta a arte, como quem dá um passo pra trás: abaixo de 1 o PTK
+  /// aparece inteiro, com o objeto que ele segura (o @, a logo do
+  /// WhatsApp) sem cortar. O espaço que sobra nas bordas cai no gradiente
+  /// de fundo, que imita o próprio cenário das artes.
+  final double escalaDaArte;
+
+  /// Logo mostrada no lugar da arte, na etapa que não tem uma. Fica
+  /// centralizada na área colorida, com o degradê que a funde no fundo.
+  final String? logo;
+
   const FundoPTK({
     super.key,
     required this.asset,
     required this.onda,
     this.deslocamentoDaArte = .12,
+    this.escalaDaArte = .84,
+    this.logo,
   });
+
+  /// Cores tiradas do próprio cenário das artes (azul no alto, roxo
+  /// embaixo): é o que faz a borda que sobra ao afastar a arte passar
+  /// despercebida.
+  static const gradienteDoCenario = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF152A86), Color(0xFF3B1D8F), Color(0xFF6B21C8)],
+    stops: [0, .55, 1],
+  );
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Aparece enquanto a arte carrega e nas etapas que não têm arte.
-        const ColoredBox(color: Color(0xFF3B1D8F)),
+        // Aparece enquanto a arte carrega, nas bordas que sobram ao afastá-la
+        // e nas etapas que não têm arte.
+        const DecoratedBox(decoration: BoxDecoration(gradient: gradienteDoCenario)),
+        if (logo != null) _LogoComDegrade(asset: logo!),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 520),
           switchInCurve: Curves.easeOut,
@@ -155,16 +210,20 @@ class FundoPTK extends StatelessWidget {
               ? const SizedBox.expand(key: ValueKey('sem-arte'))
               : FractionalTranslation(
                   translation: Offset(0, -deslocamentoDaArte),
-                  child: Image.asset(
-                    asset!,
-                    key: ValueKey(asset),
-                    fit: BoxFit.cover,
-                    // Topo, e não centro: é onde está o rosto do PTK em
-                    // todas as artes. Centralizado, a cabeça sairia do
-                    // enquadramento em tela larga.
+                  child: Transform.scale(
+                    scale: escalaDaArte,
                     alignment: Alignment.topCenter,
-                    width: double.infinity,
-                    height: double.infinity,
+                    child: Image.asset(
+                      asset!,
+                      key: ValueKey(asset),
+                      fit: BoxFit.cover,
+                      // Topo, e não centro: é onde está o rosto do PTK em
+                      // todas as artes. Centralizado, a cabeça sairia do
+                      // enquadramento em tela larga.
+                      alignment: Alignment.topCenter,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
                   ),
                 ),
         ),
@@ -239,4 +298,71 @@ class _PintorDaOnda extends CustomPainter {
 
   @override
   bool shouldRepaint(_PintorDaOnda anterior) => anterior.forma != forma;
+}
+
+/// Logo do canal na área colorida, desaparecendo conforme desce: nítida em
+/// cima, embaçada e coberta por um roxo escuro perto da onda.
+///
+/// O embaçamento progressivo sai de duas camadas com máscaras opostas — o
+/// Flutter não tem blur com intensidade variável. A de cima é a logo
+/// nítida, revelada só no topo; a de baixo é a mesma logo embaçada,
+/// revelada só na parte inferior. Onde as duas se encontram, a passagem de
+/// uma pra outra é o que dá a impressão de foco se perdendo.
+class _LogoComDegrade extends StatelessWidget {
+  final String asset;
+
+  const _LogoComDegrade({required this.asset});
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = Center(
+      child: FractionallySizedBox(
+        widthFactor: .58,
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40),
+          child: Image.asset(asset, fit: BoxFit.contain),
+        ),
+      ),
+    );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _comMascara(child: logo, revelarNoTopo: false, borrar: true),
+        _comMascara(child: logo, revelarNoTopo: true, borrar: false),
+        // Degradê por cima de tudo: transparente no alto, roxo escuro
+        // encostando na onda.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Color(0x662A1163), Color(0xE62A1163)],
+              stops: [.25, .65, 1],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _comMascara({required Widget child, required bool revelarNoTopo, required bool borrar}) {
+    final cores = revelarNoTopo
+        ? const [Colors.white, Colors.white, Colors.transparent]
+        : const [Colors.transparent, Colors.transparent, Colors.white];
+
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (limites) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: cores,
+        stops: const [0, .45, .8],
+      ).createShader(limites),
+      child: borrar
+          ? ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 9, sigmaY: 9), child: child)
+          : child,
+    );
+  }
 }
