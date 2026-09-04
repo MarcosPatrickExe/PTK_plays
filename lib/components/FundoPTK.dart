@@ -347,7 +347,7 @@ class _LogoComDegrade extends StatelessWidget {
         // cume — não no meio da tela. Centralizar na tela inteira jogava
         // ela pra baixo e a onda comia um pedaço.
         final faixaVisivel = restricoes.maxHeight * onda.topoDaCurva;
-        final lado = (faixaVisivel * .62).clamp(0.0, restricoes.maxWidth * .5);
+        final lado = (faixaVisivel * .82).clamp(0.0, restricoes.maxWidth * .68);
 
         // A logo e as duas máscaras vivem dentro da faixa, e não da tela
         // inteira: é o que faz o desfoque e o escurecimento acompanharem a
