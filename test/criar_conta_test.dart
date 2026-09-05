@@ -240,6 +240,34 @@ void main() {
       expect(find.text('Sua foto de perfil'), findsOneWidget);
     });
 
+    testWidgets('a etapa de boas-vindas centraliza o texto na faixa branca', (tester) async {
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      final rolagem = tester.getRect(find.byType(SingleChildScrollView).first);
+      final titulo = tester.getRect(find.textContaining('Bem-vindo'));
+      final subtitulo = tester.getRect(find.textContaining('Avisos de live'));
+
+      // Sem campos pra preencher, o texto é tudo que existe na parte branca:
+      // fica no meio dela em vez de encostado na onda com um vazio embaixo.
+      final centroDoTexto = (titulo.top + subtitulo.bottom) / 2;
+      expect((centroDoTexto - rolagem.center.dy).abs(), lessThan(rolagem.height * .12));
+      expect(titulo.top, greaterThan(rolagem.top + rolagem.height * .15));
+    });
+
+    testWidgets('as etapas com campos mantêm o texto no alto, logo abaixo da onda', (tester) async {
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      final rolagem = tester.getRect(find.byType(SingleChildScrollView).first);
+      final titulo = tester.getRect(find.text('Como a gente\nte chama?'));
+
+      // Aqui centralizar empurraria o título pra cima do campo — o texto
+      // continua ancorado no topo da faixa branca.
+      expect(titulo.top, lessThan(rolagem.top + rolagem.height * .15));
+    });
+
     testWidgets('com o cume à esquerda o título quebra a linha e o subtítulo vem inteiro', (tester) async {
       // A etapa do nick é a segunda, e a onda dela sobe à esquerda.
       expect(ondaDaEtapa(1).cumeEhAEsquerda, isTrue);
