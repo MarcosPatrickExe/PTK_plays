@@ -615,17 +615,26 @@ class _CabecalhoDaEtapa extends StatelessWidget {
   final String subtitulo;
   final String subtituloCurto;
 
+  /// Reserva a altura entre o topo do texto e o começo dos campos, pra um
+  /// título curto não deixar os campos subirem pra cima da curva. A etapa
+  /// de boas-vindas não tem campos e desliga isso: lá o texto se
+  /// centraliza na faixa branca inteira.
+  final bool reservarAltura;
+
   const _CabecalhoDaEtapa({
     required this.estilo,
     required this.titulo,
     required this.subtitulo,
     required this.subtituloCurto,
+    this.reservarAltura = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: estilo.alturaDoCabecalho.clamp(0, 400)),
+      constraints: BoxConstraints(
+        minHeight: reservarAltura ? estilo.alturaDoCabecalho.clamp(0, 400) : 0,
+      ),
       child: Align(
         alignment: estilo.alinhamento,
         child: FractionallySizedBox(
@@ -696,6 +705,22 @@ class _Etapa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sem campos (boas-vindas), o texto é tudo que existe na parte branca:
+    // encostá-lo no topo deixava um vazio enorme embaixo, então ele fica
+    // centralizado na faixa inteira.
+    if (campos.isEmpty) {
+      return _RolagemDaEtapa(
+        centralizar: true,
+        child: _CabecalhoDaEtapa(
+          estilo: estilo,
+          titulo: titulo,
+          subtitulo: subtitulo,
+          subtituloCurto: subtituloCurto,
+          reservarAltura: false,
+        ),
+      );
+    }
+
     return _RolagemDaEtapa(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,13 +748,33 @@ class _Etapa extends StatelessWidget {
 class _RolagemDaEtapa extends StatelessWidget {
   final Widget child;
 
-  const _RolagemDaEtapa({required this.child});
+  /// Centraliza o conteúdo na altura disponível, sem abrir mão da rolagem
+  /// quando ele não couber. O `minHeight` no filho é o que faz as duas
+  /// coisas conviverem: cabendo, o Center manda; não cabendo, o conteúdo
+  /// passa da altura mínima e o scroll assume.
+  final bool centralizar;
+
+  const _RolagemDaEtapa({required this.child, this.centralizar = false});
+
+  static const _margem = EdgeInsets.fromLTRB(24, 4, 24, 12);
 
   @override
   Widget build(BuildContext context) {
     return ScrollConfiguration(
       behavior: const _SemBarraDeRolagem(),
-      child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(24, 4, 24, 12), child: child),
+      child: LayoutBuilder(
+        builder: (context, restricoes) => SingleChildScrollView(
+          padding: _margem,
+          child: centralizar
+              ? ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: (restricoes.maxHeight - _margem.vertical).clamp(0.0, double.infinity),
+                  ),
+                  child: Center(child: child),
+                )
+              : child,
+        ),
+      ),
     );
   }
 }

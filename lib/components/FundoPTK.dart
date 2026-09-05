@@ -323,13 +323,18 @@ class _PintorDaOnda extends CustomPainter {
 }
 
 /// Logo do canal na área colorida, desaparecendo conforme desce: nítida em
-/// cima, embaçada e coberta por um roxo escuro perto da onda.
+/// cima, levemente embaçada e velada por um roxo perto da onda.
 ///
 /// O embaçamento progressivo sai de duas camadas com máscaras opostas — o
 /// Flutter não tem blur com intensidade variável. A de cima é a logo
 /// nítida, revelada só no topo; a de baixo é a mesma logo embaçada,
 /// revelada só na parte inferior. Onde as duas se encontram, a passagem de
 /// uma pra outra é o que dá a impressão de foco se perdendo.
+///
+/// O efeito é fraco de propósito. O arquivo da logo já tem o alfa
+/// dissolvido nas últimas linhas (o busto era quadrado e terminava num
+/// corte reto), então não sobra borda pra esconder — desfoque e degradê
+/// fortes só embaçavam o rosto sem resolver nada.
 class _LogoComDegrade extends StatelessWidget {
   final String asset;
 
@@ -347,7 +352,7 @@ class _LogoComDegrade extends StatelessWidget {
         // cume — não no meio da tela. Centralizar na tela inteira jogava
         // ela pra baixo e a onda comia um pedaço.
         final faixaVisivel = restricoes.maxHeight * onda.topoDaCurva;
-        final lado = (faixaVisivel * .82).clamp(0.0, restricoes.maxWidth * .68);
+        final lado = (faixaVisivel * .96).clamp(0.0, restricoes.maxWidth * .82);
 
         // A logo e as duas máscaras vivem dentro da faixa, e não da tela
         // inteira: é o que faz o desfoque e o escurecimento acompanharem a
@@ -376,18 +381,20 @@ class _LogoComDegrade extends StatelessWidget {
                 ],
               ),
             ),
-            // Degradê por cima de tudo: transparente no alto, roxo escuro
-            // encostando na onda. As paradas seguem a curva — o escuro
-            // fecha só onde a onda já cobre tudo (fundoDaCurva), pra não
-            // sobrar um corte reto no meio da área colorida.
+            // Degradê por cima de tudo: transparente no alto, roxo mais
+            // fechado encostando na onda. É de propósito discreto — quem
+            // resolve a borda de baixo da logo é o alfa dissolvido no
+            // próprio arquivo, não uma cortina por cima dela. As paradas
+            // seguem a curva pro escuro fechar só onde a onda já cobre
+            // tudo (fundoDaCurva), sem corte reto no meio do roxo.
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: const [Colors.transparent, Color(0x662A1163), Color(0xE62A1163)],
-                    stops: [onda.topoDaCurva * .35, onda.topoDaCurva * .85, onda.fundoDaCurva],
+                    colors: const [Colors.transparent, Color(0x262A1163), Color(0x8C2A1163)],
+                    stops: [onda.topoDaCurva * .45, onda.topoDaCurva * .9, onda.fundoDaCurva],
                   ),
                 ),
               ),
@@ -412,7 +419,7 @@ class _LogoComDegrade extends StatelessWidget {
         stops: const [0, .45, .8],
       ).createShader(limites),
       child: borrar
-          ? ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 9, sigmaY: 9), child: child)
+          ? ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 3.5, sigmaY: 3.5), child: child)
           : child,
     );
   }
