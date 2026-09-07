@@ -173,23 +173,17 @@ FormaDaOnda ondaDaEtapa(int indice, {bool tecladoAberto = false}) {
 /// pinta a área de cima é o [gradienteDoCenario] daqui — o PTK fica por
 /// cima dele sem nenhuma emenda visível. Foi por isso que o fundo original
 /// das artes saiu: o retângulo delas denunciava onde a imagem acabava.
-/// A imagem entra em `cover` alinhada ao topo e não recebe escurecimento —
-/// o texto todo vive na parte branca.
+/// A imagem é enquadrada na faixa acima da onda e não recebe escurecimento
+/// — o texto todo vive na parte branca.
 class FundoPTK extends StatelessWidget {
   final String? asset;
   final FormaDaOnda onda;
 
-  /// Quanto a arte sobe, como fração da altura da tela. As artes têm o PTK
-  /// de corpo inteiro, mas o que interessa aqui é o rosto: puxando pra
-  /// cima, ele aparece inteiro em vez de ficar espremido no cantinho de
-  /// cima. A faixa que sobra vazia embaixo fica sempre coberta pela onda.
-  final double deslocamentoDaArte;
-
-  /// Afasta a arte, como quem dá um passo pra trás: abaixo de 1 o PTK
-  /// aparece inteiro, com o objeto que ele segura (o @, a logo do
-  /// WhatsApp) sem cortar. O espaço que sobra nas bordas cai no gradiente
-  /// de fundo, que imita o próprio cenário das artes.
-  final double escalaDaArte;
+  /// O quanto da faixa colorida a arte ocupa em altura, medido **a partir
+  /// da onda pra cima**. Abaixo de 1, a folga sai no topo: é o que impede
+  /// o cabelo (e o celular da selfie, que sobe mais que a cabeça) de
+  /// encostar na borda de cima da tela. Os pés continuam colados na onda.
+  final double alturaDaArte;
 
   /// Logo mostrada no lugar da arte, na etapa que não tem uma. Fica
   /// centralizada na área colorida, com o degradê que a funde no fundo.
@@ -199,8 +193,7 @@ class FundoPTK extends StatelessWidget {
     super.key,
     required this.asset,
     required this.onda,
-    this.deslocamentoDaArte = .12,
-    this.escalaDaArte = .84,
+    this.alturaDaArte = .90,
     this.logo,
   });
 
@@ -213,6 +206,45 @@ class FundoPTK extends StatelessWidget {
     colors: [Color(0xFF152A86), Color(0xFF3B1D8F), Color(0xFF6B21C8)],
     stops: [0, .55, 1],
   );
+
+  /// A arte enquadrada na faixa colorida — a parte da tela acima da onda.
+  ///
+  /// `contain` dentro dessa faixa, e não `cover` na tela inteira: as artes
+  /// são **quadradas**, e cobrir uma tela de celular (bem mais alta que
+  /// larga) com um quadrado exigiria cortar mais de um terço da largura —
+  /// justamente o @ e a logo do WhatsApp que o PTK segura.
+  ///
+  /// A faixa vai até [FormaDaOnda.fundoDaCurva], o ponto **mais baixo** da
+  /// onda: daí pra baixo a faixa branca cobre a largura toda, então nada
+  /// que a arte desenhe ali seria visto. Ancorar embaixo faz o PTK sair de
+  /// trás da onda, em vez de flutuar com um vão embaixo dele.
+  Widget _arte() {
+    return LayoutBuilder(
+      key: ValueKey(asset),
+      builder: (context, restricoes) {
+        final faixa = restricoes.maxHeight * onda.fundoDaCurva;
+
+        return Align(
+          alignment: Alignment.topCenter,
+          // A folga entra como recuo no topo, e não encolhendo a caixa: a
+          // base da arte precisa continuar encostada na onda, senão o PTK
+          // flutua com um vão de gradiente embaixo dos pés.
+          child: Padding(
+            padding: EdgeInsets.only(top: faixa * (1 - alturaDaArte)),
+            child: SizedBox(
+              height: faixa * alturaDaArte,
+              width: double.infinity,
+              child: Image.asset(
+                asset!,
+                fit: BoxFit.contain,
+                alignment: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -228,26 +260,7 @@ class FundoPTK extends StatelessWidget {
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           transitionBuilder: (filho, animacao) => FadeTransition(opacity: animacao, child: filho),
-          child: asset == null
-              ? const SizedBox.expand(key: ValueKey('sem-arte'))
-              : FractionalTranslation(
-                  translation: Offset(0, -deslocamentoDaArte),
-                  child: Transform.scale(
-                    scale: escalaDaArte,
-                    alignment: Alignment.topCenter,
-                    child: Image.asset(
-                      asset!,
-                      key: ValueKey(asset),
-                      fit: BoxFit.cover,
-                      // Topo, e não centro: é onde está o rosto do PTK em
-                      // todas as artes. Centralizado, a cabeça sairia do
-                      // enquadramento em tela larga.
-                      alignment: Alignment.topCenter,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  ),
-                ),
+          child: asset == null ? const SizedBox.expand(key: ValueKey('sem-arte')) : _arte(),
         ),
         // A onda é animada por interpolação dos quatro números da forma, e
         // não por cross-fade: assim ela "escorre" de um desenho pro outro,
