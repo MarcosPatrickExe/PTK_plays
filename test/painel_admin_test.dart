@@ -8,6 +8,8 @@ import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/AdminRepository.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
+import 'package:ptk_plays/data/models/MensagemWhatsapp.dart';
+import 'package:ptk_plays/data/repositories/WhatsappRepository.dart';
 import 'package:ptk_plays/view/PainelAdmin.dart';
 
 import 'fake_post_repository.dart';
@@ -45,6 +47,17 @@ class FakeAdminRepository implements AdminRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// A aba WhatsApp lê a caixa de entrada no Firestore. Sem um fake aqui, o
+/// painel inteiro nem constrói nos testes — o repositório real chama
+/// `FirebaseFirestore.instance`, que não existe fora do app.
+class FakeWhatsappRepository implements WhatsappRepository {
+  @override
+  Stream<List<ConversaWhatsapp>> streamConversas({int limite = 300}) => Stream.value(const []);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 Widget _telaDoPainel(
   List<UserModel> usuarios, {
   FakeAdminRepository? repositorio,
@@ -62,6 +75,7 @@ Widget _telaDoPainel(
         admin: _usuario(cargo: 'admin'),
         repository: repositorio ?? FakeAdminRepository(usuarios),
         postRepository: postRepositorio ?? FakePostRepository(),
+        whatsappRepository: FakeWhatsappRepository(),
       ),
     ),
   );
