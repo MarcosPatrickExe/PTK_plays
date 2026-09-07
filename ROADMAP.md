@@ -1450,3 +1450,165 @@ Flutter não tem blur de intensidade variável. Uma é a logo nítida, revelada
 só no topo; a outra é a mesma logo borrada, revelada só embaixo. Onde as
 duas se cruzam, a passagem de uma pra outra é o que dá a impressão de foco
 se perdendo.
+
+
+# Artes sem fundo e títulos ancorados na esquerda (05/set/2026)
+
+## O retângulo da arte aparecia
+
+O usuário viu, no preview, uma emenda visível entre a arte do PTK e o roxo
+da tela: o JPEG trazia o cenário do desenho junto, e a borda do arquivo
+denunciava onde a imagem acabava.
+
+A correção foi recortar o fundo das cinco artes e da logo do canal. O
+script é PIL puro — **não existe numpy neste ambiente** —, e a técnica é um
+flood fill que compara cada pixel com o **vizinho de onde veio**, e não com
+uma cor fixa: o fundo das artes é um degradê suave, então a propagação
+atravessa ele inteiro, enquanto o contorno de alto contraste do personagem
+segura o preenchimento.
+
+Três armadilhas, todas descobertas errando:
+
+1. **Semear as bordas laterais come o personagem.** Na arte da selfie o
+   antebraço do "V" encosta na borda esquerda; uma semente ali entra pelo
+   braço e o apaga de dentro pra fora. Só a linha de cima é fundo garantido
+   em todas as artes.
+2. **Semear só o topo ilha pedaços de fundo.** O fundo embaixo daquele
+   mesmo antebraço só se liga ao resto por fora do quadro, e ficava opaco.
+   Resolvido com uma segunda leva de sementes nas outras bordas, aceita só
+   onde a cor bate com um **polinômio de 2º grau ajustado ao degradê já
+   encontrado** — o modelo é o que evita semear a calça escura, que também
+   encosta na borda de baixo.
+3. **As "estrelinhas" do fundo sobram opacas**, porque o flood passa em
+   volta delas. Ficando só com o maior componente conectado elas somem — e
+   de quebra somem os bolsões de fundo fechados, como o triângulo entre os
+   dedos do "V".
+
+WebP e não PNG: o PNG com alfa passava de 1 MB por arte.
+
+## O texto sempre à esquerda
+
+O cabeçalho alternava de lado seguindo o cume da onda. Cansava a leitura, e
+pior: `topoDoTexto` media a curva pela metade **do cume**, então quando o
+cume caía à direita a curva passava por cima do título, que ficava à
+esquerda.
+
+Agora o texto é sempre à esquerda e `topoDoTexto` mede a **metade
+esquerda**. O cume deixou de decidir *onde* o texto fica e passou a decidir
+só quanto espaço ele tem:
+
+- **cume à esquerda** — sobra branco no alto: título alto, mantendo a
+  quebra de linha escrita no texto, subtítulo inteiro;
+- **cume à direita** — a curva desce desse lado: o título nasce mais baixo,
+  a quebra sai, a fonte diminui e entra a versão resumida do subtítulo.
+
+Um detalhe que o código sozinho não explica: o lado do cume vem da onda **da
+etapa**, não da onda do momento. Com o teclado aberto a onda vira a
+`ondaCheia`, cujo cume é do outro lado — e o título se reorganizaria no meio
+da digitação.
+
+
+# Logo das boas-vindas e texto centralizado (05–07/set/2026)
+
+## O corte na base da logo
+
+Mesmo depois de remover o fundo, dava pra ver uma linha horizontal na base
+da logo. A causa não era o recorte: o arquivo é um **busto quadrado**, e os
+ombros terminavam num corte reto na borda de baixo da imagem. Desfoque por
+cima disfarça, não resolve.
+
+Corrigido na origem — o alfa da logo dissolve nos últimos 30%. Sem borda,
+não há o que esconder, e por isso o efeito por cima pôde ficar fraco (blur
+de sigma 9 pra 3.5, véu roxo de `0x66/0xE6` pra `0x26/0x8C`). O
+`login_logo.png` **continua com fundo** de propósito: lá ele é recortado num
+círculo e o quadrado nunca aparece.
+
+A logo também ficou maior e centralizada na faixa colorida acima do cume
+(`FormaDaOnda.topoDaCurva`), em vez de centralizada na tela — antes a onda
+comia um pedaço dela.
+
+## Texto centralizado só onde faz sentido
+
+A etapa de boas-vindas não tem campos, então o texto ficava colado na onda
+com um vazio enorme até os botões. Agora ele se centraliza na faixa branca
+— **só nas etapas sem campos**; nas outras, centralizar empurraria o título
+pra cima do input.
+
+`_RolagemDaEtapa` faz isso sem abrir mão da rolagem: um `minHeight` no
+filho deixa o `Center` mandar quando o conteúdo cabe e o scroll assumir
+quando não cabe.
+
+
+# Artes quadradas e caixa de entrada do WhatsApp (07/set/2026)
+
+## As artes 1:1
+
+O usuário trocou as cinco artes por versões quadradas. Além do recorte de
+fundo já descrito, duas etapas novas:
+
+1. **Recorte pela silhueta.** No quadrado original quase metade da largura
+   era margem vazia, e o PTK aparecia pequeno demais.
+2. **Quadro comum às cinco**, ancorado embaixo e sem reescalar. As artes
+   foram desenhadas na mesma escala, então um quadro único mantém o PTK do
+   mesmo tamanho em todas as etapas — recortar cada uma no próprio limite
+   faria ele pular de tamanho na transição.
+
+O enquadramento do `FundoPTK` precisou mudar junto. `cover` na tela inteira
+foi calibrado pra 9:16; aplicado a um quadrado numa tela de celular,
+cortaria mais de um terço da largura — justo onde estão o @ e a logo do
+WhatsApp que o PTK segura. Agora é `contain` dentro da faixa colorida, que
+vai até `fundoDaCurva`: daí pra baixo o branco cobre tudo e nada desenhado
+ali seria visto.
+
+`deslocamentoDaArte` e `escalaDaArte` viraram um `alturaDaArte` único,
+medido **de baixo pra cima**. A folga entra como recuo no topo, e não
+encolhendo a caixa: os pés precisam continuar encostados na onda, senão o
+PTK flutua com um vão de gradiente embaixo dele.
+
+## Por que a caixa de entrada existe
+
+Dois fatos da WhatsApp Cloud API decidem o desenho inteiro:
+
+- **Não há endpoint de histórico.** A Meta entrega cada evento uma vez, no
+  webhook, e não guarda nada pra consultar depois.
+- **Um número registrado na Cloud API deixa de funcionar no app do
+  WhatsApp** — ele passa a ser controlado pela API.
+
+Somando os dois: o que não for gravado no momento do webhook não existe em
+lugar nenhum. Por isso o `whatsappWebhook` parou de só chamar
+`logger.info` e passou a gravar na coleção `mensagensWhatsapp`.
+
+Três decisões que não são óbvias no código:
+
+- **O id do documento é o wamid.** Um status (`sent`, `delivered`, `read`,
+  `failed`) chega depois, referenciando pelo id a mensagem que já saiu.
+  Usando o wamid como id, o status cai em cima do registro certo com
+  `merge` — sem procurar e sem duplicar a mesma mensagem em vários
+  documentos. A barra do base64 vira `_`, o único caractere que o Firestore
+  recusa em id.
+- **O 200 sai antes da gravação.** A Meta reenvia o evento quando não
+  recebe 200 rápido, e reenvio em cima de um erro de escrita permanente
+  viraria loop.
+- **Escrita bloqueada pra todo cliente**, admin incluído. Quem escreve é o
+  Admin SDK, que ignora as regras — assim ninguém forja uma mensagem que a
+  Meta nunca entregou. Pela mesma razão, o envio (quando existir) deve ser
+  uma Cloud Function, não escrita direta na coleção.
+
+A regra das **24 horas** (`janelaAbertaEm`) é da plataforma, não nossa:
+texto livre só nas 24h seguintes à última mensagem **da pessoa**; fora
+disso, só modelo aprovado pela Meta. O caso que engana: mensagem **nossa**
+não abre janela nenhuma, por mais recente que seja.
+
+## Coexistence: o caminho que não existe pra empresa direta
+
+O usuário queria um número virtual funcionando como WhatsApp Business **e**
+usado pelo app. Isso é o recurso de *coexistence* — e a documentação da
+Meta diz que ele é **exclusivo de Solution Partners e Tech Providers** que
+fazem onboarding de clientes via Embedded Signup. Empresa direta não
+habilita no próprio número.
+
+Sobraram três caminhos: usar um BSP que suporte, virar Tech Provider, ou
+seguir na Cloud API direta e usar a aba do Painel ADM como caixa de
+entrada. Foi o terceiro — ele já resolve as duas coisas pedidas (o app
+envia pelo número, e há uma interface pra ver e responder), só que a
+interface é o painel em vez do app do WhatsApp.
