@@ -179,6 +179,21 @@ service cloud.firestore {
       allow delete: if ehAdmin() || (estaLogado() && resource.data.autorUid == request.auth.uid);
     }
 
+    // Caixa de entrada do WhatsApp (aba WhatsApp do Painel ADM).
+    //
+    // Escrita SO pelo webhook `whatsappWebhook`, que roda com o Admin SDK e
+    // ignora estas regras — por isso `write: if false` aqui vale pra todo
+    // mundo, admin incluido. Nenhum cliente inventa uma mensagem que a Meta
+    // nunca entregou: o que esta nessa colecao ou veio do webhook, ou nao
+    // existe.
+    //
+    // Leitura so pra admin: sao conversas de outras pessoas com o canal,
+    // com telefone e nome de perfil.
+    match /mensagensWhatsapp/{mensagemId} {
+      allow read: if ehAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
