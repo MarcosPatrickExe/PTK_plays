@@ -8,10 +8,12 @@ import 'package:ptk_plays/components/DegradeTopo.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/components/Toast.dart';
 import 'package:ptk_plays/components/NovoPost.dart';
+import 'package:ptk_plays/data/models/MensagemWhatsapp.dart';
 import 'package:ptk_plays/data/models/PostModel.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/AdminRepository.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
+import 'package:ptk_plays/data/repositories/WhatsappRepository.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
@@ -21,19 +23,27 @@ import 'package:ptk_plays/utils/ThemeController.dart';
 /// opção; quem de fato barra um não-admin é o `firestore.rules`.
 ///
 /// Seções previstas (ver ROADMAP.md, "Painel ADM"): Usuários, Posts,
-/// Cargos, Badges, Notificações e Aviso no WhatsApp. "Usuários" e "Posts"
-/// estão implementadas — as demais aparecem como seções pendentes, com o
-/// que falta pra cada uma, em vez de sumirem da navegação.
+/// Cargos, Badges, Notificações e WhatsApp. "Usuários", "Posts" e a caixa
+/// de entrada do "WhatsApp" estão implementadas — as demais aparecem como
+/// seções pendentes, com o que falta pra cada uma, em vez de sumirem da
+/// navegação.
 class PainelAdmin extends StatelessWidget {
   final AdminRepository? repository;
   final PostRepository? postRepository;
+  final WhatsappRepository? whatsappRepository;
 
   /// Perfil de quem abriu o painel — é ele que assina os posts publicados
   /// pela aba "Posts". Sempre vem preenchido: a opção do menu só existe pra
   /// quem tem `cargo == 'admin'`.
   final UserModel admin;
 
-  const PainelAdmin({super.key, required this.admin, this.repository, this.postRepository});
+  const PainelAdmin({
+    super.key,
+    required this.admin,
+    this.repository,
+    this.postRepository,
+    this.whatsappRepository,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -79,11 +89,9 @@ class PainelAdmin extends StatelessWidget {
                           oQueFalta:
                               'Precisa de uma Cloud Function que dispare via FCM. O envio por cargo exige inscrever cada usuário num tópico por cargo no login.',
                         ),
-                        const _SecaoPendente(
-                          titulo: 'Aviso no WhatsApp',
-                          descricao: 'Disparar aviso pelo número do bot do canal, como as notificações.',
-                          oQueFalta:
-                              'Bloqueado até você comprar o número virtual e concluir a verificação na Meta. O webhook do WhatsApp Business já existe em functions/src/webhook.js.',
+                        _SecaoWhatsapp(
+                          isDark: isDark,
+                          repository: whatsappRepository ?? WhatsappRepository(),
                         ),
                       ],
                     ),
@@ -772,4 +780,391 @@ class _SecaoPendente extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Caixa de entrada do WhatsApp: as conversas que passaram pelo número do
+/// canal, alimentadas pelo webhook (`functions/index.js`).
+///
+/// **Por que isso existe como tela.** Um número registrado na Cloud API
+/// deixa de funcionar no app do WhatsApp — ele passa a ser controlado pela
+/// API. E a API não tem endpoint de histórico: a Meta entrega cada evento
+/// uma vez, no webhook, e não guarda nada pra consultar depois. Sem esta
+/// aba, não haveria lugar nenhum pra ver o que as pessoas responderam nem
+/// se os avisos chegaram.
+///
+/// Só leitura por enquanto. O envio é a outra metade da aba e depende do
+/// número de produção e dos modelos de mensagem aprovados na Meta.
+class _SecaoWhatsapp extends StatelessWidget {
+  final bool isDark;
+  final WhatsappRepository repository;
+
+  const _SecaoWhatsapp({required this.isDark, required this.repository});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ConversaWhatsapp>>(
+      stream: repository.streamConversas(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight));
+        }
+
+        final conversas = snapshot.data ?? [];
+
+        return ResponsiveCenter(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+            itemCount: conversas.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              if (index == 0) return _cabecalho(snapshot.hasError, conversas.isEmpty);
+              return _LinhaConversa(conversa: conversas[index - 1], isDark: isDark);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _cabecalho(bool deuErro, bool vazio) {
+    if (deuErro) {
+      return _aviso(
+        icone: Icons.error_outline,
+        texto: 'Não foi possível carregar as conversas.',
+      );
+    }
+    if (vazio) {
+      return _aviso(
+        icone: Icons.forum_outlined,
+        texto: 'Nenhuma mensagem ainda. O que chegar no número do canal aparece aqui — '
+            'inclusive a confirmação de entrega dos avisos que o app enviar.',
+      );
+    }
+    return _aviso(
+      icone: Icons.outgoing_mail,
+      texto: 'Envio pelo painel ainda não disponível: depende do número de produção e dos '
+          'modelos de mensagem aprovados na Meta.',
+    );
+  }
+
+  Widget _aviso({required IconData icone, required String texto}) {
+    return CardVidro(
+      isDark: isDark,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icone, size: 18, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              texto,
+              style: GoogleFonts.outfit(
+                color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Uma conversa na lista: com quem, a última mensagem e se dá pra
+/// responder com texto livre agora.
+class _LinhaConversa extends StatelessWidget {
+  final ConversaWhatsapp conversa;
+  final bool isDark;
+
+  const _LinhaConversa({required this.conversa, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final ultima = conversa.ultima;
+    final aberta = janelaAbertaEm(conversa);
+    final corTitulo = isDark ? AuthTheme.titleDark : AuthTheme.titleLight;
+    final corApoio = isDark ? AuthTheme.subDark : AuthTheme.subLight;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(26),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _ConversaWhatsappPage(conversa: conversa)),
+      ),
+      child: CardVidro(
+        isDark: isDark,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    conversa.titulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: corTitulo),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  formatarDataHoraCurta(ultima.quando),
+                  style: GoogleFonts.outfit(fontSize: 12, color: corApoio),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${ultima.recebida ? '' : 'Você: '}${ultima.resumo}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(fontSize: 13.5, color: corApoio, height: 1.4),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _Etiqueta(
+                  texto: aberta ? 'Resposta livre liberada' : 'Fora da janela: só template',
+                  cor: aberta ? const Color(0xFF1EA95A) : corApoio,
+                  icone: aberta ? Icons.lock_open_outlined : Icons.lock_outline,
+                ),
+                if (ultima.falhou) ...[
+                  const SizedBox(width: 8),
+                  const _Etiqueta(texto: 'Falhou', cor: Color(0xFFE0264F), icone: Icons.error_outline),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A conversa inteira, em balões. Recebidas à esquerda, enviadas à
+/// direita — a mesma convenção do WhatsApp, pra não precisar aprender
+/// nada novo pra ler.
+class _ConversaWhatsappPage extends StatelessWidget {
+  final ConversaWhatsapp conversa;
+
+  const _ConversaWhatsappPage({required this.conversa});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = context.watch<ThemeController>().isDark;
+    final aberta = janelaAbertaEm(conversa);
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight),
+          ),
+          Positioned.fill(child: AuthBackground(isDark: isDark)),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 20, 6),
+                  child: Row(
+                    children: [
+                      BotaoVoltar(isDark: isDark, onTap: () => Navigator.of(context).pop()),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              conversa.titulo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                              ),
+                            ),
+                            Text(
+                              conversa.telefone,
+                              style: GoogleFonts.outfit(
+                                fontSize: 12.5,
+                                color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ResponsiveCenter(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                      itemCount: conversa.mensagens.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) => _Balao(
+                        mensagem: conversa.mensagens[index],
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                ),
+                // O rodapé não é um campo de texto porque ainda não há envio:
+                // mostrar um campo desabilitado prometeria algo que a tela não
+                // faz. Quando o envio existir, é aqui que ele entra — e a
+                // janela de 24h já está calculada.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: CardVidro(
+                    isDark: isDark,
+                    child: Row(
+                      children: [
+                        Icon(
+                          aberta ? Icons.lock_open_outlined : Icons.lock_outline,
+                          size: 18,
+                          color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            aberta
+                                ? 'Janela de 24h aberta: quando o envio existir, dá pra responder com texto livre.'
+                                : 'Fora da janela de 24h: só dá pra enviar modelo de mensagem aprovado pela Meta.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12.5,
+                              height: 1.45,
+                              color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DegradeTopo(isDark: isDark),
+        ],
+      ),
+    );
+  }
+}
+
+class _Balao extends StatelessWidget {
+  final MensagemWhatsapp mensagem;
+  final bool isDark;
+
+  const _Balao({required this.mensagem, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final recebida = mensagem.recebida;
+    final corApoio = isDark ? AuthTheme.subDark : AuthTheme.subLight;
+
+    return Align(
+      alignment: recebida ? Alignment.centerLeft : Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          decoration: BoxDecoration(
+            color: recebida
+                ? (isDark ? Colors.white.withValues(alpha: .10) : Colors.white)
+                : (isDark ? AuthTheme.linkDark.withValues(alpha: .22) : const Color(0xFFEDE3FA)),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(recebida ? 4 : 16),
+              bottomRight: Radius.circular(recebida ? 16 : 4),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                mensagem.resumo,
+                style: GoogleFonts.outfit(
+                  fontSize: 14.5,
+                  height: 1.45,
+                  color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    formatarDataHoraCurta(mensagem.quando),
+                    style: GoogleFonts.outfit(fontSize: 11, color: corApoio),
+                  ),
+                  if (mensagem.rotuloDoStatus.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        mensagem.rotuloDoStatus,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: mensagem.falhou ? const Color(0xFFE0264F) : corApoio,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Etiqueta extends StatelessWidget {
+  final String texto;
+  final Color cor;
+  final IconData icone;
+
+  const _Etiqueta({required this.texto, required this.cor, required this.icone});
+
+  @override
+  Widget build(BuildContext context) {
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: cor.withValues(alpha: .14),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 13, color: cor),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                texto,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w600, color: cor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "05/09 às 14:32" — mesmo formato curto que o Feed usa nos cards.
+String formatarDataHoraCurta(DateTime data) {
+  final local = data.toLocal();
+  final dia = local.day.toString().padLeft(2, '0');
+  final mes = local.month.toString().padLeft(2, '0');
+  final hora = local.hour.toString().padLeft(2, '0');
+  final minuto = local.minute.toString().padLeft(2, '0');
+  return '$dia/$mes às $hora:$minuto';
 }

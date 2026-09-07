@@ -208,6 +208,32 @@ void main() {
       expect(find.byType(Image), findsOneWidget);
     });
 
+    testWidgets('a arte fica dentro da faixa acima da onda, com folga no topo', (tester) async {
+      const onda = FormaDaOnda(
+        alturaEsquerda: .5,
+        alturaDireita: .45,
+        curvaEsquerda: .55,
+        curvaDireita: .4,
+      );
+
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(body: FundoPTK(asset: 'assets/ptk/ptk_nickname.webp', onda: onda)),
+      ));
+      await tester.pump();
+
+      final tela = tester.getSize(find.byType(FundoPTK));
+      final arte = tester.getRect(find.byType(Image));
+
+      // As artes são quadradas: cobrir a tela inteira com elas cortaria mais
+      // de um terço da largura, justo onde está o @ e a logo do WhatsApp. Por
+      // isso a arte é enquadrada na faixa colorida, que vai até o ponto mais
+      // baixo da onda.
+      expect(arte.bottom, lessThanOrEqualTo(tela.height * onda.fundoDaCurva + 1));
+      // E não encosta na borda de cima: o cabelo (e o celular da selfie, que
+      // sobe mais que a cabeça) precisam de ar.
+      expect(arte.top, greaterThan(0));
+    });
+
     testWidgets('a logo das boas-vindas cabe inteira na faixa colorida acima do cume', (tester) async {
       const onda = FormaDaOnda(
         alturaEsquerda: .5,
