@@ -46,6 +46,30 @@ Atualize sempre:
    próxima sessão quebrar algo por não saber. Ordene por urgência e
    **renumere as referências cruzadas** ("ver atenção 2") quando a ordem
    mudar. Item resolvido **sai da lista** — não vira "✅ feito".
+
+   **Um item de atenção precisa ser acionável sem contexto nenhum.**
+   "Confirmar que o webhook está gravando" não serve: quem lê depois de um
+   `/clear` não sabe onde clicar nem o que significa falhar. Um item bom
+   responde quatro coisas, e vale usar subtítulos em itálico pra separar:
+
+   - ***O que é*** — em duas linhas, pra quem nunca viu.
+   - ***Por que ainda é atenção*** — o que exatamente não foi verificado.
+     Cuidado com o mais traiçoeiro: "o deploy foi feito" costuma esconder
+     uma metade que não depende de código (configuração num painel
+     externo, uma chave, uma inscrição) e que nada no repositório
+     denuncia.
+   - ***Como confirmar*** — passos numerados, com o comando exato e o
+     lugar exato (nome da tela, do menu, do campo). Se um valor não puder
+     ser afirmado com certeza, diga como descobri-lo em vez de chutar
+     (`firebase functions:list` em vez de uma URL inventada).
+   - ***O que cada resultado significa*** — os ramos de falha, cada um
+     apontando pro culpado provável. Quando houver um comando que
+     distingue os ramos, ele é a parte mais valiosa do item inteiro.
+
+   Ao citar log, erro ou mensagem, **copie a string do código** e confira
+   que ela ainda existe — um trecho de log que não bate com a fonte manda
+   a próxima sessão procurar o que não há.
+
 3. **"Estado do git"** — último merge em `main`, quantos commits a branch
    tem além disso, e se há PR aberto.
 4. **"Saúde do projeto"** — contagem de testes do Flutter e do backend.

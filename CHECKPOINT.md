@@ -18,14 +18,55 @@ passou por um `/clear` aqui). Ver também:
 
 ## ⚠️ O que precisa de atenção AGORA
 
-1. **Caixa de entrada do WhatsApp: no ar, mas nunca exercitada.** O
-   usuário confirmou em 08/set que rodou `firebase deploy --only
-   functions` e `--only firestore:rules`. **Não verificado**: se algum
-   evento real já chegou e foi gravado. Pra confirmar, mandar uma
-   mensagem pro **número de teste da Etapa 1** da Meta e ver se a conversa
-   aparece na aba WhatsApp do Painel ADM. Se não aparecer, o suspeito
-   número 1 é a URL do webhook não estar cadastrada no Meta for Developers
-   (ver "Não confirmado" na seção do WhatsApp).
+Só entra aqui o que **bloqueia trabalho** ou o que faria a próxima sessão
+quebrar algo por não saber. Cada item diz o que fazer, não só o que está
+pendente.
+
+1. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
+   verdade.**
+
+   *O que é*: em 07/set o `whatsappWebhook` passou a gravar tudo que a
+   Meta entrega na coleção `mensagensWhatsapp`, e a aba **WhatsApp** do
+   Painel ADM passou a mostrar isso como lista de conversas. Em 08/set o
+   usuário rodou os dois deploys (`--only functions` e `--only
+   firestore:rules`).
+
+   *Por que ainda é atenção*: deploy feito **não** quer dizer que
+   funciona. Falta a metade que não depende de código — a URL do webhook
+   precisa estar cadastrada e **inscrita no campo `messages`** no painel
+   do app no Meta for Developers, e isso está marcado como **"Não
+   confirmado"** desde antes (ver "Detalhes que continuam valendo", na
+   seção do WhatsApp). Se essa ponta estiver solta, a aba fica vazia pra
+   sempre e nada no código denuncia isso.
+
+   *Como confirmar, em 3 passos*:
+   1. Do seu celular, mande uma mensagem qualquer **para o número de
+      teste** que a Meta te deu na Etapa 1 (está em WhatsApp → API Setup,
+      no painel do app). O seu número precisa estar na lista de
+      destinatários de teste do mesmo painel — se não estiver, a Meta
+      descarta a mensagem e nada chega.
+   2. Abra o app como admin → menu lateral → **Painel ADM** → aba
+      **WhatsApp**. A conversa deve aparecer em segundos, com o seu nome
+      de perfil e a etiqueta "Resposta livre liberada".
+   3. Não apareceu? Rode `firebase functions:log --only whatsappWebhook`.
+      É esse comando que separa os dois cenários possíveis.
+
+   *O que cada resultado significa*:
+   - **Nenhuma linha nova no log** → a Meta não chamou o webhook. O
+     problema está no painel dela: URL não cadastrada, verify token
+     diferente do secret `WHATSAPP_VERIFY_TOKEN`, ou o campo `messages`
+     sem inscrição. Pegue a URL certa com `firebase functions:list` (é
+     função v2, então a URL **não** segue o formato antigo
+     `cloudfunctions.net` — não chute).
+   - **Log com `assinatura invalida`** → o secret `WHATSAPP_APP_SECRET`
+     não bate com a "Chave secreta do app" no Meta.
+   - **Log com `Falha ao gravar evento`** → a Meta chamou e a assinatura
+     passou; o problema é a escrita no Firestore. A mensagem de erro vem
+     junto no log.
+   - **Log com `N evento(s) gravado(s)` mas a aba vazia** → gravou, e o
+     problema é leitura: confira se a conta que você abriu tem `cargo ==
+     'admin'`, porque a regra só libera leitura pra admin.
+
 2. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
    arte própria do PTK — hoje ela mostra a **logo do canal**
    (`assets/ptk/ptk_logo.webp`) centralizada na área roxa, o que ficou
