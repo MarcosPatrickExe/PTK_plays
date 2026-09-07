@@ -44,6 +44,33 @@ Login.dart, Cadastro.dart e o diálogo de excluir conta em Profile.dart ainda
 usam só `mostrarErroCustom` pros próprios erros (não foram retrofitados pra
 Toast ainda) — ao mexer nessas telas de novo, alinhar com essa regra.
 
+## Regra permanente: um commit por arquivo alterado
+
+Pedido explícito do usuário: **cada arquivo que eu mexer vira um commit
+próprio**, nunca vários arquivos num commit só. Vale pra tudo — código,
+teste, asset, documentação.
+
+A mensagem de cada commit explica *o que mudou no entendimento do
+projeto*, não o que o diff já mostra: qual era o problema, por que a
+solução óbvia não servia. Um commit chamado "atualiza o checkpoint" não
+serve pra nada seis meses depois.
+
+## Regra permanente: documentação viva
+
+Ao terminar uma entrega — e sempre antes de um `/clear` —, atualizar a
+documentação do repositório seguindo a skill
+**`.claude/skills/atualizar-documentacao/`**, que diz o que escrever em
+qual arquivo:
+
+- `CHECKPOINT.md` — o estado de hoje (o que uma sessão nova precisa saber);
+- `ROADMAP.md` — por que cada coisa foi feita assim;
+- `CLAUDE.md` (este arquivo) — só o que vale pra sempre.
+
+Duas coisas que essa skill insiste, e que valem repetir aqui: registrar a
+**armadilha**, não só o resultado; e marcar explicitamente o que é
+suposição ("**Não confirmado**:") em vez de escrever como fato algo que
+não foi checado nesta sessão.
+
 ## Convenção de commits
 
 Meus commits usam o identificador de git configurado no ambiente
