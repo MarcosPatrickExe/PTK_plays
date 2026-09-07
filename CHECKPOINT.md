@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **07/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **08/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -12,49 +12,39 @@ passou por um `/clear` aqui). Ver também:
   signing do Android).
 - **`REGRAS_DA_COMUNIDADE.md`** — as regras de convivência do feed e onde
   cada uma é aplicada no código.
+- **`.claude/skills/atualizar-documentacao/`** — a skill que diz o que
+  escrever em qual destes arquivos. Rode ela ao terminar uma entrega ou
+  antes de um `/clear`.
 
 ## ⚠️ O que precisa de atenção AGORA
 
-1. **Deploy pendente de Firebase.** A caixa de entrada do WhatsApp (ver
-   abaixo) está no código mas **não está no ar**. Falta o usuário rodar,
-   no Cloud Shell:
-   ```
-   firebase deploy --only functions        # webhook que grava
-   firebase deploy --only firestore:rules  # regras da colecao nova
-   ```
-   Dá pra validar a ponta inteira com o **número de teste da Etapa 1** da
-   Meta, sem comprometer número de produção.
-2. **4 artes novas do PTK, em formato quadrado, esperando o arquivo.** O
-   usuário enviou 4 artes 1:1 (joinha/nick, pensativo/senha, WhatsApp e
-   selfie/foto) pra substituir as atuais, mas os arquivos **não chegaram
-   ao disco do container** em duas tentativas — só apareceram na conversa.
-   Pedir pra reenviar. Quando chegarem:
-   - recortar o fundo com a mesma técnica das atuais (o script está
-     descrito na seção "Artes do cadastro" mais abaixo);
-   - converter pra WebP e substituir `assets/ptk/ptk_*.webp`;
-   - **atenção ao enquadramento**: as atuais são 9:16 e o `FundoPTK` corta
-     em `cover` alinhado ao topo com `escalaDaArte: .84`. Com arte
-     quadrada o PTK vai ficar bem maior — provavelmente precisa baixar a
-     escala.
-   A arte do **@ (e-mail)** não faz parte do lote novo: continua a 9:16
-   atual.
-3. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
+1. **Caixa de entrada do WhatsApp: no ar, mas nunca exercitada.** O
+   usuário confirmou em 08/set que rodou `firebase deploy --only
+   functions` e `--only firestore:rules`. **Não verificado**: se algum
+   evento real já chegou e foi gravado. Pra confirmar, mandar uma
+   mensagem pro **número de teste da Etapa 1** da Meta e ver se a conversa
+   aparece na aba WhatsApp do Painel ADM. Se não aparecer, o suspeito
+   número 1 é a URL do webhook não estar cadastrada no Meta for Developers
+   (ver "Não confirmado" na seção do WhatsApp).
+2. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
    arte própria do PTK — hoje ela mostra a **logo do canal**
    (`assets/ptk/ptk_logo.webp`) centralizada na área roxa, o que ficou
    bom, mas não é uma arte do personagem. Pra trocar: soltar o arquivo em
    `assets/ptk/` e apontar em `assetDaEtapa` (`lib/view/CriarConta.dart`).
-4. **Custom claim de admin no Auth** — a pendência que o usuário pediu
+   Se vier no mesmo estilo quadrado das outras cinco, passar pelo mesmo
+   preparo (ver "Artes do cadastro" mais abaixo).
+3. **Custom claim de admin no Auth** — a pendência que o usuário pediu
    explicitamente pra fazer "na próxima". É uma Cloud Function que marca o
    admin com um custom claim, e resolve **duas** limitações de uma vez:
    - fechar a escrita no Storage (hoje qualquer logado pode subir arquivo
      na própria pasta `posts_midia/{uid}/`, mesmo sem conseguir publicar);
    - permitir que a remoção em cascata de usuário apague também a conta do
      Firebase Auth e os arquivos órfãos do Storage.
-5. **App Store — status não verificado nesta sessão.** O build **1.2.1
+4. **App Store — status não verificado nesta sessão.** O build **1.2.1
    (17)** foi submetido à Apple em 25/ago/2026. Nenhuma sessão desde então
    checou o resultado. Perguntar ao usuário antes de assumir qualquer
    coisa.
-6. **Google Play — aviso de nível de API.** O código está certo
+5. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
@@ -62,10 +52,8 @@ passou por um `/clear` aqui). Ver também:
 
 ## Estado do git
 
-- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**. Último merge em
-  `main`: **`e256636`** (PR #69). Depois dele a branch acumulou **9
-  commits da caixa de entrada do WhatsApp**, ainda **sem PR aberto** — o
-  usuário não pediu.
+- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**, sincronizada com
+  `main` em **`40d4750`** (PR #70). Nenhum PR aberto.
 - **`main` → deploy automático no Vercel em `https://ptk-plays.vercel.app`**
   (atenção: `plays.vercel.app`, que consta em versões antigas deste
   arquivo, **dá 404** — não é o endereço certo).
@@ -88,7 +76,7 @@ passou por um `/clear` aqui). Ver também:
 
 ## Saúde do projeto
 
-- **303 testes** passando (`flutter test`), mais **46** no backend
+- **304 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros, 0 warnings**. Há uma baseline conhecida de
   ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
@@ -113,12 +101,14 @@ Cloud Shell):
 - Functions `twitchWebhook`, `kickWebhook`, `verificarYoutubeAoVivo` —
   publicadas em 02/set.
 
-**Há deploy pendente** desde 07/set — a caixa de entrada do WhatsApp (ver
-atenção 1). Atenção: `firebase deploy --only storage:rules` **não
-funciona** (o CLI interpreta "rules" como nome de target); o comando certo
-é `firebase deploy --only storage`.
+- `functions` e `firestore.rules` — republicados em **08/set**, com a
+  caixa de entrada do WhatsApp.
 
-## O que foi feito nas últimas sessões (28/ago → 07/set)
+**Não há deploy pendente no momento.** Atenção: `firebase deploy --only
+storage:rules` **não funciona** (o CLI interpreta "rules" como nome de
+target); o comando certo é `firebase deploy --only storage`.
+
+## O que foi feito nas últimas sessões (28/ago → 08/set)
 
 Resumo; o detalhe de cada decisão está no `ROADMAP.md`, seção por data.
 
@@ -189,12 +179,13 @@ e-mail, senha, foto, WhatsApp**. E-mail e senha somem no fluxo social.
 - **Login social de conta nova cai aqui** em vez de ir pro feed, com o nick
   já sugerido pelo provedor.
 
-#### Artes do cadastro (04–05/set)
+#### Artes do cadastro (04–07/set)
 
-As artes eram JPEG com o cenário do desenho junto, e o retângulo delas
-denunciava onde a imagem acabava — dava pra ver a emenda com o roxo do
-app. Agora são **WebP com transparência**, só o personagem, e quem pinta a
-área de cima é o `gradienteDoCenario` do `FundoPTK`.
+As artes eram JPEG 9:16 com o cenário do desenho junto, e o retângulo
+delas denunciava onde a imagem acabava — dava pra ver a emenda com o roxo
+do app. Em 07/set foram substituídas pelas versões **1:1** que o usuário
+mandou, e hoje são **WebP com transparência**, só o personagem: quem pinta
+a área de cima é o `gradienteDoCenario` do `FundoPTK`.
 
 O recorte foi feito com um script em **PIL puro** (não há numpy neste
 ambiente): flood fill a partir da borda **de cima**, comparando cada pixel
@@ -218,7 +209,34 @@ refazer:
    entre os dedos do "V".
 
 WebP e não PNG porque o PNG equivalente passava de 1 MB por arte; as WebP
-ficaram em ~100 KB, menos que os JPEGs de antes.
+ficaram em 62–80 KB, menos que os JPEGs de antes.
+
+**Depois do recorte vêm mais duas etapas**, e as duas importam se alguma
+arte nova entrar:
+
+1. **Recorte pela silhueta** (`getbbox()` no canal alfa). No quadrado
+   original quase metade da largura era margem vazia; sem cortar isso o
+   PTK aparecia pequeno demais na tela.
+2. **Quadro comum às cinco**, ancorado embaixo e **sem reescalar**. As
+   artes foram desenhadas na mesma escala, então colar cada recorte num
+   quadro único mantém o PTK do mesmo tamanho em todas as etapas —
+   recortar cada uma no próprio limite faria ele pular de tamanho na
+   transição entre telas. O quadro hoje é 755×1159.
+
+**O enquadramento mudou junto** (`FundoPTK._arte`). O jeito antigo —
+`cover` na tela inteira, alinhado ao topo, com `Transform.scale` — foi
+calibrado pra 9:16 e cortaria mais de um terço da largura de um quadrado,
+justo onde estão o @ e a logo do WhatsApp. Agora é `contain` dentro da
+**faixa colorida**, que vai até `fundoDaCurva` (o ponto mais baixo da
+onda): daí pra baixo o branco cobre a largura toda e nada desenhado ali
+seria visto.
+
+`deslocamentoDaArte` e `escalaDaArte` deram lugar a um único
+**`alturaDaArte`** (.90), medido **a partir da onda pra cima**. A folga
+entra como recuo no topo, e não encolhendo a caixa: os pés precisam
+continuar encostados na onda, senão o PTK flutua com um vão de gradiente
+embaixo dele. Os 10% de folga dão ar pro cabelo — e pro celular da selfie,
+que sobe mais que a cabeça.
 
 A **logo do canal** (`assets/ptk/ptk_logo.webp`) recebeu o mesmo
 tratamento, mais um detalhe: o arquivo é um busto quadrado e os ombros
@@ -346,26 +364,24 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
 
 ## Pendências, em ordem de esforço
 
-1. **Deploy das functions + regras** da caixa de entrada (ver atenção 1) —
-   é só o usuário rodar dois comandos no Cloud Shell.
-2. **Trocar as 4 artes quadradas** do cadastro, quando os arquivos
-   chegarem (ver atenção 2).
-3. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
-4. **Custom claim de admin** no Auth (ver atenção 4).
-5. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
+1. **Confirmar que o webhook está gravando** de verdade (ver atenção 1) —
+   é mandar uma mensagem pro número de teste e olhar a aba.
+2. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
+3. **Custom claim de admin** no Auth (ver atenção 3).
+4. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
    tela de chat. A opção já existe no menu e avisa que não está pronta.
    Quando existir, entra também na remoção em cascata (o lugar já está
    marcado no código).
-6. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
+5. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
    vez, com detector de visibilidade).
-7. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
+6. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
    cliente de propósito, então precisa de Cloud Function.
-8. **Etapa 6 — notificações push por cargo.**
-9. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
+7. **Etapa 6 — notificações push por cargo.**
+8. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
    reescreve boa parte do `firestore.rules`.
-10. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
-    existe; falta o **envio**, que depende do número de produção e dos
-    modelos de mensagem aprovados na Meta.
+9. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
+   existe e está no ar; falta o **envio**, que depende do número de
+   produção e dos modelos de mensagem aprovados na Meta.
 
 **Ideias registradas, ainda não pedidas**: log de auditoria de moderação
 (quem baniu quem e quando), campo de motivo ao banir (hoje o clique bane
@@ -395,10 +411,15 @@ fluxo novo estiver validado em produção.
 - **Python com PIL disponível, mas NÃO numpy** — foi assim que as artes
   do PTK tiveram o fundo recortado e viraram WebP. Qualquer script de
   imagem aqui precisa ser PIL puro.
-- **Anexos de imagem podem não chegar ao disco.** Em 05 e 07/set o usuário
-  mandou 4 artes que apareceram na conversa mas nunca foram salvas em
-  `/root/.claude/uploads/`. Sempre conferir se o arquivo existe antes de
-  prometer processá-lo.
+- **Anexos de imagem geralmente NÃO chegam ao disco.** Em 05 e 07/set o
+  usuário mandou artes que apareciam na conversa mas nunca foram salvas —
+  em 07/set o diretório `/root/.claude/uploads/` nem existia. Sempre
+  conferir se o arquivo existe antes de prometer processá-lo.
+  **A saída que funcionou**: pedir pro usuário subir os arquivos por
+  *Add file → Upload files* na interface web do GitHub, dentro de uma
+  pasta que **já exista** (a tela de upload não deixa digitar caminho), e
+  então dar `git pull`. Em 07/set ele subiu em `assets/ptk/` com prefixo
+  `novo_`, e os originais foram apagados no mesmo PR.
 - Testes de widget: `pumpAndSettle` **trava** em várias telas do app,
   porque o `AuthBackground` anima em loop infinito. Usar `pump()` com
   durações. O Painel ADM ainda precisa de janela larga (as 6 abas não
