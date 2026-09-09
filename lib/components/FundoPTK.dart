@@ -161,6 +161,23 @@ FormaDaOnda ondaDaEtapa(int indice, {bool tecladoAberto = false}) {
   return ondasDoCadastro[indice % ondasDoCadastro.length];
 }
 
+/// Onda "cheia": não sobra nenhuma faixa branca, a área colorida ocupa o
+/// espaço inteiro. Não é desenhada de verdade (usar com
+/// [FundoPTK.desenharOnda] em `false`) — serve pro cartão do PTK da versão
+/// desktop do cadastro, onde a arte vive num painel retangular próprio (o
+/// contorno arredondado vem de um `ClipRRect` de fora, não da curva) e não
+/// de uma faixa de tela inteira competindo por espaço com o formulário.
+///
+/// `fundoDaCurva` e `topoDaCurva` valem 1 nessa forma, então a arte e a
+/// logo (que leem essas duas frações pra saber até onde vai a área
+/// colorida) passam a considerar o painel inteiro.
+const FormaDaOnda ondaInteira = FormaDaOnda(
+  alturaEsquerda: 1,
+  alturaDireita: 1,
+  curvaEsquerda: 1,
+  curvaDireita: 1,
+);
+
 /// Fundo das etapas do cadastro: a arte do PTK ocupando o alto da tela e
 /// uma onda branca subindo de baixo, onde o formulário fica.
 ///
@@ -189,12 +206,20 @@ class FundoPTK extends StatelessWidget {
   /// centralizada na área colorida, com o degradê que a funde no fundo.
   final String? logo;
 
+  /// Desliga a curva branca. Usado no cartão do PTK da versão desktop do
+  /// cadastro (combinado com `onda: ondaInteira`), onde a arte ocupa um
+  /// painel retangular próprio — o contorno arredondado sai de um
+  /// `ClipRRect` de quem chama, não da curva — em vez de disputar espaço
+  /// com um formulário sobreposto, como no celular.
+  final bool desenharOnda;
+
   const FundoPTK({
     super.key,
     required this.asset,
     required this.onda,
     this.alturaDaArte = .90,
     this.logo,
+    this.desenharOnda = true,
   });
 
   /// Cores tiradas do próprio cenário das artes (azul no alto, roxo
@@ -268,14 +293,18 @@ class FundoPTK extends StatelessWidget {
         // mecanismo que faz a onda "encher a tela" quando o teclado abre —
         // a forma vira a ondaCheia e a curva sobe escorrendo, como líquido
         // subindo num copo.
-        TweenAnimationBuilder<FormaDaOnda>(
-          tween: _TweenDeOnda(fim: onda),
-          duration: const Duration(milliseconds: 480),
-          // easeOutCubic sobe rápido e desacelera no fim, que é como um
-          // líquido se acomoda ao parar de encher.
-          curve: Curves.easeOutCubic,
-          builder: (context, formaAtual, _) => CustomPaint(painter: _PintorDaOnda(formaAtual)),
-        ),
+        //
+        // No cartão do desktop (desenharOnda: false) essa camada nem entra:
+        // lá o contorno arredondado é do painel inteiro, não de uma curva.
+        if (desenharOnda)
+          TweenAnimationBuilder<FormaDaOnda>(
+            tween: _TweenDeOnda(fim: onda),
+            duration: const Duration(milliseconds: 480),
+            // easeOutCubic sobe rápido e desacelera no fim, que é como um
+            // líquido se acomoda ao parar de encher.
+            curve: Curves.easeOutCubic,
+            builder: (context, formaAtual, _) => CustomPaint(painter: _PintorDaOnda(formaAtual)),
+          ),
       ],
     );
   }
