@@ -307,4 +307,96 @@ void main() {
       expect(titulo.style!.fontSize, lessThan(26));
     });
   });
+
+  group('CriarConta no desktop', () {
+    // Abaixo de larguraDoCadastroDesktop é o layout de celular (onda); a
+    // largura da viewport de teste decide qual dos dois entra em cena —
+    // não tem toggle explícito, é a mesma leitura de largura que a tela
+    // real faz.
+    Future<void> comLargura(WidgetTester tester, double largura, double altura) async {
+      tester.view.physicalSize = Size(largura, altura);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    }
+
+    testWidgets('largura abaixo do ponto de corte continua com a onda', (tester) async {
+      await comLargura(tester, 800, 900);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      // "PASSO 1 DE 6" só existe no cartão desktop — no celular quem marca
+      // o progresso são as bolinhas sobre a arte.
+      expect(find.textContaining('PASSO'), findsNothing);
+      expect(find.text('Sair'), findsOneWidget);
+    });
+
+    testWidgets('largura no ponto de corte mostra o cartão de duas colunas', (tester) async {
+      await comLargura(tester, larguraDoCadastroDesktop, 800);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      expect(find.text('PASSO 1 DE 6'), findsOneWidget);
+      // O título flui numa linha só — sem a quebra pensada pro celular
+      // estreito, que aqui deixaria uma segunda linha capenga sobrando de
+      // espaço à toa.
+      expect(find.text('Bem-vindo(a) à comunidade PTK Plays!'), findsOneWidget);
+    });
+
+    testWidgets('avançar no desktop atualiza o selo e o título, sem PageView', (tester) async {
+      await comLargura(tester, 1200, 800);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      expect(find.byType(PageView), findsNothing);
+      expect(find.text('PASSO 1 DE 6'), findsOneWidget);
+
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('PASSO 2 DE 6'), findsOneWidget);
+      // Flui numa linha, igual ao título das boas-vindas — sem a quebra
+      // que só faz sentido na coluna estreita do celular.
+      expect(find.text('Como a gente te chama?'), findsOneWidget);
+      expect(find.text('Voltar'), findsOneWidget);
+
+      // Subtítulo sempre por inteiro — sobra altura de sobra num cartão,
+      // ao contrário da faixa branca que a onda deixa no celular.
+      expect(
+        find.text('Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('preenche o nick e cria a conta pelo cartão desktop', (tester) async {
+      await comLargura(tester, 1200, 800);
+      await tester.pumpWidget(_tela(contaSocial: true));
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      // Conta social pula e-mail/senha: nick -> foto direto, igual ao
+      // celular — o desktop reaproveita a mesma lista de etapas.
+      expect(find.text('Sua foto de perfil'), findsOneWidget);
+    });
+
+    testWidgets('estreitar a janela depois de avançar no desktop reabre o celular na etapa certa', (tester) async {
+      await comLargura(tester, 1200, 800);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      await _tocarEmAvancar(tester); // -> nick, indice 1
+
+      // A janela encolhe pra largura de celular: o PageView remonta do
+      // zero. Sem a sincronização em _buildMobile, ele reabriria travado
+      // na primeira página mesmo com `_indice` já em 1.
+      await comLargura(tester, 390, 844);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
+      expect(find.textContaining('Bem-vindo'), findsNothing);
+    });
+  });
 }
