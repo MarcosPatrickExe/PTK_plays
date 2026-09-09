@@ -187,6 +187,15 @@ void main() {
       expect(ondaCheia.fundoDaCurva, lessThan(.15));
     });
 
+    test('ondaInteira não deixa nenhuma faixa branca — a área colorida é o painel inteiro', () {
+      // É a onda do cartão do PTK da versão desktop do cadastro
+      // (FundoPTK.desenharOnda: false): sem faixa branca nenhuma pra
+      // reservar, fundoDaCurva/topoDaCurva viram 1 — arte e logo passam a
+      // considerar o painel inteiro como área colorida.
+      expect(ondaInteira.fundoDaCurva, closeTo(1, .0001));
+      expect(ondaInteira.topoDaCurva, closeTo(1, .0001));
+    });
+
     test('toda onda deixa espaço pra arte e pro formulário', () {
       for (final onda in ondasDoCadastro) {
         expect(onda.fundoDaCurva, greaterThan(.3), reason: 'a arte ficaria espremida demais');
@@ -265,6 +274,44 @@ void main() {
 
       expect(find.byType(Image), findsNothing);
       expect(find.byType(CustomPaint), findsWidgets);
+    });
+
+    testWidgets('desenharOnda: false tira a curva branca, sem tirar a arte', (tester) async {
+      // O cartão do PTK da versão desktop do cadastro usa exatamente essa
+      // combinação (ondaInteira + desenharOnda: false): o contorno
+      // arredondado sai de um ClipRRect de fora, não de uma curva por cima
+      // da arte.
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+          body: FundoPTK(asset: 'assets/ptk/ptk_nickname.webp', onda: ondaInteira, desenharOnda: false),
+        ),
+      ));
+      await tester.pump();
+
+      // CustomPaint sempre existe em algum lugar da árvore do Material —
+      // o teste checa que NENHUM deles pinta a curva (_PintorDaOnda é
+      // privado, então a checagem é indireta: sem o CustomPaint dela, o
+      // widget correspondente à curva simplesmente não está lá).
+      final semOnda = tester.widgetList<CustomPaint>(find.byType(CustomPaint));
+      expect(semOnda.any((c) => c.painter.runtimeType.toString() == '_PintorDaOnda'), isFalse);
+      expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('com ondaInteira a arte ocupa o painel inteiro, não só uma fração', (tester) async {
+      // fundoDaCurva == 1 pra essa onda: a "faixa colorida" que a arte
+      // preenche (ver FundoPTK._arte) passa a ser a altura do painel
+      // inteiro, em vez de parar onde a onda desceria no celular.
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+          body: FundoPTK(asset: 'assets/ptk/ptk_nickname.webp', onda: ondaInteira, desenharOnda: false),
+        ),
+      ));
+      await tester.pump();
+
+      final tela = tester.getSize(find.byType(FundoPTK));
+      final arte = tester.getRect(find.byType(Image));
+
+      expect(arte.bottom, closeTo(tela.height, 1));
     });
   });
 }
