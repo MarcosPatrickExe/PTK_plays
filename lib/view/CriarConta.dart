@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -25,6 +26,14 @@ enum EtapaCadastro { boasVindas, nickname, email, senha, foto, whatsapp }
 /// da onda (ver `FundoPTK`).
 const Color corDeTituloDoCadastro = Color(0xFF2D1B4E);
 const Color corDeApoioDoCadastro = Color(0xFF6E5B92);
+
+/// Acima disso a tela troca a onda (pensada pra celular, retrato) por um
+/// cartão de duas colunas: formulário à esquerda, a arte do PTK num painel
+/// próprio à direita — sem disputa de espaço entre texto e curva, que é o
+/// problema que a onda resolve só na tela estreita. Cobre notebook,
+/// desktop e tablet em paisagem; abaixo disso continua celular/tablet
+/// retrato com a onda de sempre.
+const double larguraDoCadastroDesktop = 900;
 
 /// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve
 /// e-mail e senha resolvidos pelo provedor, então essas duas etapas somem —
@@ -163,7 +172,7 @@ class _CriarContaState extends State<CriarConta> {
     }
 
     setState(() => _indice++);
-    _paginas.animateToPage(_indice, duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
+    _sincronizarPagina();
   }
 
   void _voltar() {
@@ -173,6 +182,16 @@ class _CriarContaState extends State<CriarConta> {
     }
 
     setState(() => _indice--);
+    _sincronizarPagina();
+  }
+
+  /// Anima o `PageView` do layout de celular pra `_indice`. No desktop não
+  /// existe `PageView` nenhum (ver `_buildDesktop`) — sem cliente anexado,
+  /// `animateToPage` lançaria erro; `hasClients` é o que deixa `_avancar` e
+  /// `_voltar` funcionarem nos dois layouts sem saber qual está montado. O
+  /// `AnimatedSwitcher` do desktop já reage sozinho à mudança de `_indice`.
+  void _sincronizarPagina() {
+    if (!_paginas.hasClients) return;
     _paginas.animateToPage(_indice, duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
   }
 
@@ -257,130 +276,260 @@ class _CriarContaState extends State<CriarConta> {
 
   @override
   Widget build(BuildContext context) {
+    // Calculado aqui fora, e não dentro do LayoutBuilder: é o mesmo lugar
+    // de sempre, antes da versão desktop existir. MediaQuery.viewInsetsOf
+    // registra a dependência no context de quem chama — mover essa
+    // chamada pra dentro do builder do LayoutBuilder (um context mais
+    // interno, recriado a cada layout) mudava onde o Flutter reconhece a
+    // dependência, e o rebuild do "some" do subtítulo parava de disparar
+    // no teste do teclado.
     final tecladoAberto = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final onda = ondaDaEtapa(_indice, tecladoAberto: tecladoAberto);
 
     // Esta tela não tem botão de trocar tema, de propósito: é a única do
-    // app com identidade visual própria (arte + onda branca), e o
-    // formulário vive sempre sobre o branco. Por isso as cores aqui são
-    // fixas, e não vindas do ThemeController.
+    // app com identidade visual própria (arte + onda branca no celular,
+    // cartão de duas colunas no desktop), e o formulário vive sempre sobre
+    // o branco. Por isso as cores aqui são fixas, e não vêm do
+    // ThemeController.
     return Scaffold(
-      // LayoutBuilder, e não MediaQuery: com o teclado aberto o Scaffold
-      // encolhe o corpo, e é essa altura menor que a onda usa pra se
-      // desenhar. Medir o formulário pela altura da tela inteira deixaria
-      // os dois em escalas diferentes, e a folga sairia errada justo no
-      // momento em que o espaço é mais apertado.
+      // LayoutBuilder, e não MediaQuery, pra decidir o layout: com o
+      // teclado aberto o Scaffold encolhe o corpo, e é essa altura menor
+      // que a onda usa pra se desenhar (no layout de celular). A largura
+      // que ele mede é a mesma que decide qual dos dois layouts entra em
+      // cena.
       body: LayoutBuilder(
         builder: (context, restricoes) {
-          final altura = restricoes.maxHeight;
+          if (restricoes.maxWidth >= larguraDoCadastroDesktop) {
+            return _buildDesktop(restricoes);
+          }
+          return _buildMobile(restricoes, tecladoAberto);
+        },
+      ),
+    );
+  }
 
-          // O texto começa logo abaixo do **cume** da onda (a metade mais
-          // alta da curva), encostado naquele lado — um bloco que não ocupa
-          // a largura toda não precisa esperar a curva descer do outro
-          // lado. É o que tira o vazio que sobrava entre a onda e o título.
-          final topoDoTexto = altura * onda.topoDoTexto(fracaoDeFolga: tecladoAberto ? .03 : .04);
+  /// Celular e tablet em retrato: arte do PTK no alto, onda branca subindo
+  /// de baixo com o formulário sobre ela. O layout original da tela —
+  /// inalterado desde antes da versão desktop existir.
+  Widget _buildMobile(BoxConstraints restricoes, bool tecladoAberto) {
+    final onda = ondaDaEtapa(_indice, tecladoAberto: tecladoAberto);
+    final altura = restricoes.maxHeight;
 
-          // Já os campos têm largura cheia, então precisam esperar a curva
-          // inteira passar. A distância entre um e outro vira a altura
-          // mínima do cabeçalho, pra um título curto não deixar os campos
-          // subirem pra cima da curva.
-          final topoDosCampos = altura * onda.topoDoConteudo(fracaoDeFolga: tecladoAberto ? .06 : .12);
+    // O texto começa logo abaixo do **cume** da onda (a metade mais
+    // alta da curva), encostado naquele lado — um bloco que não ocupa
+    // a largura toda não precisa esperar a curva descer do outro
+    // lado. É o que tira o vazio que sobrava entre a onda e o título.
+    final topoDoTexto = altura * onda.topoDoTexto(fracaoDeFolga: tecladoAberto ? .03 : .04);
 
-          return Stack(
-            children: [
-              FundoPTK(
-                asset: assetDaEtapa(_etapaAtual),
-                onda: onda,
-                // A etapa de boas-vindas não tem arte do PTK: no lugar dela
-                // vai a logo do canal, que é o que a pessoa reconhece antes
-                // mesmo de ler o texto. É a versão sem o fundo roxo quadrado
-                // (o `login_logo.png` continua com fundo, porque lá ele é
-                // recortado num círculo e o quadrado nunca aparece).
-                logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/ptk/ptk_logo.webp' : null,
-              ),
+    // Já os campos têm largura cheia, então precisam esperar a curva
+    // inteira passar. A distância entre um e outro vira a altura
+    // mínima do cabeçalho, pra um título curto não deixar os campos
+    // subirem pra cima da curva.
+    final topoDosCampos = altura * onda.topoDoConteudo(fracaoDeFolga: tecladoAberto ? .06 : .12);
 
-              // O formulário ocupa a parte branca, abaixo da onda. O `bottom: 0`
-              // já respeita o teclado, porque o Scaffold encolhe o corpo — é o
-              // que mantém os campos visíveis com o teclado aberto.
-              AnimatedPositioned(
-                // Mesma duração e curva da onda: o formulário sobe junto com o
-                // "líquido", em vez de saltar pro lugar antes dela chegar.
-                duration: const Duration(milliseconds: 480),
-                curve: Curves.easeOutCubic,
-                top: topoDoTexto,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SafeArea(
-                  top: false,
-                  child: ResponsiveCenter(
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: PageView(
-                            controller: _paginas,
-                            // A navegação é só pelos botões: arrastar pularia a
-                            // checagem que impede avançar com a etapa incompleta.
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: _etapas
-                                .map(
-                                  (etapa) => _conteudoDaEtapa(
-                                    etapa,
-                                    onda: onda,
-                                    tecladoAberto: tecladoAberto,
-                                    alturaDoCabecalho: topoDosCampos - topoDoTexto,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                        _barraDeBotoes(),
-                      ],
+    // Se o PageView acabou de remontar depois de um tempo sem cliente
+    // nenhum anexado (a pessoa navegou entre etapas com o cartão desktop
+    // aberto, sem PageView, e depois estreitou a janela), ele reabriria
+    // sozinho na primeira página — o controller não guarda posição de uma
+    // vez pra outra que remonta. Sincroniza com `_indice` assim que o
+    // layout terminar; `jumpToPage` não anima, então não compete com a
+    // transição de entrada da tela.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_paginas.hasClients) return;
+      if (_paginas.page?.round() != _indice) _paginas.jumpToPage(_indice);
+    });
+
+    return Stack(
+      children: [
+        FundoPTK(
+          asset: assetDaEtapa(_etapaAtual),
+          onda: onda,
+          // A etapa de boas-vindas não tem arte do PTK: no lugar dela
+          // vai a logo do canal, que é o que a pessoa reconhece antes
+          // mesmo de ler o texto. É a versão sem o fundo roxo quadrado
+          // (o `login_logo.png` continua com fundo, porque lá ele é
+          // recortado num círculo e o quadrado nunca aparece).
+          logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/ptk/ptk_logo.webp' : null,
+        ),
+
+        // O formulário ocupa a parte branca, abaixo da onda. O `bottom: 0`
+        // já respeita o teclado, porque o Scaffold encolhe o corpo — é o
+        // que mantém os campos visíveis com o teclado aberto.
+        AnimatedPositioned(
+          // Mesma duração e curva da onda: o formulário sobe junto com o
+          // "líquido", em vez de saltar pro lugar antes dela chegar.
+          duration: const Duration(milliseconds: 480),
+          curve: Curves.easeOutCubic,
+          top: topoDoTexto,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            child: ResponsiveCenter(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: PageView(
+                      controller: _paginas,
+                      // A navegação é só pelos botões: arrastar pularia a
+                      // checagem que impede avançar com a etapa incompleta.
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: _etapas
+                          .map(
+                            (etapa) => _conteudoDaEtapa(
+                              etapa,
+                              tecladoAberto: tecladoAberto,
+                              alturaDoCabecalho: topoDosCampos - topoDoTexto,
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
-                ),
+                  _barraDeBotoes(),
+                ],
               ),
+            ),
+          ),
+        ),
 
-              // As bolinhas ficam sobre a arte, no alto: ali elas não roubam
-              // espaço do formulário. Com o teclado aberto a onda cobre esse
-              // pedaço, então elas trocam pro tom escuro — brancas sobre branco
-              // sumiriam.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  bottom: false,
-                  child: _IndicadorDeEtapas(
-                    total: _etapas.length,
-                    atual: _indice,
-                    sobreFundoClaro: tecladoAberto,
+        // As bolinhas ficam sobre a arte, no alto: ali elas não roubam
+        // espaço do formulário. Com o teclado aberto a onda cobre esse
+        // pedaço, então elas trocam pro tom escuro — brancas sobre branco
+        // sumiriam.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: _IndicadorDeEtapas(
+              total: _etapas.length,
+              atual: _indice,
+              sobreFundoClaro: tecladoAberto,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Notebook, desktop e tablet em paisagem: um cartão de duas colunas
+  /// centralizado na tela, sem a onda — ela existe pra brigar por espaço
+  /// numa tela estreita, e aqui esse espaço sobra. O formulário ocupa a
+  /// coluna da esquerda; a arte do PTK vira um painel próprio à direita,
+  /// com o mesmo gradiente e a mesma arte da versão celular, só que sem a
+  /// curva — o contorno arredondado sai do cartão inteiro, via `ClipRRect`.
+  ///
+  /// Sem `PageView` aqui. Ele reaparece de vez em quando (ver
+  /// `_buildMobile`), e um controller compartilhado entre dois `PageView`s
+  /// que entram e saem de cena reabriria sempre na primeira página ao
+  /// remontar. Um `AnimatedSwitcher` trocando pelo `_etapaAtual` não
+  /// depende de posição nenhuma guardada — `_avancar`/`_voltar` continuam
+  /// sendo a única forma de navegar, idêntico ao celular.
+  Widget _buildDesktop(BoxConstraints restricoes) {
+    final largura = math.min(restricoes.maxWidth * .84, 1180.0);
+    final altura = (restricoes.maxHeight * .88).clamp(520.0, 760.0);
+
+    return ColoredBox(
+      // O mesmo lilás claro do preenchimento dos campos (CampoFlutuante) —
+      // reaproveitar o tom em vez de inventar um novo é o que faz o cartão
+      // branco se destacar do fundo sem introduzir uma cor nova na tela.
+      color: const Color(0xFFF4F0FA),
+      child: Center(
+        child: SizedBox(
+          width: largura,
+          height: altura,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              // A sombra fica no Container de fora: se estivesse dentro do
+              // ClipRRect, o próprio clip cortaria o BoxShadow (que se
+              // espalha além dos limites do cartão) e ela nunca apareceria.
+              boxShadow: const [BoxShadow(color: Color(0x1F2D1B4E), blurRadius: 44, offset: Offset(0, 22))],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: ColoredBox(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 36, bottom: 12),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 320),
+                                switchInCurve: Curves.easeOut,
+                                switchOutCurve: Curves.easeIn,
+                                transitionBuilder: (filho, animacao) =>
+                                    FadeTransition(opacity: animacao, child: filho),
+                                // A key troca com a etapa, mesmo quando duas
+                                // etapas seguidas usam o mesmo tipo de widget
+                                // (_Etapa) — sem ela o AnimatedSwitcher não
+                                // percebe que o conteúdo mudou.
+                                child: KeyedSubtree(
+                                  key: ValueKey(_etapaAtual),
+                                  child: _conteudoDaEtapa(
+                                    _etapaAtual,
+                                    tecladoAberto: false,
+                                    alturaDoCabecalho: 0,
+                                    desktop: true,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _barraDeBotoes(),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  Expanded(
+                    flex: 5,
+                    child: FundoPTK(
+                      asset: assetDaEtapa(_etapaAtual),
+                      onda: ondaInteira,
+                      desenharOnda: false,
+                      alturaDaArte: .92,
+                      logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/ptk/ptk_logo.webp' : null,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _conteudoDaEtapa(
     EtapaCadastro etapa, {
-    required FormaDaOnda onda,
     required bool tecladoAberto,
     required double alturaDoCabecalho,
+    bool desktop = false,
   }) {
     // Repassado a toda etapa: é o que faz o texto se encostar no lado do
     // cume, o subtítulo sumir enquanto a pessoa digita, e os campos
-    // começarem sempre abaixo da curva inteira.
+    // começarem sempre abaixo da curva inteira — ou, no desktop, que troca
+    // tudo isso por título grande e subtítulo inteiro, sem disputa de
+    // espaço com onda nenhuma (ver `_EstiloDaEtapa.desktop`).
     final estilo = _EstiloDaEtapa(
       // O cume vem da onda **da etapa**, não da onda do momento: com o
       // teclado aberto a onda vira a `ondaCheia` e o cume dela muda de lado,
       // o que faria o título quebrar de outro jeito no meio da digitação.
+      // No desktop isso nem chega a ser lido (ver `desktop` abaixo), mas
+      // continua vindo de um lugar consistente com o celular.
       cumeEhAEsquerda: ondaDaEtapa(_indice).cumeEhAEsquerda,
       tecladoAberto: tecladoAberto,
       alturaDoCabecalho: alturaDoCabecalho,
+      desktop: desktop,
+      numeroDaEtapa: _indice + 1,
+      totalDeEtapas: _etapas.length,
     );
 
     switch (etapa) {
@@ -543,10 +692,26 @@ class _EstiloDaEtapa {
   /// deixe os campos subirem pra cima da curva.
   final double alturaDoCabecalho;
 
+  /// true no cartão da versão desktop (`_CriarContaState._buildDesktop`).
+  /// Desliga toda a lógica pensada pra disputar espaço com a onda — lá não
+  /// existe onda nenhuma, e o painel do formulário tem largura e altura de
+  /// sobra: título sempre no tamanho grande, sem quebra forçada, com o
+  /// subtítulo inteiro.
+  final bool desktop;
+
+  /// Número da etapa atual e o total, base 1 — só usados pelo selo acima
+  /// do título no desktop ("Passo 2 de 6"). No celular o mesmo papel é
+  /// feito pelas bolinhas sobre a arte (`_IndicadorDeEtapas`).
+  final int numeroDaEtapa;
+  final int totalDeEtapas;
+
   const _EstiloDaEtapa({
     required this.cumeEhAEsquerda,
     required this.tecladoAberto,
     required this.alturaDoCabecalho,
+    this.desktop = false,
+    this.numeroDaEtapa = 0,
+    this.totalDeEtapas = 0,
   });
 
   Alignment get alinhamento => Alignment.centerLeft;
@@ -555,28 +720,38 @@ class _EstiloDaEtapa {
 
   /// Quanto da largura o cabeçalho ocupa. Com o cume à esquerda ele é mais
   /// estreito de propósito: é o que segura o texto embaixo do cume, sem
-  /// esbarrar na curva descendo do outro lado.
+  /// esbarrar na curva descendo do outro lado. No desktop essa disputa não
+  /// existe — o painel é só do formulário —, então o texto usa a largura
+  /// inteira.
   double get larguraDoTexto {
+    if (desktop) return 1;
     if (tecladoAberto) return 1;
     return cumeEhAEsquerda ? .70 : .84;
   }
 
   double get tamanhoDoTitulo {
+    if (desktop) return 34;
     if (tecladoAberto) return 22;
     return cumeEhAEsquerda ? 26 : 22.5;
   }
 
+  double get tamanhoDoSubtitulo => desktop ? 16 : 14.5;
+
   /// O `\n` que vem no título é a quebra pensada pro caso do cume à
   /// esquerda, onde o texto sobe e o espaço é mais estreito que alto. Com o
-  /// cume à direita é o contrário — a faixa livre é baixa e larga —, então
-  /// a quebra sai e o título deixa a linha fluir.
+  /// cume à direita, ou no desktop — onde o painel é largo e baixo, o
+  /// oposto da tela estreita —, a quebra sai e o título deixa a linha
+  /// fluir.
   String tituloComQuebra(String titulo) {
+    if (desktop) return titulo.replaceAll('\n', ' ');
     return cumeEhAEsquerda ? titulo : titulo.replaceAll('\n', ' ');
   }
 
   /// Com o cume à direita o cabeçalho começa mais baixo e tem menos altura
-  /// até os campos, então entra a versão resumida do subtítulo.
+  /// até os campos, então entra a versão resumida do subtítulo. No desktop
+  /// sobra altura de sobra — sempre o texto inteiro.
   String subtituloQueCabe(String longo, String curto) {
+    if (desktop) return longo;
     return cumeEhAEsquerda ? longo : curto;
   }
 }
@@ -647,6 +822,16 @@ class _CabecalhoDaEtapa extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: estilo.colunaDoTexto,
             children: [
+              // O selo é a versão desktop das bolinhas de progresso
+              // (`_IndicadorDeEtapas`) — no celular elas ficam sobre a
+              // arte; aqui, sem onda nem arte no painel do formulário, o
+              // progresso precisa do próprio lugar. De quebra, dá ao
+              // título o estilo "rótulo pequeno e colorido + texto grande"
+              // que dá destaque sem depender de palavra nenhuma do texto.
+              if (estilo.desktop) ...[
+                _SeloDeEtapa(numero: estilo.numeroDaEtapa, total: estilo.totalDeEtapas),
+                const SizedBox(height: 18),
+              ],
               Text(
                 estilo.tituloComQuebra(titulo),
                 textAlign: estilo.alinhamentoDoTexto,
@@ -659,7 +844,8 @@ class _CabecalhoDaEtapa extends StatelessWidget {
               ),
               // Com o teclado aberto o subtítulo sai de cena: o título já
               // diz o que a pessoa está preenchendo, e o espaço vale mais
-              // pro campo do que pra explicação.
+              // pro campo do que pra explicação. No desktop não existe
+              // teclado que cubra a tela, então isso nunca dispara.
               AnimatedSize(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -672,7 +858,7 @@ class _CabecalhoDaEtapa extends StatelessWidget {
                           estilo.subtituloQueCabe(subtitulo, subtituloCurto),
                           textAlign: estilo.alinhamentoDoTexto,
                           style: GoogleFonts.outfit(
-                            fontSize: 14.5,
+                            fontSize: estilo.tamanhoDoSubtitulo,
                             color: corDeApoioDoCadastro,
                             height: 1.45,
                           ),
@@ -682,6 +868,50 @@ class _CabecalhoDaEtapa extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "PASSO 2 DE 6" acima do título, no desktop — o mesmo papel das
+/// bolinhas de progresso (`_IndicadorDeEtapas`), que no celular ficam
+/// sobre a arte. Aqui, sem onda nem arte no painel do formulário, o
+/// progresso precisa do próprio lugar — e de quebra empresta ao título o
+/// estilo "rótulo pequeno e colorido + texto grande" comum em telas de
+/// onboarding, sem precisar destacar uma palavra específica de cada texto.
+class _SeloDeEtapa extends StatelessWidget {
+  final int numero;
+  final int total;
+
+  const _SeloDeEtapa({required this.numero, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1E7FB),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: const BoxDecoration(color: Color(0xFFA12EE0), shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'PASSO $numero DE $total',
+            style: GoogleFonts.outfit(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFA12EE0),
+              letterSpacing: .6,
+            ),
+          ),
+        ],
       ),
     );
   }
