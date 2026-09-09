@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **08/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **09/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -93,8 +93,11 @@ pendente.
 
 ## Estado do git
 
-- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**, sincronizada com
-  `main` em **`40d4750`** (PR #70). Nenhum PR aberto.
+- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**. Último merge em
+  `main`: **`ceaff9e`** (PR #72). Depois dele a branch acumulou **4
+  commits do layout desktop do cadastro** (ver seção própria mais
+  abaixo), ainda **sem PR aberto** — o usuário não pediu pra abrir/
+  mesclar nesta sessão.
 - **`main` → deploy automático no Vercel em `https://ptk-plays.vercel.app`**
   (atenção: `plays.vercel.app`, que consta em versões antigas deste
   arquivo, **dá 404** — não é o endereço certo).
@@ -117,7 +120,7 @@ pendente.
 
 ## Saúde do projeto
 
-- **304 testes** passando (`flutter test`), mais **46** no backend
+- **312 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros, 0 warnings**. Há uma baseline conhecida de
   ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
@@ -149,7 +152,7 @@ Cloud Shell):
 storage:rules` **não funciona** (o CLI interpreta "rules" como nome de
 target); o comando certo é `firebase deploy --only storage`.
 
-## O que foi feito nas últimas sessões (28/ago → 08/set)
+## O que foi feito nas últimas sessões (28/ago → 09/set)
 
 Resumo; o detalhe de cada decisão está no `ROADMAP.md`, seção por data.
 
@@ -310,6 +313,55 @@ Dois detalhes que não são óbvios olhando o código:
 A etapa de **boas-vindas centraliza o texto na faixa branca**, porque não
 tem campos — nas outras, centralizar empurraria o título pra cima do
 input.
+
+#### Layout desktop: cartão de duas colunas (09/set)
+
+Acima de **900px de largura** (`larguraDoCadastroDesktop`) a onda dá
+lugar a um cartão centralizado: formulário à esquerda, a arte do PTK num
+painel à direita, sem onda nenhuma — o `LayoutBuilder` do `build()` decide
+sozinho qual dos dois layouts entra em cena.
+
+O ponto que fez o trabalho valer a pena: **nenhum dos seis textos de
+etapa foi duplicado**. `_conteudoDaEtapa` (o switch que já existia,
+título/subtítulo/campos de cada etapa) ganhou um parâmetro `desktop`
+repassado pra `_EstiloDaEtapa`, que desliga a lógica pensada pra disputar
+espaço com a curva (largura parcial, quebra de linha forçada, subtítulo
+resumido) — no cartão sobra espaço de sobra, então título sempre grande e
+subtítulo inteiro. O painel da arte é `FundoPTK(onda: ondaInteira,
+desenharOnda: false)` — a mesma arte e o mesmo gradiente do celular, sem a
+curva (ver "Modo cartão no FundoPTK" abaixo). `_SeloDeEtapa` ("PASSO 2 DE
+6") faz o papel das bolinhas de progresso, que no celular ficam sobre a
+arte — aqui não há arte no painel do formulário pra colar bolinha nenhuma.
+
+Duas armadilhas que não são óbvias olhando o diff, e que custaram uma
+rodada de depuração cada:
+
+1. **`MediaQuery.viewInsetsOf` precisa do context certo.** Calcular
+   `tecladoAberto` dentro do builder do `LayoutBuilder` (um context mais
+   interno, recriado a cada layout) em vez de no `build()` de fora
+   quebrava *silenciosamente* o teste do "subtítulo some quando o teclado
+   abre" — o rebuild parava de disparar quando a MediaQuery mudava, sem
+   erro nenhum acusando o motivo. **Se algo parar de reagir a mudança de
+   MediaQuery depois de uma refatoração, suspeitar disso primeiro.**
+2. **Um `PageController` não sobrevive a remontar.** O celular anima a
+   troca de etapa com um `PageView`/`PageController` de vida longa; o
+   desktop troca com `AnimatedSwitcher` (keyed pelo `_etapaAtual`), sem
+   controller nenhum. Um `PageController` reaberto depois de um tempo sem
+   nenhum `PageView` anexado (a pessoa avança etapas no cartão, depois
+   estreita a janela pro celular) volta pro `initialPage` (0) — ele não
+   guarda a posição entre uma montagem e outra. Duas proteções: `_paginas
+   .hasClients` antes de chamar `animateToPage` (senão lançaria erro
+   sem `PageView` nenhum anexado), e um `addPostFrameCallback` em
+   `_buildMobile` que corrige a página pro `_indice` certo se detectar
+   que remontou fora de sincronia.
+
+**Decisão registrada, não pedida de volta ainda**: a largura de corte
+(900px) é um número escolhido, não testado contra dispositivos reais. No
+teste visual em 950px (bem no limiar) o título de 34px ocupou 3 linhas no
+painel estreito — funcional, mas mais apertado que os 1400px+ testados.
+Se o usuário achar apertado numa janela de notebook comum, o ajuste é só
+o valor de `larguraDoCadastroDesktop` ou o `tamanhoDoTitulo` do desktop em
+`_EstiloDaEtapa`.
 
 ### Correções visuais
 
