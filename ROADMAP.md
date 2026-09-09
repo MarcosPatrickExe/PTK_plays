@@ -1612,3 +1612,99 @@ seguir na Cloud API direta e usar a aba do Painel ADM como caixa de
 entrada. Foi o terceiro — ele já resolve as duas coisas pedidas (o app
 envia pelo número, e há uma interface pra ver e responder), só que a
 interface é o painel em vez do app do WhatsApp.
+
+
+# Layout desktop do cadastro (09/set/2026)
+
+## Por que a onda não serve pra tela larga
+
+A onda branca (`FundoPTK`) resolve um problema específico do celular: uma
+tela **vertical e apertada**, onde arte e formulário precisam disputar a
+mesma faixa de espaço. Numa tela larga esse problema não existe — sobra
+espaço dos dois lados —, e replicar a onda ali só criaria uma faixa branca
+esparramada sem função nenhuma. O pedido do usuário foi trocar por um
+layout de duas colunas nesse caso: formulário à esquerda, um cartão com a
+arte do PTK à direita, inspirado numa referência de tela de login (a do
+gov.br) com o lado do formulário espelhado.
+
+## Reaproveitar em vez de duplicar
+
+O risco óbvio de um "segundo layout" é duplicar as seis telas de conteúdo
+(boas-vindas, nick, e-mail, senha, foto, WhatsApp) — título, subtítulo e
+campos de cada uma. Isso foi evitado prolongando o que já existia:
+
+- `_conteudoDaEtapa` (o switch que decide título/subtítulo/campos de cada
+  etapa) ganhou um parâmetro `desktop`, só repassado adiante — nenhum
+  `case` do switch mudou.
+- `_EstiloDaEtapa` já concentrava toda a lógica de "como o texto se
+  comporta" (largura, quebra de linha, tamanho de fonte, versão do
+  subtítulo) baseada no lado do cume da onda. Um campo `desktop` a mais
+  faz essa mesma classe responder diferente sem o resto do código saber a
+  diferença: `larguraDoTexto`, `tamanhoDoTitulo`, `tituloComQuebra` e
+  `subtituloQueCabe` checam `desktop` primeiro, e caem no cume-a-esquerda-
+  ou-direita de sempre quando é `false`.
+- O painel da arte é o próprio `FundoPTK`, sem nenhuma cópia: um par novo
+  de opções (`onda: ondaInteira`, `desenharOnda: false`) faz ele desenhar
+  a arte e o gradiente cheios, sem curva — ver a entrada anterior
+  ("Artes quadradas e caixa de entrada do WhatsApp") pra como
+  `fundoDaCurva`/`topoDaCurva` decidem até onde vai a área colorida.
+  `ondaInteira` é uma `FormaDaOnda` com os quatro números em 1: como essas
+  duas frações leem direto da forma, elas passam a valer 1 sem precisar de
+  nenhum `if` a mais em `_arte()` ou `_LogoComDegrade`.
+
+O selo "PASSO 2 DE 6" acima do título é a única peça genuinamente nova.
+Ele substitui as bolinhas de progresso do celular (que ficam *sobre a
+arte*, e no cartão não há arte nenhuma atrás do formulário pra desenhar
+bolinha em cima) e, de quebra, dá ao título o estilo "rótulo pequeno e
+colorido + texto grande" comum em telas de onboarding — sem precisar
+destacar uma palavra específica de cada string de título, que mudaria
+etapa a etapa.
+
+## As duas armadilhas
+
+**`MediaQuery.viewInsetsOf` registra a dependência no `context` que
+recebe.** A primeira versão calculava `tecladoAberto` dentro do builder do
+`LayoutBuilder` que decide entre os dois layouts — um `context` mais
+interno, recriado a cada passada de layout. Todos os testes passavam
+menos um: "o subtítulo some quando o teclado abre" falhava porque o
+rebuild simplesmente não disparava mais quando a `MediaQuery` mudava — sem
+exceção nenhuma acusando o motivo, só o subtítulo continuando visível
+onde devia sumir. A causa demorou pra aparecer porque não é intuitiva:
+mover uma chamada de leitura pra "mais perto de onde é usada" parece
+refatoração inofensiva, mas muda *onde o Flutter registra a dependência*.
+A correção foi devolver o cálculo pro `context` externo do `build()`, o
+mesmo lugar de antes da versão desktop existir.
+
+**Um `PageController` não lembra a página depois de remontar.** O celular
+navega entre etapas com um `PageView` cujo `PageController` vive o tempo
+todo do `State`; o desktop, sem onda pra caber um `PageView` decorativo,
+troca de etapa com um `AnimatedSwitcher` simples, keyed pelo
+`_etapaAtual` — sem controller nenhum. O problema aparece quando a pessoa
+navega etapas com o cartão desktop aberto e depois estreita a janela: o
+`PageView` do celular remonta do zero, mas o `PageController` (reutilizado
+do `State`) não guarda "por onde a pessoa já passou" — `initialPage` é
+fixado na criação do controller e reaplicado toda vez que um novo
+`PageView` se conecta a ele sem posição prévia. Sem tratamento, o celular
+reabriria sempre na primeira etapa, mesmo com o `_indice` interno correto.
+Duas proteções, nenhuma delas óbvia até acontecer:
+
+- `_paginas.hasClients` guarda toda chamada a `animateToPage` — sem
+  `PageView` nenhum montado (cartão desktop ativo), chamar isso lançaria
+  erro.
+- `_buildMobile` agenda um `addPostFrameCallback` que confere se a página
+  do controller bate com `_indice` assim que o layout termina, e corrige
+  com `jumpToPage` se não bater — sem competir com a animação de entrada
+  da tela, porque `jumpToPage` não anima.
+
+O teste que prova que isso funciona é justamente o cenário completo:
+avançar uma etapa no cartão desktop, encolher a janela pro celular, e
+checar que o título mostrado é o da etapa certa — não o de boas-vindas.
+
+## Decisão em aberto
+
+A largura de corte (900px, `larguraDoCadastroDesktop`) é um número
+escolhido, não validado contra dispositivo nenhum. No teste visual feito
+nessa largura (bem no limiar) o título de 34px ocupou três linhas no
+painel estreito do formulário — ainda funcional, mas mais apertado que
+o testado em 1400px. Ajustar, se precisar, é só o valor da constante ou
+`_EstiloDaEtapa.tamanhoDoTitulo` no ramo desktop.
