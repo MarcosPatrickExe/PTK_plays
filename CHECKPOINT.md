@@ -91,36 +91,44 @@ pendente.
    confirma cada uma, está no `ROADMAP.md`, seção "Reprovação da Apple em
    27/ago/2026".
 
-   *Por que bloqueia*: reenviar sem mexer em nada repete a reprovação — e,
-   pior, repete **sem informação nova**. O app colapsa qualquer falha do
-   login com Apple em três frases fixas e só registra o erro real num
-   `debugPrint`, que não existe em build de release. Foi assim em 17/ago e
-   de novo agora: duas rodadas gastas adivinhando a causa a partir de um
-   popup genérico.
+   *Por que ainda bloqueia*: o que fazia cada rodada custar duas semanas e
+   render zero informação já foi corrigido (ver abaixo) — até 11/set o app
+   colapsava qualquer falha do login com Apple em três frases fixas e só
+   registrava o erro real num `debugPrint`, que não existe em release. Mas
+   **a causa raiz continua desconhecida**: o código agora consegue dizer
+   qual é, e ninguém rodou o app num iPad pra ler o que ele diz. Reenviar
+   antes disso é apostar.
 
-   *Três bugs concretos já localizados no código* (nenhum deles depende de
-   dispositivo pra corrigir — são funções puras, com teste em
-   `test/auth_error_mapping_test.dart`):
-   - `mapearErroLoginApple` (`lib/viewmodels/AuthViewModel.dart`) não trata
-     `FirebaseException`. A escrita em `users/{uid}` faz parte do fluxo, e
-     um `permission-denied` das regras vira a mesma frase genérica de um
-     erro da Apple.
-   - `traduzirErroDeAuth('operation-not-allowed')`
-     (`lib/utils/AuthErrorTranslator.dart:23`) diz "o login com **Google**
-     não está habilitado" — mas esse é justamente o código que o Firebase
-     retorna quando o provedor **Apple** está desligado no Console.
-   - A mensagem do código `unknown` afirma que o dispositivo não está
-     logado numa conta Apple com 2FA. Isso foi escrito pro emulador do
-     Sauce Labs; num iPad de revisor da Apple é falso.
+   *A parte de código já foi feita em 11/set* (3 commits, cobertos por 16
+   testes em `test/auth_error_mapping_test.dart`):
+   - **O erro real agora aparece na tela.** `codigoDeDiagnosticoDeLogin`
+     (`lib/viewmodels/AuthViewModel.dart`) anexa à mensagem um código curto
+     — `apple/unknown`, `auth/operation-not-allowed`,
+     `cloud_firestore/permission-denied`, `plataforma/*`, `inesperado/*`.
+     É o que faz um print de popup mandado por terceiro virar diagnóstico,
+     já que `debugPrint` não existe em release.
+   - `mapearErroLoginApple` passou a tratar `FirebaseException`. A escrita
+     em `users/{uid}` faz parte do fluxo e, numa conta nova — o caso do
+     revisor —, passa pelo `allow create` mais restritivo das regras; uma
+     recusa ali virava a mesma frase de um erro da Apple.
+   - `operation-not-allowed` não cita mais o Google
+     (`lib/utils/AuthErrorTranslator.dart`), e a mensagem do código
+     `unknown` oferece a hipótese do aparelho de teste em vez de afirmar
+     que o iPad do revisor está sem conta Apple.
 
-   *O que fazer antes de reenviar*, em ordem: (1) conferir no Firebase
-   Console se o provedor **Apple** está habilitado — é a checagem mais
-   barata e segue **"Não confirmado"** desde 30/jul; (2) corrigir os três
-   bugs acima; (3) fazer o erro real aparecer na tela em release; (4)
-   reproduzir **num iPad** — toda tentativa até hoje foi em iPhone ou
-   emulador; (5) escrever as App Review Notes com uma **conta de
-   demonstração** pronta, pra que o revisor não dependa do Sign in with
-   Apple pra avaliar o app.
+   *O que falta, e depende de você — nada disso é checável neste ambiente*:
+   1. **Conferir no Firebase Console se o provedor Apple está habilitado**
+      (Authentication → Sign-in method). É a checagem mais barata de todas
+      e segue **"Não confirmado"** desde 30/jul. Se estiver desligado, o
+      app agora mostra `(código: auth/operation-not-allowed)`.
+   2. **Reproduzir num iPad**, não num iPhone — toda tentativa até hoje foi
+      em iPhone ou emulador, e as duas reprovações vieram de iPad. Anotar o
+      código que aparecer: ele diz qual das hipóteses do `ROADMAP.md` é a
+      certa, sem precisar de Mac plugado no aparelho.
+   3. **Escrever as App Review Notes** com uma **conta de demonstração**
+      pronta, pra que o revisor não dependa do Sign in with Apple pra
+      avaliar o app — hoje, se o login falha, ele não vê nada e reprova
+      também por funcionalidade.
 
    *Sobre o 4.2.2, o que muda a leitura*: **tudo que faz o app ser nativo
    entrou depois** da submissão — feed, enquetes, mídia, moderação,
@@ -166,14 +174,18 @@ pendente.
 
 ## Saúde do projeto
 
-- **312 testes** passando (`flutter test`), mais **46** no backend
+- **319 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
-- `flutter analyze`: **0 erros, 0 warnings**. Há uma baseline conhecida de
-  ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
+- `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
+  de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
   deprecated) — não são regressão, não mexer sem pedir.
-- Ocasionalmente o analyze mostra **um warning fantasma** em
-  `lib/view/Videos.dart:120` na primeira execução após edições; ele some na
-  segunda. É pré-existente e não relacionado às mudanças.
+- O warning é em **`lib/view/Videos.dart:120`**
+  (`body_might_complete_normally_nullable`: o `itemBuilder` tem um `if` sem
+  `else`, então retorna `null` implicitamente). Versões anteriores deste
+  arquivo o chamavam de "fantasma que some na segunda execução" — **isso
+  estava errado**: em 11/set ele apareceu em execuções seguidas. É
+  pré-existente e inofensivo na prática (o `itemCount` é o tamanho da
+  lista, então o `if` nunca falha), mas é real, e não some sozinho.
 - **O container é reciclado sem aviso.** Em 07/set o SDK do Flutter sumiu
   do `/opt` no meio da sessão, junto com o `~/.pub-cache` e a pasta de
   uploads. O repositório não foi afetado. Pra restaurar:
@@ -506,10 +518,10 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
 1. **Confirmar que o webhook está gravando** de verdade (ver atenção 1) —
    é mandar uma mensagem pro número de teste e olhar a aba.
 2. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
-3. **Destravar a reprovação da Apple** (ver atenção 4). Os três bugs de
-   mensagem de erro são funções puras e saem rápido; o resto (erro visível
-   em release, teste num iPad, App Review Notes com conta de demonstração)
-   depende do usuário e de aparelho físico.
+3. **Destravar a reprovação da Apple** (ver atenção 4). A parte de código
+   saiu em 11/set; o que resta — provedor Apple no Firebase Console,
+   reproduzir num iPad e escrever as App Review Notes — depende do usuário
+   e de aparelho físico.
 4. **Custom claim de admin** no Auth (ver atenção 3).
 5. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
    tela de chat. A opção já existe no menu e avisa que não está pronta.
