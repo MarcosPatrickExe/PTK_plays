@@ -20,8 +20,13 @@ String traduzirErroDeAuth(String codigo) {
       return 'Esse domínio não está autorizado a fazer login com Google. Avise o administrador do app.';
     case 'popup-blocked':
       return 'O navegador bloqueou o popup de login. Permita popups pra esse site e tente novamente.';
+    // Nao citar provedor aqui: este codigo vale pros dois. O Firebase o
+    // devolve pra QUALQUER provedor desabilitado no Console (Authentication
+    // -> Sign-in method), e a versao anterior dizia "Google" mesmo quando
+    // quem tinha falhado era a Apple — mandando quem investiga pro painel
+    // errado. Foi um dos suspeitos da reprovacao de 27/ago/2026.
     case 'operation-not-allowed':
-      return 'O login com Google não está habilitado pra esse app no momento.';
+      return 'Esse jeito de entrar não está habilitado pra o app no momento. Avise o administrador.';
     default:
       return 'Algo deu errado. Tente novamente.';
   }
