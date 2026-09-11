@@ -1820,6 +1820,38 @@ e a validação final dependem de dispositivo físico e de consoles externos —
 **não dá pra fechar aqui**, e isso precisa ser dito ao usuário quando a
 tarefa for executada.
 
+#### O que foi implementado no mesmo dia (11/set)
+
+Os itens 1 a 4 saíram junto com esta seção, em três commits. O formato do
+código na tela é `(código: familia/detalhe)`, anexado à mensagem:
+
+| Código que aparece | O que ele já elimina |
+|---|---|
+| `auth/operation-not-allowed` | Provedor Apple desligado no Firebase Console — hipótese 1, resolvida sem abrir o console |
+| `cloud_firestore/permission-denied` | A autenticação deu certo; quem barrou foi o `allow create` das regras — hipótese 2 |
+| `apple/unknown` | A Apple recusou sem dizer por quê — hipótese 3, e aí sim vale investigar o ambiente |
+| `apple/<outro>` | A Apple recusou com motivo nomeado; o nome do código diz qual |
+| `plataforma/*`, `inesperado/*` | Nada acima — mas pelo menos dá o tipo em vez de "tente novamente" |
+
+Três decisões que valem registrar, porque não são óbvias no diff:
+
+- **A ordem dos `is` em `mapearErroLoginApple` é carregada.**
+  `FirebaseAuthException` **é** uma `FirebaseException`, então o ramo do
+  Auth precisa vir antes do ramo genérico — se inverter, todo erro de
+  autenticação passa a dizer "não deu pra salvar o seu perfil". O
+  compilador não acusa isso, e o teste que segura essa ordem existe só por
+  causa disso.
+- **O código vai na tela, não num log.** A tentação era mandar pro
+  Crashlytics e manter a tela limpa. Não resolveria o caso que motivou a
+  mudança: quem reporta a falha é um terceiro que manda um print — o
+  revisor da Apple não abre o nosso painel, e a falha dele pode nem ser
+  reproduzível do nosso lado. O print tem que bastar.
+- **O texto de `operation-not-allowed` ficou sem citar provedor.** Era
+  tentador trocar "Google" por "Google ou Apple", mas o código é usado
+  pelos dois e por qualquer provedor futuro; quem identifica o provedor é
+  o prefixo do código anexado, que não depende de alguém lembrar de
+  atualizar a frase.
+
 ### Guideline 4.2.2 — "conteúdo web agregado, funcionalidade nativa limitada"
 
 A Apple enxergou o app como um agregador de conteúdo de web. Olhando o que
