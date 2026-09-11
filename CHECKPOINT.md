@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **09/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **11/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -81,10 +81,56 @@ pendente.
      na própria pasta `posts_midia/{uid}/`, mesmo sem conseguir publicar);
    - permitir que a remoção em cascata de usuário apague também a conta do
      Firebase Auth e os arquivos órfãos do Storage.
-4. **App Store — status não verificado nesta sessão.** O build **1.2.1
-   (17)** foi submetido à Apple em 25/ago/2026. Nenhuma sessão desde então
-   checou o resultado. Perguntar ao usuário antes de assumir qualquer
-   coisa.
+4. **App Store — o build foi REPROVADO. Não reenviar como está.**
+
+   *O que é*: o build submetido em 25/ago/2026 foi reprovado na revisão de
+   **27/ago** (Submission `6db9576f-1f55-4ba0-aa62-6d06009a9495`), em dois
+   guidelines: **2.1(a)** — o botão "Entrar com a Apple" deu erro no iPad
+   Air 11" (M3), iPadOS 26.6 — e **4.2.2**, o app visto como agregador de
+   conteúdo de web. O plano completo, com hipóteses ordenadas e o que
+   confirma cada uma, está no `ROADMAP.md`, seção "Reprovação da Apple em
+   27/ago/2026".
+
+   *Por que bloqueia*: reenviar sem mexer em nada repete a reprovação — e,
+   pior, repete **sem informação nova**. O app colapsa qualquer falha do
+   login com Apple em três frases fixas e só registra o erro real num
+   `debugPrint`, que não existe em build de release. Foi assim em 17/ago e
+   de novo agora: duas rodadas gastas adivinhando a causa a partir de um
+   popup genérico.
+
+   *Três bugs concretos já localizados no código* (nenhum deles depende de
+   dispositivo pra corrigir — são funções puras, com teste em
+   `test/auth_error_mapping_test.dart`):
+   - `mapearErroLoginApple` (`lib/viewmodels/AuthViewModel.dart`) não trata
+     `FirebaseException`. A escrita em `users/{uid}` faz parte do fluxo, e
+     um `permission-denied` das regras vira a mesma frase genérica de um
+     erro da Apple.
+   - `traduzirErroDeAuth('operation-not-allowed')`
+     (`lib/utils/AuthErrorTranslator.dart:23`) diz "o login com **Google**
+     não está habilitado" — mas esse é justamente o código que o Firebase
+     retorna quando o provedor **Apple** está desligado no Console.
+   - A mensagem do código `unknown` afirma que o dispositivo não está
+     logado numa conta Apple com 2FA. Isso foi escrito pro emulador do
+     Sauce Labs; num iPad de revisor da Apple é falso.
+
+   *O que fazer antes de reenviar*, em ordem: (1) conferir no Firebase
+   Console se o provedor **Apple** está habilitado — é a checagem mais
+   barata e segue **"Não confirmado"** desde 30/jul; (2) corrigir os três
+   bugs acima; (3) fazer o erro real aparecer na tela em release; (4)
+   reproduzir **num iPad** — toda tentativa até hoje foi em iPhone ou
+   emulador; (5) escrever as App Review Notes com uma **conta de
+   demonstração** pronta, pra que o revisor não dependa do Sign in with
+   Apple pra avaliar o app.
+
+   *Sobre o 4.2.2, o que muda a leitura*: **tudo que faz o app ser nativo
+   entrou depois** da submissão — feed, enquetes, mídia, moderação,
+   cadastro em etapas e Painel ADM foram mesclados entre 03 e 09/set (PRs
+   #63–#73). O revisor não viu nada disso; travado no login, ele julgou o
+   app pela tela de login. Corrigir o 2.1(a) é o que destrava o 4.2.2.
+
+   *Conferir também*: a Apple chama o binário de **"1.2.0 (17)"**, mas o
+   `pubspec.yaml` diz `1.2.1+17`. Olhar a página do build no App Store
+   Connect antes de concluir o que foi revisado.
 5. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
@@ -460,19 +506,23 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
 1. **Confirmar que o webhook está gravando** de verdade (ver atenção 1) —
    é mandar uma mensagem pro número de teste e olhar a aba.
 2. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
-3. **Custom claim de admin** no Auth (ver atenção 3).
-4. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
+3. **Destravar a reprovação da Apple** (ver atenção 4). Os três bugs de
+   mensagem de erro são funções puras e saem rápido; o resto (erro visível
+   em release, teste num iPad, App Review Notes com conta de demonstração)
+   depende do usuário e de aparelho físico.
+4. **Custom claim de admin** no Auth (ver atenção 3).
+5. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
    tela de chat. A opção já existe no menu e avisa que não está pronta.
    Quando existir, entra também na remoção em cascata (o lugar já está
    marcado no código).
-5. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
+6. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
    vez, com detector de visibilidade).
-6. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
+7. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
    cliente de propósito, então precisa de Cloud Function.
-7. **Etapa 6 — notificações push por cargo.**
-8. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
+8. **Etapa 6 — notificações push por cargo.**
+9. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
    reescreve boa parte do `firestore.rules`.
-9. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
+10. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
    existe e está no ar; falta o **envio**, que depende do número de
    produção e dos modelos de mensagem aprovados na Meta.
 
