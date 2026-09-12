@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:ptk_plays/utils/AuthErrorTranslator.dart';
+import 'package:ptk_plays/utils/DiagnosticoDeErro.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 
 void main() {
@@ -107,7 +108,7 @@ void main() {
     });
   });
 
-  group('codigoDeDiagnosticoDeLogin', () {
+  group('codigoDeErro', () {
     // O codigo anexado a mensagem e o que transforma um print de popup
     // mandado por terceiro (revisor da Apple, inscrito no Discord) em
     // diagnostico — em release o debugPrint do try/catch nao vai a lugar
@@ -115,30 +116,30 @@ void main() {
     // ele nao separa nada.
     test('separa Apple, Auth, Firestore e plataforma em prefixos distintos', () {
       expect(
-        codigoDeDiagnosticoDeLogin(SignInWithAppleAuthorizationException(
+        codigoDeErro(SignInWithAppleAuthorizationException(
           code: AuthorizationErrorCode.unknown,
           message: 'unknown',
         )),
         'apple/unknown',
       );
       expect(
-        codigoDeDiagnosticoDeLogin(FirebaseAuthException(code: 'operation-not-allowed')),
+        codigoDeErro(FirebaseAuthException(code: 'operation-not-allowed')),
         'auth/operation-not-allowed',
       );
       expect(
-        codigoDeDiagnosticoDeLogin(
+        codigoDeErro(
           FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
         ),
         'cloud_firestore/permission-denied',
       );
       expect(
-        codigoDeDiagnosticoDeLogin(PlatformException(code: 'sign_in_failed')),
+        codigoDeErro(PlatformException(code: 'sign_in_failed')),
         'plataforma/sign_in_failed',
       );
     });
 
     test('erro fora de todas as familias ainda produz um codigo util', () {
-      expect(codigoDeDiagnosticoDeLogin(StateError('oops')), 'inesperado/StateError');
+      expect(codigoDeErro(StateError('oops')), 'inesperado/StateError');
     });
 
     test('o codigo aparece na mensagem que chega na tela', () {

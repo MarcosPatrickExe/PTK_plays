@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **11/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **12/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -147,6 +147,51 @@ pendente.
    Console olha é o **artefato publicado** — o aviso só some quando um
    build feito a partir dessa versão for promovido. Ver `CLAUDE.md`.
 
+## Revisão geral das mensagens de erro (12/set)
+
+Etapa 1 pedida pelo usuário depois do popup genérico do revisor da Apple:
+varrer o app inteiro atrás de mensagem de erro sem identificação da causa.
+A regra que saiu disso está no `CLAUDE.md` ("toda falha diz de onde veio");
+o utilitário é `lib/utils/DiagnosticoDeErro.dart`.
+
+**11 arquivos alterados.** O que a varredura encontrou, em ordem de
+gravidade — e os dois primeiros não eram sobre mensagem genérica, eram
+bugs:
+
+1. **Seis métodos de autenticação travavam a tela.** `cadastrar`, `login`,
+   `excluirConta`, `alterarSenha`, `atualizarPerfil` e o envio do e-mail de
+   recuperação capturavam **só** `FirebaseAuthException`. Qualquer outra
+   falha escapava: a Future estourava, o `setState` que desliga o loading
+   nunca rodava, e o botão ficava preso em "carregando" pra sempre. É o
+   mesmo bug já corrigido no login social meses atrás, que seguia de pé no
+   resto da tela. **O caso que mais importa**: `cadastrar` grava a reserva
+   do nickname no Firestore, e uma regra recusando essa escrita é
+   `FirebaseException` — ou seja, cadastro de conta nova barrado por regra
+   travava sem dizer nada. É o caminho de um revisor da App Store.
+2. **Dois `catch (_)` engoliam o erro inteiro.** No `ModalCropFoto` o botão
+   "Salvar" voltava ao normal e nada acontecia — sem mensagem, sem log, sem
+   fechar o modal. No `VideoPost`, CORS na Web, arquivo corrompido e rede
+   fora mostravam o mesmo aviso. **Erro sem mensagem nenhuma é pior que
+   erro genérico**: ele nunca chega a ser reportado.
+3. **Erros de Firestore e Storage caíam no "Algo deu errado"**, porque
+   passavam pelo `traduzirErroDeAuth`, que não conhece nenhum código deles.
+   Os dois casos mais comuns do projeto — regra ainda não publicada, e
+   internet fora — eram justamente os invisíveis. Agora há
+   `traduzirErroDeServico`.
+4. O resto: live e vídeo (o `launchUrl` estava fora do try/catch, e o
+   `canLaunchUrl` devolvendo false era indistinguível de falha real),
+   câmera do cadastro, upload de mídia, publicação no feed, e as duas
+   mensagens do Painel ADM que interpolavam o `$e` cru.
+
+**O que ficou de fora, de propósito**: as validações de formulário
+(`Login.dart`, `Cadastro.dart`, `CriarConta.dart`, `NovoPost.dart`). Não
+houve exceção nelas — não há causa a diagnosticar, e o código seria ruído
+sobre uma mensagem que a pessoa já sabe como resolver.
+
+**Ainda não validado em aparelho**: nada disto foi visto rodando num iOS
+real ou simulado. A cobertura é de teste unitário
+(`test/diagnostico_de_erro_test.dart`, 10 testes).
+
 ## Como rodar o app num iPad sem ter um (12/set)
 
 Ninguém no projeto tem iPhone, iPad ou Mac, e o Sauce Labs passou a cobrar.
@@ -234,7 +279,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **322 testes** passando (`flutter test`), mais **46** no backend
+- **332 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`

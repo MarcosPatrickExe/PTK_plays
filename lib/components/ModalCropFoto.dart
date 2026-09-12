@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'AuthWidgets.dart';
+import '../utils/DiagnosticoDeErro.dart';
+import 'Toast.dart';
 
 /// Modal fullscreen pra cortar (crop) e dar zoom numa imagem antes de usar
 /// como foto de perfil (ver EditarPerfil.dart). Devolve os bytes PNG ja
@@ -67,8 +69,15 @@ class _ModalCropFotoState extends State<ModalCropFoto> {
       final byteData = await imagem.toByteData(format: ui.ImageByteFormat.png);
       if (!mounted) return;
       Navigator.of(context).pop(byteData!.buffer.asUint8List());
-    } catch (_) {
-      if (mounted) setState(() => _salvando = false);
+    } catch (e, stack) {
+      // Antes de 12/set este catch era `catch (_)` e so desligava o
+      // loading: o botao "Salvar" voltava ao normal e NADA acontecia. Pra
+      // quem estava usando, o app simplesmente ignorava o toque — o pior
+      // tipo de erro, porque nem chega a ser reportado.
+      debugPrint('recorte da foto falhou: $e\n$stack');
+      if (!mounted) return;
+      setState(() => _salvando = false);
+      mostrarToast(context, mensagem: comCodigo('Não foi possível recortar a foto.', e), erro: true);
     }
   }
 

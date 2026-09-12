@@ -17,6 +17,7 @@ import 'package:ptk_plays/data/repositories/WhatsappRepository.dart';
 import 'package:ptk_plays/viewmodels/PostViewModel.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
+import '../utils/DiagnosticoDeErro.dart';
 
 /// Painel de administração, acessível só pelo menu lateral de quem tem
 /// `cargo == 'admin'` (ver [UserModel.ehAdmin]). A UI apenas esconde a
@@ -347,7 +348,7 @@ class _LinhaUsuario extends StatelessWidget {
       }
       if (context.mounted) mostrarToast(context, mensagem: 'Usuário atualizado.', erro: false);
     } catch (e) {
-      if (context.mounted) mostrarToast(context, mensagem: 'Não foi possível atualizar: $e', erro: true);
+      if (context.mounted) mostrarToast(context, mensagem: comCodigo('Não foi possível atualizar.', e), erro: true);
     }
   }
 
@@ -387,7 +388,7 @@ class _LinhaUsuario extends StatelessWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      mostrarToast(context, mensagem: 'Não foi possível remover: $e', erro: true);
+      mostrarToast(context, mensagem: comCodigo('Não foi possível remover.', e), erro: true);
     }
   }
 

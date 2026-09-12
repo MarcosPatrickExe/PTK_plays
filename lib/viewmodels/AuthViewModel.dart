@@ -1,17 +1,37 @@
 import 'dart:typed_data' show Uint8List;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../data/models/AvatarPreset.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/AuthRepository.dart';
 import '../utils/AuthErrorTranslator.dart';
+import '../utils/DiagnosticoDeErro.dart';
 
 class AuthViewModel {
   final AuthRepository _repository;
   AuthViewModel(this._repository);
+
+  /// Toda falha destes metodos passa por aqui: registra no log de debug e
+  /// devolve a mensagem que a tela mostra, ja com o codigo da causa.
+  ///
+  /// O `catch` de onde isto e chamado e um catch-all de proposito. Ate
+  /// 12/set esses metodos capturavam SO `FirebaseAuthException`, e o resto
+  /// escapava sem tratamento nenhum — a Future estourava, o `setState` que
+  /// desliga o loading nunca rodava e o botao ficava preso em "carregando"
+  /// pra sempre. E o mesmo bug que ja tinha sido corrigido no login social
+  /// (ver test/auth_error_mapping_test.dart), que continuava de pe em
+  /// cadastrar/login/excluirConta/alterarSenha/atualizarPerfil e no envio
+  /// de e-mail de recuperacao.
+  ///
+  /// O caso que mais importa: `cadastrar` grava a reserva do nickname no
+  /// Firestore. Uma regra recusando essa escrita e `FirebaseException`, nao
+  /// `FirebaseAuthException` — ou seja, o cadastro travava sem dizer nada.
+  String _falha(Object erro, StackTrace stack) {
+    debugPrint('AuthViewModel falhou: $erro\n$stack');
+    return mensagemComCodigo(erro);
+  }
 
   bool get usuarioLogado => _repository.usuarioAtual != null;
   String? get uidAtual => _repository.usuarioAtual?.uid;
@@ -93,8 +113,8 @@ class AuthViewModel {
         avatarPreset: avatarPreset,
       );
       return null;
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e, stack) {
+      return _falha(e, stack);
     }
   }
 
@@ -103,8 +123,8 @@ class AuthViewModel {
     try {
       await _repository.enviarEmailRedefinicaoSenha(email: email);
       return null;
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e, stack) {
+      return _falha(e, stack);
     }
   }
 
@@ -119,9 +139,7 @@ class AuthViewModel {
       final url = await _repository.atualizarFotoPerfil(uid: uid, bytes: bytes);
       return (erro: null, url: url);
     } catch (e, stack) {
-      debugPrint('atualizarFotoPerfil falhou: $e\n$stack');
-      if (e is FirebaseException) return (erro: traduzirErroDeAuth(e.code), url: null);
-      return (erro: 'Não foi possível enviar a foto. Tente novamente.', url: null);
+      return (erro: _falha(e, stack), url: null);
     }
   }
 
@@ -131,8 +149,8 @@ class AuthViewModel {
     try {
       await _repository.alterarSenha(senhaAtual: senhaAtual, novaSenha: novaSenha);
       return null;
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e, stack) {
+      return _falha(e, stack);
     }
   }
 
@@ -141,8 +159,8 @@ class AuthViewModel {
     try {
       await _repository.excluirConta(senha: senha);
       return null;
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e, stack) {
+      return _falha(e, stack);
     }
   }
 
@@ -163,8 +181,8 @@ class AuthViewModel {
         avatarPreset: avatarPreset,
       );
       return null;
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e, stack) {
+      return _falha(e, stack);
     }
   }
 
@@ -174,8 +192,8 @@ class AuthViewModel {
     try {
       await _repository.login(loginOuEmail: loginOuEmail, senha: senha);
       return null;
-    } on FirebaseAuthException catch (e) {
-      return traduzirErroDeAuth(e.code);
+    } catch (e, stack) {
+      return _falha(e, stack);
     }
   }
 }
@@ -189,45 +207,19 @@ class AuthViewModel {
 /// Services/Credential Manager no Android) subia sem ser capturada e o
 /// loading ficava preso pra sempre, dando a impressao de "nao acontece nada"
 /// ao selecionar a conta.
-/// Identificador curto e estavel da falha, anexado a mensagem que aparece
-/// na tela pelo [_comCodigo].
-///
-/// Existe por um motivo operacional, nao estetico. Em build de release o
-/// `debugPrint` do try/catch nao vai a lugar nenhum, entao uma falha de
-/// login relatada por terceiro — um revisor da App Store, um inscrito no
-/// Discord — chegava ate nos so como "deu erro", com um print de popup
-/// generico. Duas rodadas de revisao da Apple (17/ago e 27/ago de 2026)
-/// foram gastas adivinhando a causa desse jeito. Com o codigo na tela, o
-/// print vira diagnostico: da pra separar "provedor desligado no Firebase"
-/// de "regra do Firestore barrou a criacao do usuario" de "a Apple
-/// recusou" sem precisar de um Mac plugado no aparelho.
-String codigoDeDiagnosticoDeLogin(Object erro) {
-  if (erro is SignInWithAppleAuthorizationException) return 'apple/${erro.code.name}';
-  if (erro is GoogleSignInException) return 'google/${erro.code.name}';
-  // FirebaseAuthException E uma FirebaseException — tem que vir antes,
-  // senao todo erro de Auth cairia no ramo generico abaixo.
-  if (erro is FirebaseAuthException) return 'auth/${erro.code}';
-  if (erro is FirebaseException) return '${erro.plugin}/${erro.code}';
-  if (erro is PlatformException) return 'plataforma/${erro.code}';
-  return 'inesperado/${erro.runtimeType}';
-}
-
-String _comCodigo(String mensagem, Object erro) =>
-    '$mensagem\n\n(código: ${codigoDeDiagnosticoDeLogin(erro)})';
-
 String? mapearErroLoginGoogle(Object erro) {
   if (erro is GoogleSignInException) {
     if (erro.code == GoogleSignInExceptionCode.canceled) return null;
-    return _comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
+    return comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
   }
   if (erro is FirebaseAuthException) {
     // Usuario fechou o popup ou abriu outro antes de terminar: nao e erro,
     // e o mesmo fluxo de "cancelou" do GoogleSignInException acima.
     if (erro.code == 'popup-closed-by-user' || erro.code == 'cancelled-popup-request') return null;
-    return _comCodigo(traduzirErroDeAuth(erro.code), erro);
+    return comCodigo(traduzirErroDeAuth(erro.code), erro);
   }
-  if (erro is FirebaseException) return _comCodigo(_falhaAoSalvarPerfil, erro);
-  return _comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
+  if (erro is FirebaseException) return comCodigo(_falhaAoSalvarPerfil, erro);
+  return comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
 }
 
 /// O login social nao termina no provedor: [AuthRepository.loginComGoogle] e
@@ -299,7 +291,7 @@ String? mapearErroLoginApple(Object erro) {
     // o app estivesse culpando quem testa. Agora a hipotese do aparelho de
     // teste aparece como hipotese, e quem decide e o codigo anexado.
     if (erro.code == AuthorizationErrorCode.unknown) {
-      return _comCodigo(
+      return comCodigo(
         'Não foi possível concluir o login com a Apple. Se este for um '
         'simulador ou um aparelho de teste, confira se ele está conectado a '
         'uma conta Apple (iCloud) com autenticação de dois fatores — sem '
@@ -307,13 +299,13 @@ String? mapearErroLoginApple(Object erro) {
         erro,
       );
     }
-    return _comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
+    return comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
   }
   if (erro is FirebaseAuthException) {
-    return _comCodigo(traduzirErroDeAuth(erro.code), erro);
+    return comCodigo(traduzirErroDeAuth(erro.code), erro);
   }
   // Ver [_falhaAoSalvarPerfil]: a gravacao em `users/{uid}` faz parte deste
   // fluxo, e falhar ali nao e falhar "com a Apple".
-  if (erro is FirebaseException) return _comCodigo(_falhaAoSalvarPerfil, erro);
-  return _comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
+  if (erro is FirebaseException) return comCodigo(_falhaAoSalvarPerfil, erro);
+  return comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
 }

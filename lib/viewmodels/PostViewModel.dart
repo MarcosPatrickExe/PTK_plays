@@ -6,6 +6,7 @@ import '../data/models/PostModel.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/PostRepository.dart';
 import '../utils/ValidacaoPost.dart';
+import '../utils/DiagnosticoDeErro.dart';
 
 class PostViewModel {
   final PostRepository _repository;
@@ -85,7 +86,7 @@ class PostViewModel {
       return (url: url, erro: null);
     } catch (e, stack) {
       debugPrint('envio de midia falhou: $e\n$stack');
-      return (url: null, erro: 'Não foi possível enviar o arquivo. Tente de novo.');
+      return (url: null, erro: comCodigo('Não foi possível enviar o arquivo. Tente de novo.', e));
     }
   }
 
@@ -103,15 +104,12 @@ class PostViewModel {
 
       await _repository.excluirPosts(antigos.map((post) => post.id).toList());
       return (apagados: antigos.length, erro: null);
-    } on FirebaseException catch (e, stack) {
-      debugPrint('limpeza de posts antigos falhou: ${e.code}\n$stack');
-      if (e.code == 'permission-denied') {
-        return (apagados: 0, erro: 'Só o admin pode fazer essa limpeza.');
-      }
-      return (apagados: 0, erro: 'Não foi possível concluir. Tente de novo.');
     } catch (e, stack) {
       debugPrint('limpeza de posts antigos falhou: $e\n$stack');
-      return (apagados: 0, erro: 'Não foi possível concluir. Tente de novo.');
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        return (apagados: 0, erro: comCodigo('Só o admin pode fazer essa limpeza.', e));
+      }
+      return (apagados: 0, erro: comCodigo('Não foi possível concluir. Tente de novo.', e));
     }
   }
 
@@ -119,18 +117,18 @@ class PostViewModel {
     try {
       await escrita();
       return null;
-    } on FirebaseException catch (e, stack) {
-      debugPrint('escrita no feed falhou: ${e.code}\n$stack');
+    } catch (e, stack) {
+      debugPrint('escrita no feed falhou: $e\n$stack');
       // permission-denied aqui quase sempre quer dizer que a regra nova de
       // /posts ainda nao foi publicada (firebase deploy --only
       // firestore:rules) — vale dizer isso em vez de um erro generico.
-      if (e.code == 'permission-denied') {
-        return 'Você não tem permissão pra isso. Se acabou de virar admin, saia e entre de novo.';
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        return comCodigo(
+          'Você não tem permissão pra isso. Se acabou de virar admin, saia e entre de novo.',
+          e,
+        );
       }
-      return 'Não foi possível concluir. Tente de novo.';
-    } catch (e, stack) {
-      debugPrint('escrita no feed falhou: $e\n$stack');
-      return 'Não foi possível concluir. Tente de novo.';
+      return comCodigo('Não foi possível concluir. Tente de novo.', e);
     }
   }
 }

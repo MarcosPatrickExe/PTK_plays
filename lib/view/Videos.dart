@@ -21,6 +21,7 @@ import '../components/Header.dart';
 import '../data/models/VideoNotification.dart';
 import '../components/VideoCard.dart';
 import '../utils/ThemeController.dart';
+import '../utils/DiagnosticoDeErro.dart';
 
 class Videos extends StatefulWidget {
   final YoutubeViewModel viewmodelYT;
@@ -55,10 +56,20 @@ class _VideoScreenState extends State<Videos> {
   void _abrirVideo( String videoId ) async {
     final url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
 
-    if( await launcher_url.canLaunchUrl(url) ){
-      await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
-    } else {
-      mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir o vídeo :/");
+    try {
+      if (await launcher_url.canLaunchUrl(url)) {
+        await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
+        return;
+      }
+      if (!mounted) return;
+      mostrarErroCustom(
+        context,
+        title: "Ops!",
+        msg: comCodigoManual('Não foi possível abrir o vídeo :/', 'link/sem-app-que-abra'),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      mostrarErroCustom(context, title: "Ops!", msg: comCodigo('Não foi possível abrir o vídeo :/', e));
     }
   }
 

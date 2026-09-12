@@ -31,3 +31,37 @@ String traduzirErroDeAuth(String codigo) {
       return 'Algo deu errado. Tente novamente.';
   }
 }
+
+/// Traduz os codigos que NAO vem do Firebase Auth: Firestore (regras, rede)
+/// e Storage (upload de foto e midia). Antes de 12/set esses erros passavam
+/// por traduzirErroDeAuth, que nao conhece nenhum deles — entao um
+/// `permission-denied` das regras ou um `unauthorized` do Storage caia no
+/// "Algo deu errado" generico, escondendo justamente os dois casos que mais
+/// aparecem quando uma regra nova nao foi publicada.
+String traduzirErroDeServico(String codigo) {
+  switch (codigo) {
+    // Firestore e Storage usam nomes diferentes pra mesma ideia.
+    case 'permission-denied':
+    case 'unauthorized':
+      return 'Você não tem permissão pra fazer isso. Se você deveria ter, avise o administrador.';
+    case 'unauthenticated':
+      return 'Sua sessão expirou. Entre de novo pra continuar.';
+    case 'unavailable':
+    case 'deadline-exceeded':
+    case 'retry-limit-exceeded':
+      return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+    case 'not-found':
+    case 'object-not-found':
+      return 'O item que você tentou abrir não existe mais.';
+    case 'already-exists':
+      return 'Isso já existe.';
+    case 'resource-exhausted':
+    case 'quota-exceeded':
+      return 'O limite do serviço foi atingido. Tente mais tarde.';
+    case 'cancelled':
+    case 'canceled':
+      return 'A operação foi cancelada.';
+    default:
+      return 'Algo deu errado. Tente novamente.';
+  }
+}

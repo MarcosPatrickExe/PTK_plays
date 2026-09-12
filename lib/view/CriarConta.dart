@@ -17,6 +17,7 @@ import 'package:ptk_plays/utils/ValidacaoCadastro.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 import 'package:ptk_plays/view/Home.dart';
+import '../utils/DiagnosticoDeErro.dart';
 
 /// As telas do cadastro, na ordem em que aparecem.
 enum EtapaCadastro { boasVindas, nickname, email, senha, foto, whatsapp }
@@ -218,7 +219,10 @@ class _CriarContaState extends State<CriarConta> {
       });
     } catch (e) {
       if (!mounted) return;
-      mostrarToast(context, mensagem: 'Não foi possível abrir a câmera.', erro: true);
+      // Falha de camera/galeria vem do lado nativo (`plataforma/...`), e o
+      // codigo distingue "o usuario negou a permissao" de "o aparelho nao
+      // tem camera" — que pedem respostas opostas de quem for ajudar.
+      mostrarToast(context, mensagem: comCodigo('Não foi possível abrir a câmera.', e), erro: true);
     } finally {
       if (mounted) setState(() => _escolhendoFoto = false);
     }

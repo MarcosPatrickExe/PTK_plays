@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:video_player/video_player.dart';
+import '../utils/DiagnosticoDeErro.dart';
 
 /// Vídeo anexado a um post do feed, tocado dentro do próprio card.
 ///
@@ -28,6 +29,7 @@ class _VideoPostState extends State<VideoPost> {
   VideoPlayerController? _controlador;
   bool _pronto = false;
   bool _falhou = false;
+  String? _codigoDaFalha;
 
   @override
   void initState() {
@@ -43,9 +45,17 @@ class _VideoPostState extends State<VideoPost> {
       await controlador.initialize();
       if (!mounted) return;
       setState(() => _pronto = true);
-    } catch (_) {
+    } catch (e, stack) {
+      // Antes de 12/set este catch era `catch (_)`: o motivo da falha era
+      // descartado na hora. Um vídeo que nao carrega por CORS na Web, por
+      // arquivo corrompido ou por rede fora do ar mostrava exatamente o
+      // mesmo aviso, e nao havia como saber qual dos tres era.
+      debugPrint('VideoPost falhou ao inicializar ${widget.url}: $e\n$stack');
       if (!mounted) return;
-      setState(() => _falhou = true);
+      setState(() {
+        _falhou = true;
+        _codigoDaFalha = codigoDeErro(e);
+      });
     }
   }
 
@@ -123,6 +133,13 @@ class _VideoPostState extends State<VideoPost> {
           'Não foi possível carregar o vídeo.',
           style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70),
         ),
+        if (_codigoDaFalha != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            '(código: $_codigoDaFalha)',
+            style: GoogleFonts.outfit(fontSize: 10, color: Colors.white38),
+          ),
+        ],
       ],
     );
   }
