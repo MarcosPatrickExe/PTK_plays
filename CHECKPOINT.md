@@ -124,7 +124,9 @@ pendente.
    2. **Reproduzir num iPad**, não num iPhone — toda tentativa até hoje foi
       em iPhone ou emulador, e as duas reprovações vieram de iPad. Anotar o
       código que aparecer: ele diz qual das hipóteses do `ROADMAP.md` é a
-      certa, sem precisar de Mac plugado no aparelho.
+      certa, sem precisar de Mac plugado no aparelho. **Ninguém no projeto
+      tem aparelho Apple** — o caminho montado pra isso é o Appetize, ver
+      "Como rodar o app num iPad sem ter um" logo abaixo.
    3. **Escrever as App Review Notes** com uma **conta de demonstração**
       pronta, pra que o revisor não dependa do Sign in with Apple pra
       avaliar o app — hoje, se o login falha, ele não vê nada e reprova
@@ -144,6 +146,64 @@ pendente.
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
    build feito a partir dessa versão for promovido. Ver `CLAUDE.md`.
+
+## Como rodar o app num iPad sem ter um (12/set)
+
+Ninguém no projeto tem iPhone, iPad ou Mac, e o Sauce Labs passou a cobrar.
+A saída é o **Appetize** (o usuário já tem conta), que roda **simulador** no
+navegador. Ele pede um `.zip` com o bundle **`.app`** dentro — **não um
+`.ipa`**; `.ipa` é build de aparelho e o Appetize recusa.
+
+Gerar esse `.app` exige macOS com Xcode, que não existe neste sandbox. Quem
+faz isso é o workflow **`.github/workflows/ios-simulador.yml`**, num runner
+`macos-latest`:
+
+1. No GitHub, aba **Actions** → **"iOS pro Appetize (simulador)"** → botão
+   **Run workflow** → escolher a branch.
+2. Baixar o artefato **`PTKPlays-simulador.zip`** ao fim do build.
+3. No Appetize, **Upload App** → soltar esse `.zip`.
+
+**Armadilha do `workflow_dispatch`**: o botão "Run workflow" só aparece se o
+arquivo do workflow existir na **branch padrão** (`main`). Enquanto ele
+estiver só na branch de dev, a aba Actions não mostra nada — e isso parece
+"o workflow não funciona", quando na verdade ele nem foi oferecido.
+**Mesclar antes de tentar rodar.**
+
+Build de simulador **não precisa de assinatura nenhuma** — sem certificado,
+sem provisioning profile, sem segredo da Apple. Por isso o workflow não
+recebe credencial alguma e não tem como afetar a esteira de release (que é
+do Codemagic, disparada por tag `v*`). O único gatilho é manual, de
+propósito: minuto de macOS conta **10x** na cota do GitHub Actions em
+repositório privado.
+
+**O que o simulador prova e o que não prova** — a distinção que decide onde
+gastar esforço:
+
+- **Prova**: como o app aparece e se comporta num iPad. Serve inteiro pro
+  **4.2.2** (a acusação de "conteúdo web agregado"), e serve pro
+  `auth/operation-not-allowed` e `cloud_firestore/permission-denied`
+  aparecerem, se forem esses os casos.
+- **Não prova**: o Sign in with Apple de verdade. Simulador é justamente o
+  ambiente que devolve `apple/unknown` — foi o que o Sauce Labs deu em
+  17/ago. Um `apple/unknown` no Appetize é **inconclusivo**, não é
+  diagnóstico.
+
+Por isso as duas checagens gratuitas do Firebase Console (atenção 4) vêm
+antes: elas não precisam de simulador nenhum.
+
+### O iPad cai dos dois lados do corte de layout
+
+O **iPad Air 11" (M3)**, aparelho das duas reprovações, tem **1180x820
+pontos**. O corte do layout desktop do cadastro (`larguraDoCadastroDesktop`)
+é **900**. Logo: **em paisagem o cadastro mostra o cartão de duas colunas**,
+desenhado pra janela de navegador; em retrato, o layout de celular com a
+onda. O app troca de layout quando a pessoa gira o aparelho.
+
+Isso não é necessariamente bug — mas nunca foi olhado, e é a primeira coisa
+concreta que se sabe sobre o que a Apple viu na tela. Coberto por
+`test/criar_conta_test.dart`, grupo "CriarConta no iPad Air 11\"", inclusive
+o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
+`PageView` do redimensionamento de janela, chegando por outro caminho).
 
 ## Estado do git
 
@@ -174,7 +234,7 @@ pendente.
 
 ## Saúde do projeto
 
-- **319 testes** passando (`flutter test`), mais **46** no backend
+- **322 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
