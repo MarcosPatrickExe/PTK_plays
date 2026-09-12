@@ -1,0 +1,83 @@
+# Gera o .app de SIMULADOR do iOS e publica como artefato, pra ser enviado
+# ao Appetize (https://appetize.io) — que roda simulador, nao aparelho real,
+# e por isso pede exatamente este formato: um .zip com o bundle .app dentro.
+#
+# Por que isto existe: ninguem no projeto tem aparelho Apple. O app foi
+# reprovado duas vezes pela App Store (ver CHECKPOINT.md, atencao 4) sem que
+# ninguem conseguisse abrir a tela no aparelho do revisor — um iPad Air 11".
+#
+# Tres decisoes deste arquivo, todas por seguranca:
+#
+# 1. `workflow_dispatch` e o UNICO gatilho. Nada de push, tag ou PR. O build
+#    de release do iOS/Android e feito pelo Codemagic, disparado por tag `v*`;
+#    este workflow nunca deve competir com aquilo nem gastar minuto sozinho.
+# 2. Build de simulador NAO precisa de assinatura. Sem certificado, sem
+#    provisioning profile, sem nenhum segredo da Apple — por isso este
+#    workflow nao tem acesso a credencial nenhuma e nao tem como quebrar a
+#    esteira de release.
+# 3. Modo debug de proposito. `--release` nao e suportado em simulador pelo
+#    Flutter, e o debug ainda mostra o banner e roda mais lento — nao tem
+#    problema, o objetivo aqui e ver layout e ler mensagem de erro, nao
+#    medir desempenho.
+#
+# Minutos de macOS contam 10x na cota do GitHub Actions em repositorio
+# privado. Rodar sob demanda, nao em loop.
+name: iOS pro Appetize (simulador)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Mesma versao usada no desenvolvimento (ver CHECKPOINT.md).
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      # env.json e gitignored (guarda as chaves da API do YouTube). Sem ele o
+      # build funciona igual — String.fromEnvironment cai em string vazia e so
+      # a aba Videos fica sem carregar. Como o alvo aqui e a tela de login/
+      # cadastro, isso e aceitavel; quem quiser a aba Videos funcionando cria
+      # o secret ENV_JSON com o conteudo do proprio env.json.
+      # O secret passa por `env:`, nunca interpolado direto no shell: um
+      # ${{ }} dentro do `run` e substituido como TEXTO antes do bash ver a
+      # linha, entao qualquer aspa no conteudo quebraria (ou escaparia) o
+      # comando.
+      - name: Preparar env.json
+        env:
+          ENV_JSON: ${{ secrets.ENV_JSON }}
+        run: |
+          if [ -n "$ENV_JSON" ]; then
+            printf '%s' "$ENV_JSON" > env.json
+            echo "env.json veio do secret ENV_JSON."
+          else
+            cp env.json.example env.json
+            echo "AVISO: sem o secret ENV_JSON — a aba Videos nao vai carregar."
+          fi
+
+      - run: flutter pub get
+
+      - name: Build do simulador
+        run: flutter build ios --simulator --debug --dart-define-from-file=env.json
+
+      # -y preserva os symlinks de dentro dos frameworks. Sem ele o .app chega
+      # corrompido no Appetize e o simulador recusa instalar.
+      - name: Compactar o .app
+        run: |
+          cd build/ios/iphonesimulator
+          zip -r -y "$GITHUB_WORKSPACE/PTKPlays-simulador.zip" Runner.app
+          echo "Tamanho: $(du -h "$GITHUB_WORKSPACE/PTKPlays-simulador.zip" | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PTKPlays-simulador
+          path: PTKPlays-simulador.zip
+          retention-days: 14
