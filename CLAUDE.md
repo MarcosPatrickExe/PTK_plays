@@ -44,6 +44,48 @@ Login.dart, Cadastro.dart e o diálogo de excluir conta em Profile.dart ainda
 usam só `mostrarErroCustom` pros próprios erros (não foram retrofitados pra
 Toast ainda) — ao mexer nessas telas de novo, alinhar com essa regra.
 
+## Regra permanente: toda falha diz de onde veio
+
+Definida em 12/set/2026, depois de **duas revisões da App Store perdidas**
+adivinhando a causa de um popup genérico (ver `CHECKPOINT.md`, atenção 4).
+
+**A regra**: nenhuma mensagem de erro causada por uma exceção pode chegar
+na tela sem um código que identifique a causa. Usar
+`lib/utils/DiagnosticoDeErro.dart`:
+
+- `mensagemComCodigo(erro)` — o caminho normal: traduz e anexa o código;
+- `comCodigo('frase própria', erro)` — quando a tela tem uma frase melhor
+  que a tradução automática;
+- `comCodigoManual('frase', 'familia/detalhe')` — pra falha **sem exceção**,
+  quando o próprio app detecta a condição (ex: `canLaunchUrl` devolve
+  `false` sem lançar nada). Nunca inventar uma `Exception` só pra ter o que
+  passar adiante — o código descreveria a exceção falsa, não a condição.
+
+O formato na tela é `mensagem` + linha em branco + `(código: familia/detalhe)`.
+A família diz em qual camada parar de procurar: `auth/`, `cloud_firestore/`,
+`firebase_storage/`, `apple/`, `google/`, `plataforma/`, `inesperado/`.
+
+**Onde NÃO usar**: erro de validação de formulário (campo vazio, senha
+curta, senhas diferentes). Ali não houve exceção — não há causa a
+diagnosticar, e o código vira ruído sobre algo que a pessoa já sabe
+resolver. Esses continuam no `mostrarErroCustom` puro.
+
+**Sim, é feio pro usuário.** É deliberado, e o pedido foi explícito: em
+build de release o `debugPrint` não vai a lugar nenhum, e o que chega até
+nós é sempre um print de tela mandado por terceiro — um revisor da Apple,
+um inscrito no Discord. Se o print só diz "Ops! Tente novamente", a
+investigação começa do zero.
+
+**Duas armadilhas de implementação**, ambas já custaram tempo:
+
+- `FirebaseAuthException` **é** subclasse de `FirebaseException`. O teste de
+  tipo do Auth tem que vir primeiro, senão todo erro de autenticação pega a
+  tradução errada — e nada no compilador acusa.
+- **`catch` só do tipo esperado trava a tela.** Um `on FirebaseAuthException
+  catch` sozinho deixa qualquer outra falha escapar: a Future estoura, o
+  `setState` que desliga o loading nunca roda e o botão fica preso em
+  "carregando" pra sempre. Capturar tudo e decidir o tipo por dentro.
+
 ## Regra permanente: um commit por arquivo alterado
 
 Pedido explícito do usuário: **cada arquivo que eu mexer vira um commit
