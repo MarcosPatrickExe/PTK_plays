@@ -1,6 +1,7 @@
 import 'dart:typed_data' show Uint8List;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../data/models/AvatarPreset.dart';
@@ -188,19 +189,56 @@ class AuthViewModel {
 /// Services/Credential Manager no Android) subia sem ser capturada e o
 /// loading ficava preso pra sempre, dando a impressao de "nao acontece nada"
 /// ao selecionar a conta.
+/// Identificador curto e estavel da falha, anexado a mensagem que aparece
+/// na tela pelo [_comCodigo].
+///
+/// Existe por um motivo operacional, nao estetico. Em build de release o
+/// `debugPrint` do try/catch nao vai a lugar nenhum, entao uma falha de
+/// login relatada por terceiro — um revisor da App Store, um inscrito no
+/// Discord — chegava ate nos so como "deu erro", com um print de popup
+/// generico. Duas rodadas de revisao da Apple (17/ago e 27/ago de 2026)
+/// foram gastas adivinhando a causa desse jeito. Com o codigo na tela, o
+/// print vira diagnostico: da pra separar "provedor desligado no Firebase"
+/// de "regra do Firestore barrou a criacao do usuario" de "a Apple
+/// recusou" sem precisar de um Mac plugado no aparelho.
+String codigoDeDiagnosticoDeLogin(Object erro) {
+  if (erro is SignInWithAppleAuthorizationException) return 'apple/${erro.code.name}';
+  if (erro is GoogleSignInException) return 'google/${erro.code.name}';
+  // FirebaseAuthException E uma FirebaseException — tem que vir antes,
+  // senao todo erro de Auth cairia no ramo generico abaixo.
+  if (erro is FirebaseAuthException) return 'auth/${erro.code}';
+  if (erro is FirebaseException) return '${erro.plugin}/${erro.code}';
+  if (erro is PlatformException) return 'plataforma/${erro.code}';
+  return 'inesperado/${erro.runtimeType}';
+}
+
+String _comCodigo(String mensagem, Object erro) =>
+    '$mensagem\n\n(código: ${codigoDeDiagnosticoDeLogin(erro)})';
+
 String? mapearErroLoginGoogle(Object erro) {
   if (erro is GoogleSignInException) {
     if (erro.code == GoogleSignInExceptionCode.canceled) return null;
-    return 'Não foi possível entrar com o Google. Tente novamente.';
+    return _comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
   }
   if (erro is FirebaseAuthException) {
     // Usuario fechou o popup ou abriu outro antes de terminar: nao e erro,
     // e o mesmo fluxo de "cancelou" do GoogleSignInException acima.
     if (erro.code == 'popup-closed-by-user' || erro.code == 'cancelled-popup-request') return null;
-    return traduzirErroDeAuth(erro.code);
+    return _comCodigo(traduzirErroDeAuth(erro.code), erro);
   }
-  return 'Não foi possível entrar com o Google. Tente novamente.';
+  if (erro is FirebaseException) return _comCodigo(_falhaAoSalvarPerfil, erro);
+  return _comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
 }
+
+/// O login social nao termina no provedor: [AuthRepository.loginComGoogle] e
+/// [AuthRepository.loginComApple] ainda gravam em `users/{uid}` antes de
+/// devolver. Numa conta nova isso passa pelo `allow create` mais restritivo
+/// do `firestore.rules`, e uma recusa la e uma FirebaseException do
+/// cloud_firestore — nao do Auth. Ate 11/set/2026 esse caso caia no texto
+/// generico "nao foi possivel entrar", que fazia parecer problema do
+/// provedor quando a autenticacao ja tinha dado certo.
+const String _falhaAoSalvarPerfil =
+    'Sua conta foi reconhecida, mas não deu pra salvar o seu perfil. Tente novamente.';
 
 /// Valida o numero de WhatsApp opcional informado no cadastro, ja formatado
 /// pela mascara "+55 (DD) NNNNN-NNNN" (ver MascaraTelefoneWhatsapp).
@@ -249,21 +287,33 @@ String? validarAvatarPreset(String? chave) {
 String? mapearErroLoginApple(Object erro) {
   if (erro is SignInWithAppleAuthorizationException) {
     if (erro.code == AuthorizationErrorCode.canceled) return null;
-    // O sistema operacional retorna "unknown" (ASAuthorizationError 1000)
-    // sempre que a autorizacao falha antes de chegar a um motivo especifico
-    // (invalidResponse/notHandled/failed/etc.) — na pratica, isso acontece
-    // quase sempre porque o dispositivo/simulador nao esta logado numa conta
-    // Apple (iCloud) com autenticacao de dois fatores, o que o Sign in with
-    // Apple exige no nivel do sistema. E o caso tipico de simuladores/nuvens
-    // de teste (ex: Sauce Labs) sem Apple ID configurado — nao e algo que o
-    // app consiga contornar em codigo.
+    // O sistema retorna "unknown" (ASAuthorizationError 1000) sempre que a
+    // autorizacao falha antes de chegar a um motivo especifico
+    // (invalidResponse/notHandled/failed/etc.), entao ele NAO identifica
+    // uma causa — so diz que nao deu.
+    //
+    // A versao anterior deste texto AFIRMAVA que o aparelho estava sem
+    // conta Apple/iCloud. Aquilo foi escrito em 17/ago/2026 pro caso do
+    // simulador do Sauce Labs, onde era verdade; num iPad de revisor da
+    // App Store, logado num Apple ID com 2FA, e falso — e ainda soa como se
+    // o app estivesse culpando quem testa. Agora a hipotese do aparelho de
+    // teste aparece como hipotese, e quem decide e o codigo anexado.
     if (erro.code == AuthorizationErrorCode.unknown) {
-      return 'Não foi possível entrar com a Apple. Verifique se este dispositivo está conectado a uma conta Apple (iCloud) com autenticação de dois fatores — dispositivos de teste/simuladores sem conta Apple configurada não conseguem usar esse login.';
+      return _comCodigo(
+        'Não foi possível concluir o login com a Apple. Se este for um '
+        'simulador ou um aparelho de teste, confira se ele está conectado a '
+        'uma conta Apple (iCloud) com autenticação de dois fatores — sem '
+        'isso o sistema recusa esse login antes mesmo de chamar o app.',
+        erro,
+      );
     }
-    return 'Não foi possível entrar com a Apple. Tente novamente.';
+    return _comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
   }
   if (erro is FirebaseAuthException) {
-    return traduzirErroDeAuth(erro.code);
+    return _comCodigo(traduzirErroDeAuth(erro.code), erro);
   }
-  return 'Não foi possível entrar com a Apple. Tente novamente.';
+  // Ver [_falhaAoSalvarPerfil]: a gravacao em `users/{uid}` faz parte deste
+  // fluxo, e falhar ali nao e falhar "com a Apple".
+  if (erro is FirebaseException) return _comCodigo(_falhaAoSalvarPerfil, erro);
+  return _comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
 }

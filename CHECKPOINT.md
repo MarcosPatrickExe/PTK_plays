@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **09/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **11/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -81,15 +81,129 @@ pendente.
      na própria pasta `posts_midia/{uid}/`, mesmo sem conseguir publicar);
    - permitir que a remoção em cascata de usuário apague também a conta do
      Firebase Auth e os arquivos órfãos do Storage.
-4. **App Store — status não verificado nesta sessão.** O build **1.2.1
-   (17)** foi submetido à Apple em 25/ago/2026. Nenhuma sessão desde então
-   checou o resultado. Perguntar ao usuário antes de assumir qualquer
-   coisa.
+4. **App Store — o build foi REPROVADO. Não reenviar como está.**
+
+   *O que é*: o build submetido em 25/ago/2026 foi reprovado na revisão de
+   **27/ago** (Submission `6db9576f-1f55-4ba0-aa62-6d06009a9495`), em dois
+   guidelines: **2.1(a)** — o botão "Entrar com a Apple" deu erro no iPad
+   Air 11" (M3), iPadOS 26.6 — e **4.2.2**, o app visto como agregador de
+   conteúdo de web. O plano completo, com hipóteses ordenadas e o que
+   confirma cada uma, está no `ROADMAP.md`, seção "Reprovação da Apple em
+   27/ago/2026".
+
+   *Por que ainda bloqueia*: o que fazia cada rodada custar duas semanas e
+   render zero informação já foi corrigido (ver abaixo) — até 11/set o app
+   colapsava qualquer falha do login com Apple em três frases fixas e só
+   registrava o erro real num `debugPrint`, que não existe em release. Mas
+   **a causa raiz continua desconhecida**: o código agora consegue dizer
+   qual é, e ninguém rodou o app num iPad pra ler o que ele diz. Reenviar
+   antes disso é apostar.
+
+   *A parte de código já foi feita em 11/set* (3 commits, cobertos por 16
+   testes em `test/auth_error_mapping_test.dart`):
+   - **O erro real agora aparece na tela.** `codigoDeDiagnosticoDeLogin`
+     (`lib/viewmodels/AuthViewModel.dart`) anexa à mensagem um código curto
+     — `apple/unknown`, `auth/operation-not-allowed`,
+     `cloud_firestore/permission-denied`, `plataforma/*`, `inesperado/*`.
+     É o que faz um print de popup mandado por terceiro virar diagnóstico,
+     já que `debugPrint` não existe em release.
+   - `mapearErroLoginApple` passou a tratar `FirebaseException`. A escrita
+     em `users/{uid}` faz parte do fluxo e, numa conta nova — o caso do
+     revisor —, passa pelo `allow create` mais restritivo das regras; uma
+     recusa ali virava a mesma frase de um erro da Apple.
+   - `operation-not-allowed` não cita mais o Google
+     (`lib/utils/AuthErrorTranslator.dart`), e a mensagem do código
+     `unknown` oferece a hipótese do aparelho de teste em vez de afirmar
+     que o iPad do revisor está sem conta Apple.
+
+   *O que falta, e depende de você — nada disso é checável neste ambiente*:
+   1. **Conferir no Firebase Console se o provedor Apple está habilitado**
+      (Authentication → Sign-in method). É a checagem mais barata de todas
+      e segue **"Não confirmado"** desde 30/jul. Se estiver desligado, o
+      app agora mostra `(código: auth/operation-not-allowed)`.
+   2. **Reproduzir num iPad**, não num iPhone — toda tentativa até hoje foi
+      em iPhone ou emulador, e as duas reprovações vieram de iPad. Anotar o
+      código que aparecer: ele diz qual das hipóteses do `ROADMAP.md` é a
+      certa, sem precisar de Mac plugado no aparelho. **Ninguém no projeto
+      tem aparelho Apple** — o caminho montado pra isso é o Appetize, ver
+      "Como rodar o app num iPad sem ter um" logo abaixo.
+   3. **Escrever as App Review Notes** com uma **conta de demonstração**
+      pronta, pra que o revisor não dependa do Sign in with Apple pra
+      avaliar o app — hoje, se o login falha, ele não vê nada e reprova
+      também por funcionalidade.
+
+   *Sobre o 4.2.2, o que muda a leitura*: **tudo que faz o app ser nativo
+   entrou depois** da submissão — feed, enquetes, mídia, moderação,
+   cadastro em etapas e Painel ADM foram mesclados entre 03 e 09/set (PRs
+   #63–#73). O revisor não viu nada disso; travado no login, ele julgou o
+   app pela tela de login. Corrigir o 2.1(a) é o que destrava o 4.2.2.
+
+   *Conferir também*: a Apple chama o binário de **"1.2.0 (17)"**, mas o
+   `pubspec.yaml` diz `1.2.1+17`. Olhar a página do build no App Store
+   Connect antes de concluir o que foi revisado.
 5. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
    build feito a partir dessa versão for promovido. Ver `CLAUDE.md`.
+
+## Como rodar o app num iPad sem ter um (12/set)
+
+Ninguém no projeto tem iPhone, iPad ou Mac, e o Sauce Labs passou a cobrar.
+A saída é o **Appetize** (o usuário já tem conta), que roda **simulador** no
+navegador. Ele pede um `.zip` com o bundle **`.app`** dentro — **não um
+`.ipa`**; `.ipa` é build de aparelho e o Appetize recusa.
+
+Gerar esse `.app` exige macOS com Xcode, que não existe neste sandbox. Quem
+faz isso é o workflow **`.github/workflows/ios-simulador.yml`**, num runner
+`macos-latest`:
+
+1. No GitHub, aba **Actions** → **"iOS pro Appetize (simulador)"** → botão
+   **Run workflow** → escolher a branch.
+2. Baixar o artefato **`PTKPlays-simulador.zip`** ao fim do build.
+3. No Appetize, **Upload App** → soltar esse `.zip`.
+
+**Armadilha do `workflow_dispatch`**: o botão "Run workflow" só aparece se o
+arquivo do workflow existir na **branch padrão** (`main`). Enquanto ele
+estiver só na branch de dev, a aba Actions não mostra nada — e isso parece
+"o workflow não funciona", quando na verdade ele nem foi oferecido.
+**Mesclar antes de tentar rodar.**
+
+Build de simulador **não precisa de assinatura nenhuma** — sem certificado,
+sem provisioning profile, sem segredo da Apple. Por isso o workflow não
+recebe credencial alguma e não tem como afetar a esteira de release (que é
+do Codemagic, disparada por tag `v*`). O único gatilho é manual, de
+propósito: minuto de macOS conta **10x** na cota do GitHub Actions em
+repositório privado.
+
+**O que o simulador prova e o que não prova** — a distinção que decide onde
+gastar esforço:
+
+- **Prova**: como o app aparece e se comporta num iPad. Serve inteiro pro
+  **4.2.2** (a acusação de "conteúdo web agregado"), e serve pro
+  `auth/operation-not-allowed` e `cloud_firestore/permission-denied`
+  aparecerem, se forem esses os casos.
+- **Não prova**: o Sign in with Apple de verdade. Simulador é justamente o
+  ambiente que devolve `apple/unknown` — foi o que o Sauce Labs deu em
+  17/ago. Um `apple/unknown` no Appetize é **inconclusivo**, não é
+  diagnóstico.
+
+Por isso as duas checagens gratuitas do Firebase Console (atenção 4) vêm
+antes: elas não precisam de simulador nenhum.
+
+### O iPad cai dos dois lados do corte de layout
+
+O **iPad Air 11" (M3)**, aparelho das duas reprovações, tem **1180x820
+pontos**. O corte do layout desktop do cadastro (`larguraDoCadastroDesktop`)
+é **900**. Logo: **em paisagem o cadastro mostra o cartão de duas colunas**,
+desenhado pra janela de navegador; em retrato, o layout de celular com a
+onda. O app troca de layout quando a pessoa gira o aparelho.
+
+Isso não é necessariamente bug — mas nunca foi olhado, e é a primeira coisa
+concreta que se sabe sobre o que a Apple viu na tela. Coberto por
+`test/criar_conta_test.dart`, grupo "CriarConta no iPad Air 11\"", inclusive
+o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
+`PageView` do redimensionamento de janela, chegando por outro caminho).
 
 ## Estado do git
 
@@ -120,14 +234,18 @@ pendente.
 
 ## Saúde do projeto
 
-- **312 testes** passando (`flutter test`), mais **46** no backend
+- **322 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
-- `flutter analyze`: **0 erros, 0 warnings**. Há uma baseline conhecida de
-  ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
+- `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
+  de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
   deprecated) — não são regressão, não mexer sem pedir.
-- Ocasionalmente o analyze mostra **um warning fantasma** em
-  `lib/view/Videos.dart:120` na primeira execução após edições; ele some na
-  segunda. É pré-existente e não relacionado às mudanças.
+- O warning é em **`lib/view/Videos.dart:120`**
+  (`body_might_complete_normally_nullable`: o `itemBuilder` tem um `if` sem
+  `else`, então retorna `null` implicitamente). Versões anteriores deste
+  arquivo o chamavam de "fantasma que some na segunda execução" — **isso
+  estava errado**: em 11/set ele apareceu em execuções seguidas. É
+  pré-existente e inofensivo na prática (o `itemCount` é o tamanho da
+  lista, então o `if` nunca falha), mas é real, e não some sozinho.
 - **O container é reciclado sem aviso.** Em 07/set o SDK do Flutter sumiu
   do `/opt` no meio da sessão, junto com o `~/.pub-cache` e a pasta de
   uploads. O repositório não foi afetado. Pra restaurar:
@@ -460,19 +578,23 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
 1. **Confirmar que o webhook está gravando** de verdade (ver atenção 1) —
    é mandar uma mensagem pro número de teste e olhar a aba.
 2. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
-3. **Custom claim de admin** no Auth (ver atenção 3).
-4. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
+3. **Destravar a reprovação da Apple** (ver atenção 4). A parte de código
+   saiu em 11/set; o que resta — provedor Apple no Firebase Console,
+   reproduzir num iPad e escrever as App Review Notes — depende do usuário
+   e de aparelho físico.
+4. **Custom claim de admin** no Auth (ver atenção 3).
+5. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
    tela de chat. A opção já existe no menu e avisa que não está pronta.
    Quando existir, entra também na remoção em cascata (o lugar já está
    marcado no código).
-5. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
+6. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
    vez, com detector de visibilidade).
-6. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
+7. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
    cliente de propósito, então precisa de Cloud Function.
-7. **Etapa 6 — notificações push por cargo.**
-8. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
+8. **Etapa 6 — notificações push por cargo.**
+9. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
    reescreve boa parte do `firestore.rules`.
-9. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
+10. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
    existe e está no ar; falta o **envio**, que depende do número de
    produção e dos modelos de mensagem aprovados na Meta.
 

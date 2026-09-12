@@ -1708,3 +1708,195 @@ nessa largura (bem no limiar) o título de 34px ocupou três linhas no
 painel estreito do formulário — ainda funcional, mas mais apertado que
 o testado em 1400px. Ajustar, se precisar, é só o valor da constante ou
 `_EstiloDaEtapa.tamanhoDoTitulo` no ramo desktop.
+
+## Reprovação da Apple em 27/ago/2026 (Submission 6db9576f) — o que mudar antes de reenviar
+
+O build enviado em **25/ago/2026** foi reprovado na revisão de **27/ago**,
+em dois guidelines de uma vez. Dispositivo do revisor: **iPad Air 11" (M3),
+iPadOS 26.6**. Submission ID `6db9576f-1f55-4ba0-aa62-6d06009a9495`.
+
+**Divergência a conferir antes de qualquer coisa**: a Apple descreve o
+binário revisado como **"version 1.2.0 (17)"**, enquanto o `pubspec.yaml` e
+o `CHECKPOINT.md` falam em **1.2.1+17**. Ou a Apple está mostrando o
+`CFBundleShortVersionString` de um binário mais velho que o que achamos que
+enviamos, ou é só ruído de exibição do App Store Connect. Vale olhar a
+página do build no ASC antes de concluir qualquer coisa sobre *o que* foi
+revisado — reenviar um fix pra uma versão que não é a que travou não
+resolve nada.
+
+### Guideline 2.1(a) — o botão "Entrar com a Apple" deu erro
+
+O print que o usuário anexou mostra a **folha do Sign in with Apple abrindo
+normalmente** no iPad, com o e-mail e o botão "Continuar" — ou seja, o lado
+nativo funcionou. Isso descarta a causa de 30/jul (provisioning profile sem
+o entitlement `com.apple.developer.applesignin`), que já tinha sido
+resolvida. **A falha acontece depois que a Apple devolve a credencial** —
+no trecho que é código nosso, não da Apple.
+
+E aí está o problema de verdade, que é maior que o bug em si:
+
+#### O app não consegue dizer o que deu errado
+
+Todo o fluxo de `loginComApple` desemboca em `mapearErroLoginApple`
+(`lib/viewmodels/AuthViewModel.dart`), que colapsa **qualquer** falha em uma
+de três frases fixas. O erro real só aparece via `debugPrint('loginComApple
+falhou: ...')` — que **não existe em build de release**. O revisor viu um
+popup, nós não vimos nada, e a revisão seguinte vai repetir isso
+exatamente igual se nada mudar. Enquanto esse buraco existir, cada rodada
+de reprovação custa 1–2 semanas e devolve zero informação.
+
+Três defeitos concretos encontrados ao revisar o caminho, em 11/set:
+
+1. **`mapearErroLoginApple` não cobre o Firestore.** Ele trata
+   `SignInWithAppleAuthorizationException` e `FirebaseAuthException` — mas o
+   fluxo também chama `user.updateDisplayName` e
+   `_sincronizarUsuarioNoFirestore`, que escreve em `users/{uid}`. Um
+   `FirebaseException` (`permission-denied` das regras, `unavailable` de
+   rede) cai no `return` genérico do fim e vira "Não foi possível entrar com
+   a Apple. Tente novamente." **Isso importa muito neste caso**: a conta do
+   revisor é uma conta *nova*, então ela passa pelo `allow create` de
+   `users/{userId}` — a regra mais restritiva do app inteiro (sete condições
+   encadeadas, incluindo `ultimoAcesso == request.time`). Uma falha ali é
+   hoje indistinguível de uma falha da Apple.
+2. **`operation-not-allowed` fala do Google.**
+   `traduzirErroDeAuth('operation-not-allowed')`
+   (`lib/utils/AuthErrorTranslator.dart:23`) devolve "O login com **Google**
+   não está habilitado pra esse app no momento." Esse é exatamente o código
+   que o Firebase retorna quando o provedor **Apple** está desabilitado no
+   Console — ou seja, no cenário mais banal possível, o app mostra uma
+   mensagem sobre o provedor errado e manda a investigação pro lado errado.
+3. **A mensagem do código `unknown` culpa o dispositivo do revisor.** Desde
+   17/ago, `AuthorizationErrorCode.unknown` responde "Verifique se este
+   dispositivo está conectado a uma conta Apple (iCloud) com autenticação de
+   dois fatores". Aquilo foi escrito pro caso do emulador do Sauce Labs, e
+   fazia sentido ali. Num iPad de revisor da Apple — que obviamente está
+   logado num Apple ID com 2FA — o texto é falso e ainda soa como se o app
+   estivesse jogando a culpa em quem testa. **Se foi essa a frase que
+   apareceu no print, ela é a primeira coisa a reescrever.**
+
+#### Hipóteses, em ordem de probabilidade, e como separar uma da outra
+
+Nenhuma delas é confirmável neste ambiente (não há device iOS, Firebase
+Console nem Apple Developer Portal aqui). O que dá pra fazer é ordenar e
+dizer qual evidência elimina qual:
+
+| # | Hipótese | O que confirma/elimina |
+|---|---|---|
+| 1 | Provedor **Apple** desabilitado (ou sem Services ID/Key) no Firebase Console → `operation-not-allowed` | Firebase Console → Authentication → Sign-in method. É a checagem mais barata e nunca foi feita (segue "Não confirmado" desde 30/jul) |
+| 2 | Escrita em `users/{uid}` barrada pelas regras na criação da conta | Criar uma conta Apple nova de verdade e olhar se o doc nasce no Firestore |
+| 3 | `AuthorizationErrorCode.unknown` genuíno, por algo do ambiente do revisor | Só o código de erro real na tela resolve — ver "O que fazer" abaixo |
+| 4 | Algo específico de iPad no plugin `sign_in_with_apple` 7.0.1 | Reproduzir **num iPad**, não num iPhone — foi o que ninguém fez ainda |
+
+Repare que 1, 2 e 3 produzem hoje **a mesma tela** pro usuário. É por isso
+que instrumentar vem antes de corrigir.
+
+#### O que fazer, em ordem
+
+1. **Mostrar o código do erro na tela**, em release. Anexar à mensagem do
+   popup um identificador curto (o `AuthorizationErrorCode`, ou o
+   `code` do `FirebaseAuthException`/`FirebaseException`) —
+   algo como "(erro: apple/unknown)" ou "(erro: firestore/permission-denied)".
+   Feio? É. Mas é a única mudança que transforma a próxima reprovação em
+   informação em vez de em mais um print de popup genérico. Pode sair depois
+   que o login estiver estável.
+2. **Fechar o buraco do `mapearErroLoginApple`**: tratar `FirebaseException`
+   e `PlatformException` explicitamente, com textos que digam de qual etapa
+   veio a falha (autorização da Apple × Firebase Auth × Firestore).
+3. **Corrigir o texto de `operation-not-allowed`** pra não citar o Google —
+   ele é usado pelos dois provedores.
+4. **Reescrever a mensagem do `unknown`** pra não afirmar que o problema é
+   do dispositivo. O caso do Sauce Labs vira *uma possibilidade citada*, não
+   o diagnóstico.
+5. **Checar as duas pontas fora do código** (as duas seguem "Não
+   confirmado"): provedor Apple habilitado no Firebase Console, e a chave
+   Sign in with Apple + Services ID no Apple Developer Portal.
+6. **Testar num iPad**, não num iPhone. O revisor usou iPad nas duas
+   últimas voltas; toda reprodução nossa até hoje foi em iPhone ou
+   emulador.
+
+Cada item de 2 a 4 é mudança de função pura e **entra com teste** em
+`test/auth_error_mapping_test.dart`, que já cobre esse mapeamento. O item 1
+e a validação final dependem de dispositivo físico e de consoles externos —
+**não dá pra fechar aqui**, e isso precisa ser dito ao usuário quando a
+tarefa for executada.
+
+#### O que foi implementado no mesmo dia (11/set)
+
+Os itens 1 a 4 saíram junto com esta seção, em três commits. O formato do
+código na tela é `(código: familia/detalhe)`, anexado à mensagem:
+
+| Código que aparece | O que ele já elimina |
+|---|---|
+| `auth/operation-not-allowed` | Provedor Apple desligado no Firebase Console — hipótese 1, resolvida sem abrir o console |
+| `cloud_firestore/permission-denied` | A autenticação deu certo; quem barrou foi o `allow create` das regras — hipótese 2 |
+| `apple/unknown` | A Apple recusou sem dizer por quê — hipótese 3, e aí sim vale investigar o ambiente |
+| `apple/<outro>` | A Apple recusou com motivo nomeado; o nome do código diz qual |
+| `plataforma/*`, `inesperado/*` | Nada acima — mas pelo menos dá o tipo em vez de "tente novamente" |
+
+Três decisões que valem registrar, porque não são óbvias no diff:
+
+- **A ordem dos `is` em `mapearErroLoginApple` é carregada.**
+  `FirebaseAuthException` **é** uma `FirebaseException`, então o ramo do
+  Auth precisa vir antes do ramo genérico — se inverter, todo erro de
+  autenticação passa a dizer "não deu pra salvar o seu perfil". O
+  compilador não acusa isso, e o teste que segura essa ordem existe só por
+  causa disso.
+- **O código vai na tela, não num log.** A tentação era mandar pro
+  Crashlytics e manter a tela limpa. Não resolveria o caso que motivou a
+  mudança: quem reporta a falha é um terceiro que manda um print — o
+  revisor da Apple não abre o nosso painel, e a falha dele pode nem ser
+  reproduzível do nosso lado. O print tem que bastar.
+- **O texto de `operation-not-allowed` ficou sem citar provedor.** Era
+  tentador trocar "Google" por "Google ou Apple", mas o código é usado
+  pelos dois e por qualquer provedor futuro; quem identifica o provedor é
+  o prefixo do código anexado, que não depende de alguém lembrar de
+  atualizar a frase.
+
+### Guideline 4.2.2 — "conteúdo web agregado, funcionalidade nativa limitada"
+
+A Apple enxergou o app como um agregador de conteúdo de web. Olhando o que
+o revisor tinha em mãos, é uma leitura defensável: **tudo que faz o PTK
+Plays ser um app de verdade foi mesclado depois de 25/ago**. O build
+revisado não tinha feed com posts de inscritos, enquetes, posts de mídia,
+moderação (banir/suspender/`ContaGate`), cadastro em etapas nem Painel ADM —
+isso tudo entrou entre **03 e 09/set**, nos PRs #63 a #73. O que sobrava
+era, em boa medida, aviso de live e vídeo do YouTube: exatamente a silhueta
+de um agregador.
+
+**A ligação entre os dois guidelines é o ponto mais importante desta
+seção**, e é fácil passar batido: o revisor **não conseguiu entrar no app**.
+Travado no 2.1(a), ele julgou a funcionalidade pela única tela que
+conseguiu ver — a de login. Corrigir o 2.1(a) não é só resolver um bug; é o
+que dá ao revisor a chance de ver o resto. Tratar o 4.2.2 como um problema
+separado de "adicionar mais features" provavelmente é gastar esforço no
+lugar errado.
+
+O que ainda assim precisa ser feito, porque não se resolve sozinho:
+
+1. **Escrever as App Review Notes**. Hoje a submissão não explica nada. Elas
+   precisam conter, no mínimo: uma **conta de demonstração** já criada e
+   funcional (o revisor não deveria depender do Sign in with Apple pra
+   avaliar o app), e uma lista curta do que é nativo e onde encontrar —
+   feed com publicação de inscrito, enquete com voto, upload de mídia,
+   perfil com avatar/badges, moderação.
+2. **Não deixar o login ser a única porta.** Se o revisor precisa passar por
+   um provedor social pra ver qualquer coisa, qualquer falha de provedor
+   vira reprovação de funcionalidade. Vale decidir (ainda não decidido) se
+   parte do feed fica visível antes do login.
+3. **Deixar claro que o app não é o site do canal.** As lives e os vídeos
+   apontam pra fora, mas o feed, as enquetes e a moderação são conteúdo que
+   só existe aqui — e é isso que precisa aparecer primeiro pra quem abre o
+   app pela primeira vez.
+
+### A armadilha pra não repetir
+
+Duas vezes seguidas (17/ago e agora) o time gastou a rodada **adivinhando**
+a causa a partir de um popup genérico, porque o app não expõe o erro real em
+release. A lição não é sobre o Sign in with Apple: é que **um caminho de
+autenticação que não sabe relatar a própria falha custa uma rodada inteira
+de revisão por tentativa**. Vale a feiura de um código de erro na tela.
+
+**Não confirmado nesta sessão** (nenhum destes é checável neste ambiente):
+o estado do provedor Apple no Firebase Console, a chave/Services ID no Apple
+Developer Portal, qual frase exata apareceu no print do revisor, e qual
+binário a Apple realmente revisou (ver a divergência 1.2.0 × 1.2.1 no topo).
