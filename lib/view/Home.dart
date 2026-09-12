@@ -29,6 +29,7 @@ import 'package:url_launcher/url_launcher.dart' as launcher_url;
 import '../components/Header.dart';
 import '../components/ModalMSG.dart';
 import "package:ptk_plays/utils/ThemeController.dart";
+import '../utils/DiagnosticoDeErro.dart';
 
 class HomePage extends StatelessWidget {
   final YoutubeViewModel viewmodelYT;
@@ -833,10 +834,23 @@ class PostCard extends StatelessWidget {
 
   Future<void> _abrirLink(BuildContext context, String link) async {
     final url = Uri.parse(link);
-    if (await launcher_url.canLaunchUrl(url)) {
-      await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      mostrarErroCustom(context, title: "Ops!", msg: "Não foi possível abrir a live :/");
+    try {
+      if (await launcher_url.canLaunchUrl(url)) {
+        await launcher_url.launchUrl(url, mode: launcher_url.LaunchMode.externalApplication);
+        return;
+      }
+      if (!context.mounted) return;
+      // canLaunchUrl devolve false sem lancar nada — nao ha excecao pra
+      // codificar, entao o codigo e manual. Ele separa "nenhum app instalado
+      // abre esse link" de uma falha real do launcher, logo abaixo.
+      mostrarErroCustom(
+        context,
+        title: "Ops!",
+        msg: comCodigoManual('Não foi possível abrir a live :/', 'link/sem-app-que-abra'),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      mostrarErroCustom(context, title: "Ops!", msg: comCodigo('Não foi possível abrir a live :/', e));
     }
   }
 }
