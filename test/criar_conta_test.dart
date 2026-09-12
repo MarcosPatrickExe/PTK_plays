@@ -399,4 +399,57 @@ void main() {
       expect(find.textContaining('Bem-vindo'), findsNothing);
     });
   });
+
+  // O iPad Air 11" (M3) e o aparelho em que a Apple reprovou o app duas
+  // vezes (ver CHECKPOINT.md, atencao 4). Ele tem 1180x820 pontos — ou
+  // seja, ele cai dos DOIS lados do ponto de corte de 900, dependendo de
+  // como a pessoa esta segurando o aparelho. Ninguem nunca olhou isso: o
+  // cartao de duas colunas foi desenhado pra janela de navegador, e a
+  // possibilidade de ele aparecer num tablet so foi percebida em 12/set,
+  // conferindo as medidas do aparelho do revisor.
+  group('CriarConta no iPad Air 11" (aparelho da reprovação)', () {
+    Future<void> comLargura(WidgetTester tester, double largura, double altura) async {
+      tester.view.physicalSize = Size(largura, altura);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    }
+
+    testWidgets('em paisagem (1180x820) entra o cartão de duas colunas', (tester) async {
+      await comLargura(tester, 1180, 820);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      expect(find.text('PASSO 1 DE 6'), findsOneWidget);
+    });
+
+    testWidgets('em retrato (820x1180) entra o layout de celular, com a onda', (tester) async {
+      await comLargura(tester, 820, 1180);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      expect(find.textContaining('PASSO'), findsNothing);
+      expect(find.textContaining('Bem-vindo'), findsOneWidget);
+    });
+
+    testWidgets('girar o iPad no meio do cadastro preserva a etapa', (tester) async {
+      // O caso real: a pessoa comeca em paisagem, avanca, e gira o aparelho.
+      // E a mesma troca de layout que o teste de estreitar a janela cobre,
+      // mas aqui ela acontece por rotacao — sem o usuario ter feito nada
+      // parecido com "redimensionar". Se a sincronizacao do PageController
+      // falhasse, girar o iPad jogaria a pessoa de volta pra tela de
+      // boas-vindas no meio do cadastro.
+      await comLargura(tester, 1180, 820);
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      await _tocarEmAvancar(tester); // -> nick
+
+      await comLargura(tester, 820, 1180);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
+      expect(find.textContaining('Bem-vindo'), findsNothing);
+    });
+  });
 }
