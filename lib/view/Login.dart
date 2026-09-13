@@ -122,6 +122,7 @@ class _LoginState extends State<Login> {
                 authViewModel: widget.authViewModel,
                 contaSocial: true,
                 nicknameSugerido: widget.authViewModel.nomeDoProvedor,
+                emailDoProvedor: widget.authViewModel.emailDoProvedor,
               )
             : HomePage(viewmodelYT: widget.viewmodelYT, apiKEY: widget.apiKey, authViewModel: widget.authViewModel),
       ),
