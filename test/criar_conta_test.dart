@@ -50,7 +50,15 @@ class FakeYoutubeViewModel implements YoutubeViewModel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _tela({bool contaSocial = false, String? nicknameSugerido}) {
+/// [emailDoProvedor] tem default de e-mail real de propósito: é o caso do
+/// Google e o do "Share My Email" da Apple, que é o fluxo social comum. O
+/// relay da Apple é o caso especial, e os testes que o exercitam passam o
+/// endereço explicitamente.
+Widget _tela({
+  bool contaSocial = false,
+  String? nicknameSugerido,
+  String? emailDoProvedor = 'pessoa@gmail.com',
+}) {
   return MaterialApp(
     home: CriarConta(
       viewmodelYT: FakeYoutubeViewModel(),
@@ -58,6 +66,7 @@ Widget _tela({bool contaSocial = false, String? nicknameSugerido}) {
       authViewModel: FakeAuthViewModel(),
       contaSocial: contaSocial,
       nicknameSugerido: nicknameSugerido,
+      emailDoProvedor: emailDoProvedor,
     ),
   );
 }
@@ -83,14 +92,53 @@ void main() {
       ]);
     });
 
-    test('conta social pula e-mail e senha, que o provedor já resolveu', () {
-      final etapas = etapasDoCadastro(contaSocial: true);
+    test('conta social com e-mail real pula e-mail e senha', () {
+      final etapas = etapasDoCadastro(contaSocial: true, pedirEmail: false);
 
       expect(etapas, isNot(contains(EtapaCadastro.email)));
       expect(etapas, isNot(contains(EtapaCadastro.senha)));
       expect(etapas, contains(EtapaCadastro.nickname));
       expect(etapas, contains(EtapaCadastro.foto));
       expect(etapas, contains(EtapaCadastro.whatsapp));
+    });
+
+    test('conta social sem e-mail utilizável ganha a etapa de e-mail, mas não a de senha', () {
+      // É o "Hide My Email" da Apple. A senha continua fora — ela é do
+      // provedor —, mas o e-mail precisa ser perguntado.
+      final etapas = etapasDoCadastro(contaSocial: true, pedirEmail: true);
+
+      expect(etapas, contains(EtapaCadastro.email));
+      expect(etapas, isNot(contains(EtapaCadastro.senha)));
+    });
+  });
+
+  group('precisaPedirEmail', () {
+    test('relay da Apple (Hide My Email) obriga a perguntar', () {
+      // O que a Apple entrega quando a pessoa esconde o e-mail: um endereço
+      // que reencaminha, mas não serve pra contato nem pra reconhecer quem é.
+      expect(
+        precisaPedirEmail(contaSocial: true, emailDoProvedor: 'abc123xyz@privaterelay.appleid.com'),
+        isTrue,
+      );
+      // A Apple varia a caixa do endereço em alguns fluxos.
+      expect(
+        precisaPedirEmail(contaSocial: true, emailDoProvedor: 'ABC@PrivateRelay.AppleID.com'),
+        isTrue,
+      );
+    });
+
+    test('e-mail real do Google ou do "Share My Email" não pergunta nada', () {
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: 'pessoa@gmail.com'), isFalse);
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: 'pessoa@icloud.com'), isFalse);
+    });
+
+    test('provedor sem e-mail nenhum pergunta, em vez de deixar a conta sem', () {
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: null), isTrue);
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: '   '), isTrue);
+    });
+
+    test('cadastro comum sempre pergunta, independente do que venha', () {
+      expect(precisaPedirEmail(contaSocial: false, emailDoProvedor: 'pessoa@gmail.com'), isTrue);
     });
   });
 
@@ -228,7 +276,7 @@ void main() {
       expect(find.text(subtitulo), findsNothing);
     });
 
-    testWidgets('conta social vai do nick direto pra foto', (tester) async {
+    testWidgets('conta social com e-mail real vai do nick direto pra foto', (tester) async {
       await tester.pumpWidget(_tela(contaSocial: true));
       await tester.pump();
 
@@ -238,6 +286,25 @@ void main() {
       await _tocarEmAvancar(tester);
 
       expect(find.text('Sua foto de perfil'), findsOneWidget);
+    });
+
+    testWidgets('conta Apple com e-mail escondido passa pela etapa de e-mail', (tester) async {
+      // O fluxo que o usuário pediu em 13/set: quem escolhe "Hide My Email"
+      // precisa poder informar um e-mail de verdade, senão a conta fica só
+      // com o relay. A etapa de SENHA continua fora — ela é do provedor.
+      await tester.pumpWidget(_tela(
+        contaSocial: true,
+        emailDoProvedor: 'abc123@privaterelay.appleid.com',
+      ));
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Qual é o seu e-mail?'), findsOneWidget);
+      expect(find.text('Sua foto de perfil'), findsNothing);
     });
 
     testWidgets('a etapa de boas-vindas centraliza o texto na faixa branca', (tester) async {
