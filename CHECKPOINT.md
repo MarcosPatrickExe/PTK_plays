@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **12/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **13/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -141,7 +141,26 @@ pendente.
    *Conferir também*: a Apple chama o binário de **"1.2.0 (17)"**, mas o
    `pubspec.yaml` diz `1.2.1+17`. Olhar a página do build no App Store
    Connect antes de concluir o que foi revisado.
-5. **Conta só-social não consegue se excluir — risco de reprovação 5.1.1(v).**
+5. **Cadastro social estava quebrado — corrigido em 13/set, falta validar.**
+
+   *O que era*: `CriarConta._criarConta` chamava `cadastrar` nos **dois**
+   fluxos. Na conta social isso virava
+   `createUserWithEmailAndPassword('', '')` — as etapas de e-mail e senha
+   nem são exibidas ali, e a conta **já existia**, criada pelo provedor no
+   login. Quem entrasse pela Apple ou pelo Google **ficava preso na última
+   etapa do cadastro**, sem forma nenhuma de concluir.
+
+   *Por que importa tanto*: é o caminho exato de um revisor da App Store
+   assim que o login com Apple voltar a funcionar. Seria a terceira
+   reprovação, logo depois de resolvermos a segunda. O usuário estava a uma
+   tela de bater nisso no teste de iPad de 12/set.
+
+   *A correção*: `AuthRepository.completarCadastroSocial`, que preenche o
+   perfil em vez de criar conta. **Não validado de ponta a ponta** — exige
+   Firebase real. O que dá pra fazer aqui é teste de widget do fluxo de
+   etapas, que existe.
+
+6. **Conta só-social não consegue se excluir — risco de reprovação 5.1.1(v).**
 
    *O que é*: `AuthRepository.excluirConta` (linha 290) reautentica com
    `EmailAuthProvider.credential(email: ..., password: senha)`. Quem entrou
@@ -169,7 +188,7 @@ pendente.
    provedor Apple. **Não confirmado**: se algum revisor chegou a tentar
    excluir conta — provavelmente não, já que o login falhava antes.
 
-5. **Google Play — aviso de nível de API.** O código está certo
+7. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
@@ -219,6 +238,34 @@ sobre uma mensagem que a pessoa já sabe como resolver.
 **Ainda não validado em aparelho**: nada disto foi visto rodando num iOS
 real ou simulado. A cobertura é de teste unitário
 (`test/diagnostico_de_erro_test.dart`, 10 testes).
+
+## Sessão de teste no Appetize: 3 minutos, 30/mês (13/set)
+
+O plano gratuito do Appetize dá **30 minutos por mês**, que reiniciam no dia
+1º, e cada sessão dura **no máximo 3 minutos**. Em 13/set já restavam ~20.
+
+**A consequência prática, e é ela que muda como trabalhamos**: a sessão é
+curta demais pra explorar. Toda pergunta visual que puder ser respondida por
+teste de widget nas medidas do aparelho **tem que ser respondida aqui**, no
+sandbox, de graça e em segundos — o Appetize fica só pro que exige iOS de
+verdade (Sign in with Apple, câmera, permissões nativas).
+
+Foi assim que saíram, sem gastar minuto nenhum: a medida do cartão de login
+no iPad, a troca de layout ao girar o aparelho, e o diâmetro dos avatares.
+
+**Perde-se o login da Apple a cada sessão.** O aparelho é reiniciado entre
+sessões (por isso o login some), então é preciso entrar de novo em Ajustes →
+Apple Account antes de testar o app. Reserve ~1 dos 3 minutos pra isso, ou
+faça o login numa sessão e o teste na seguinte.
+
+**Roteiro pra não desperdiçar sessão** — decidir o que olhar ANTES de
+apertar Start, porque descobrir o que testar dentro dos 3 minutos é o
+desperdício principal:
+
+1. Anotar as 2–3 perguntas da sessão, em ordem de valor.
+2. Conferir se alguma delas é respondível por teste de widget. Se for, não
+   gastar sessão com ela.
+3. Tirar print de tudo — o print é o registro, não a memória.
 
 ## Como rodar o app num iPad sem ter um (12/set)
 
@@ -329,7 +376,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **332 testes** passando (`flutter test`), mais **46** no backend
+- **341 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
