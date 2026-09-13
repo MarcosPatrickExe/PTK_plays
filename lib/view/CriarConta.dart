@@ -36,14 +36,38 @@ const Color corDeApoioDoCadastro = Color(0xFF6E5B92);
 /// retrato com a onda de sempre.
 const double larguraDoCadastroDesktop = 900;
 
-/// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve
-/// e-mail e senha resolvidos pelo provedor, então essas duas etapas somem —
-/// pedir de novo seria pedir uma segunda senha pra mesma conta.
-List<EtapaCadastro> etapasDoCadastro({required bool contaSocial}) {
+/// Domínio que a Apple usa quando a pessoa escolhe "Hide My Email" na folha
+/// do Sign in with Apple: em vez do endereço real, ela entrega um relay que
+/// reencaminha pra ele.
+const String _dominioRelayDaApple = '@privaterelay.appleid.com';
+
+/// Se o cadastro social ainda precisa perguntar o e-mail.
+///
+/// Google sempre entrega o endereço real, e a Apple entrega quando a pessoa
+/// escolhe "Share My Email" — nesses casos não há o que perguntar, o e-mail
+/// já está no Firebase Auth e vai pro Firestore junto.
+///
+/// **O caso que obriga a etapa a existir** é o "Hide My Email" da Apple: o
+/// que chega é um relay `@privaterelay.appleid.com`, que reencaminha mas não
+/// serve pra contato nem pra reconhecer a pessoa. Sem perguntar, a conta
+/// ficaria pra sempre sem um e-mail de verdade.
+bool precisaPedirEmail({required bool contaSocial, String? emailDoProvedor}) {
+  if (!contaSocial) return true;
+  final email = emailDoProvedor?.trim().toLowerCase() ?? '';
+  return email.isEmpty || email.endsWith(_dominioRelayDaApple);
+}
+
+/// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve senha
+/// resolvida pelo provedor, então essa etapa some — pedir de novo seria
+/// pedir uma segunda senha pra mesma conta.
+///
+/// A de e-mail é diferente: ela some só quando o provedor entregou um
+/// endereço utilizável (ver [precisaPedirEmail]).
+List<EtapaCadastro> etapasDoCadastro({required bool contaSocial, bool pedirEmail = true}) {
   return [
     EtapaCadastro.boasVindas,
     EtapaCadastro.nickname,
-    if (!contaSocial) EtapaCadastro.email,
+    if (!contaSocial || pedirEmail) EtapaCadastro.email,
     if (!contaSocial) EtapaCadastro.senha,
     EtapaCadastro.foto,
     EtapaCadastro.whatsapp,
@@ -92,6 +116,10 @@ class CriarConta extends StatefulWidget {
   /// já vir preenchido em vez de campo em branco.
   final String? nicknameSugerido;
 
+  /// E-mail que o provedor entregou. Decide se a etapa de e-mail aparece —
+  /// ver [precisaPedirEmail].
+  final String? emailDoProvedor;
+
   const CriarConta({
     super.key,
     required this.viewmodelYT,
@@ -99,6 +127,7 @@ class CriarConta extends StatefulWidget {
     required this.authViewModel,
     this.contaSocial = false,
     this.nicknameSugerido,
+    this.emailDoProvedor,
   });
 
   @override
@@ -106,7 +135,13 @@ class CriarConta extends StatefulWidget {
 }
 
 class _CriarContaState extends State<CriarConta> {
-  late final List<EtapaCadastro> _etapas = etapasDoCadastro(contaSocial: widget.contaSocial);
+  late final List<EtapaCadastro> _etapas = etapasDoCadastro(
+    contaSocial: widget.contaSocial,
+    pedirEmail: precisaPedirEmail(
+      contaSocial: widget.contaSocial,
+      emailDoProvedor: widget.emailDoProvedor,
+    ),
+  );
   final _paginas = PageController();
   int _indice = 0;
 
@@ -231,13 +266,26 @@ class _CriarContaState extends State<CriarConta> {
   Future<void> _criarConta() async {
     setState(() => _criando = true);
 
-    final erro = await widget.authViewModel.cadastrar(
-      nickname: _nickname.text.trim(),
-      email: _email.text.trim(),
-      senha: _senha.text,
-      telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
-      avatarPreset: _avatarPreset ?? '',
-    );
+    // Conta social JÁ EXISTE — o provedor a criou no login. Chamar
+    // `cadastrar` aqui (que era o que acontecia até 13/set) vira
+    // `createUserWithEmailAndPassword('', '')`, porque neste fluxo os campos
+    // de e-mail e senha nem chegam a ser exibidos. O cadastro social não
+    // tinha como ser concluído: quem entrava pela Apple ficava preso na
+    // última etapa.
+    final erro = widget.contaSocial
+        ? await widget.authViewModel.completarCadastroSocial(
+            nickname: _nickname.text.trim(),
+            telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
+            avatarPreset: _avatarPreset ?? '',
+            emailInformado: _email.text.trim(),
+          )
+        : await widget.authViewModel.cadastrar(
+            nickname: _nickname.text.trim(),
+            email: _email.text.trim(),
+            senha: _senha.text,
+            telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
+            avatarPreset: _avatarPreset ?? '',
+          );
 
     if (!mounted) return;
 
