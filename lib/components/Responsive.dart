@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 /// Fracao "base" (referencia) usada pra calibrar as faixas abaixo — o valor
@@ -29,31 +28,33 @@ double _fracaoNaFaixa(double largura, double maxWidthFraction) {
   return base * (maxWidthFraction / _fracaoBaseCalibrada);
 }
 
-/// Limita a largura do conteudo a uma fracao da largura da janela quando ela
-/// e "larga" (web/desktop/tablet), pra evitar que os cards se estiquem ate
-/// a borda da tela. So se aplica na Web — no app nativo (Android/iOS) o
-/// conteudo sempre ocupa a largura inteira, sem essa restricao.
+/// Limita a largura do conteudo a uma fracao da largura da tela quando ela
+/// e "larga", pra evitar que os cards se estiquem ate a borda.
+///
+/// **Quem decide e a largura, nao a plataforma.** Ate 13/set havia um
+/// `if (!kIsWeb) return child` aqui, e o efeito era um app nativo em iPad
+/// esticando cada formulario de ponta a ponta — exatamente a cara de "app
+/// de celular espichado" que a Apple resumiu como funcionalidade limitada
+/// na reprovacao de 27/ago (guideline 4.2.2). Uma janela de navegador de
+/// 1180px e um iPad de 1180pt tem o mesmo problema de leitura; a origem do
+/// pixel nao muda nada.
+///
+/// Celular segue intocado: o `breakpoint` de 700 fica acima de qualquer
+/// telefone em retrato.
 class ResponsiveCenter extends StatelessWidget {
   final Widget child;
   final double maxWidthFraction;
   final double breakpoint;
-
-  /// So pra teste de widget conseguir simular "web" sem precisar rodar em
-  /// --platform chrome. Em producao fica sempre null (usa o kIsWeb real).
-  final bool? isWebOverride;
 
   const ResponsiveCenter({
     super.key,
     required this.child,
     this.maxWidthFraction = 0.5,
     this.breakpoint = 700,
-    this.isWebOverride,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (!(isWebOverride ?? kIsWeb)) return child;
-
     final largura = MediaQuery.of(context).size.width;
     if (largura <= breakpoint) return child;
 
@@ -65,29 +66,23 @@ class ResponsiveCenter extends StatelessWidget {
 
 /// Igual ao [ResponsiveCenter], mas so aplica um teto de largura (nao forca
 /// uma largura fixa). Pra usar dentro de layouts que ja tem seu proprio
-/// Center/padding (como Login/Cadastro) sem atropelar esse layout no celular.
-/// Tambem restrito a Web, pelo mesmo motivo.
+/// Center/padding (como Login/Cadastro) sem atropelar esse layout no
+/// celular. Vale em qualquer plataforma, pelo mesmo motivo do
+/// [ResponsiveCenter].
 class ResponsiveMaxWidth extends StatelessWidget {
   final Widget child;
   final double maxWidthFraction;
   final double breakpoint;
-
-  /// So pra teste de widget conseguir simular "web" sem precisar rodar em
-  /// --platform chrome. Em producao fica sempre null (usa o kIsWeb real).
-  final bool? isWebOverride;
 
   const ResponsiveMaxWidth({
     super.key,
     required this.child,
     this.maxWidthFraction = 0.5,
     this.breakpoint = 700,
-    this.isWebOverride,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (!(isWebOverride ?? kIsWeb)) return child;
-
     final largura = MediaQuery.of(context).size.width;
     if (largura <= breakpoint) return child;
 
