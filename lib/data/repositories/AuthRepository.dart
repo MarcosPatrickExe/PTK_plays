@@ -61,6 +61,66 @@ class AuthRepository {
     });
   }
 
+  /// Completa o perfil de quem entrou pelo Google/Apple e caiu no cadastro
+  /// em etapas.
+  ///
+  /// **Nao cria conta nenhuma** — e essa a diferenca pro [cadastrar], e o
+  /// motivo deste metodo existir. Ate 13/set o `CriarConta` chamava
+  /// `cadastrar` nos dois fluxos, e no social isso virava
+  /// `createUserWithEmailAndPassword('', '')`: a conta JA existia (o
+  /// provedor criou no login), e o cadastro social simplesmente nao tinha
+  /// como ser concluido. Quem entrasse pela Apple ficava presoted na ultima
+  /// etapa pra sempre.
+  ///
+  /// [emailInformado] so vem preenchido quando a pessoa escondeu o e-mail
+  /// real na Apple (ver `precisaPedirEmail` em CriarConta.dart). Nos demais
+  /// casos vale o e-mail que o provedor ja deu.
+  Future<void> completarCadastroSocial({
+    required String nickname,
+    required String telefoneWhatsapp,
+    required String avatarPreset,
+    String emailInformado = '',
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'user-not-found', message: 'Sessão expirada.');
+    }
+
+    final chave = nickname.trim().toLowerCase();
+    final mapeamentoExistente = await _firestore.collection('nicknamesParaEmail').doc(chave).get();
+    // A comparacao com o uid importa: sem ela, alguem que voltasse pra
+    // completar o cadastro com o MESMO nick que ja reservou seria barrado
+    // pelo proprio registro.
+    if (mapeamentoExistente.exists && mapeamentoExistente.data()?['uid'] != user.uid) {
+      throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+    }
+
+    final email = emailInformado.trim().isNotEmpty ? emailInformado.trim() : (user.email ?? '');
+
+    await user.updateDisplayName(nickname);
+
+    // merge, e nao set inteiro: o documento ja nasceu no login social
+    // (_sincronizarUsuarioNoFirestore) com cargo, badges e contadores, e as
+    // regras do Firestore recusam um update que mude qualquer um dos tres.
+    await _firestore.collection('users').doc(user.uid).set(
+      {
+        'nickname': nickname,
+        'email': email,
+        'telefoneWhatsapp': telefoneWhatsapp,
+        'avatarPreset': avatarPreset,
+        ...UserModel.touchUltimoAcesso(),
+      },
+      SetOptions(merge: true),
+    );
+
+    // Sem esta reserva, a pessoa nao conseguiria entrar pelo nickname
+    // depois — o login por nick resolve o e-mail justamente por aqui.
+    await _firestore.collection('nicknamesParaEmail').doc(chave).set({
+      'uid': user.uid,
+      'email': email,
+    });
+  }
+
   /// Atualiza nickname e/ou telefone de WhatsApp do usuario logado.
   /// Se o nickname mudou, remapeia nicknamesParaEmail (usado pelo login por
   /// nickname) pra continuar resolvendo pro email correto.
