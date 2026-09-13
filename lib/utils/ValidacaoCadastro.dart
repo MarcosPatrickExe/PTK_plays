@@ -16,6 +16,15 @@ const int minimoCaracteresNickname = 3;
 const int maximoCaracteresNickname = 20;
 const int minimoCaracteresSenha = 6;
 
+/// Quantas letras o nick precisa ter pro botao "Avancar" **aparecer**.
+///
+/// E menor que [minimoCaracteresNickname] de proposito. O botao surgindo na
+/// segunda letra e o sinal de que a tela esta reagindo ao que a pessoa
+/// digita; a terceira letra e o que de fato libera o avanco. Se os dois
+/// numeros fossem iguais, o botao apareceria ja clicavel e o movimento nao
+/// diria nada — apareceu, entao pode clicar, e nao "voce esta quase la".
+const int minimoParaMostrarAvancar = 2;
+
 String? validarNickname(String nickname) {
   final valor = nickname.trim();
   if (valor.isEmpty) return 'Escolha um nick pra gente te chamar.';
@@ -66,16 +75,28 @@ String? validarConfirmacaoSenha({required String senha, required String confirma
   return null;
 }
 
-/// Diferente de `validarTelefoneWhatsapp` (em AuthViewModel), que aceita o
-/// campo vazio porque no cadastro antigo o WhatsApp era opcional: aqui ele
-/// e obrigatorio.
-String? validarWhatsappObrigatorio(String telefoneComMascara) {
+/// WhatsApp e **opcional** desde 13/set: campo vazio passa.
+///
+/// Ele era obrigatorio, e isso era risco de reprovacao 5.1.1(ii) — a Apple
+/// recusa app que EXIGE dado pessoal nao essencial ao que o app faz, e ver
+/// feed, videos e avisos de live nao precisa de telefone. Exigir logo depois
+/// de a pessoa escolher "Hide My Email" piorava o quadro.
+///
+/// O que continua barrado e o numero **pela metade**: melhor nenhum numero
+/// do que um que nao chama.
+String? validarWhatsappOpcional(String telefoneComMascara) {
   final digitos = MascaraTelefoneWhatsapp.digitosDe(telefoneComMascara);
-  if (digitos.isEmpty) return 'Preencha seu número de WhatsApp.';
+  if (digitos.isEmpty) return null;
   if (digitos.length < MascaraTelefoneWhatsapp.digitosDeFixo) {
-    return 'Número incompleto. Preencha o DDD e o número.';
+    return 'Número incompleto. Preencha o DDD e o número, ou pule esta etapa.';
   }
   return null;
+}
+
+/// Se o WhatsApp foi preenchido por inteiro — e nao so comecado.
+bool whatsappCompleto(String telefoneComMascara) {
+  final digitos = MascaraTelefoneWhatsapp.digitosDe(telefoneComMascara);
+  return digitos.length >= MascaraTelefoneWhatsapp.digitosDeFixo;
 }
 
 /// A foto e obrigatoria, mas pode vir de dois lugares: um dos avatares
