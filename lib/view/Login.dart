@@ -151,7 +151,15 @@ class _LoginState extends State<Login> {
                   Center(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+                      // 0.3 em vez do 0.5 padrao: o cartao de login e o
+                      // conteudo mais estreito do app — dois campos e tres
+                      // botoes —, e o teto calibrado pro resto das telas
+                      // deixava ele esticado de ponta a ponta no iPad. Na
+                      // pratica isto vira ~418pt no iPad em retrato e ~460pt
+                      // em paisagem: perto da largura de um celular, que e a
+                      // proporcao em que um formulario de login se le bem.
                       child: ResponsiveMaxWidth(
+                        maxWidthFraction: 0.3,
                         child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
