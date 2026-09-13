@@ -201,12 +201,34 @@ navegador. Ele pede um `.zip` com o bundle **`.app`** dentro — **não um
 
 Gerar esse `.app` exige macOS com Xcode, que não existe neste sandbox. Quem
 faz isso é o workflow **`.github/workflows/ios-simulador.yml`**, num runner
-`macos-latest`:
+`macos-latest`. **Primeira execução em 12/set: sucesso**, 8min24s, artefato
+de 81 MB.
 
 1. No GitHub, aba **Actions** → **"iOS pro Appetize (simulador)"** → botão
    **Run workflow** → escolher a branch.
-2. Baixar o artefato **`PTKPlays-simulador.zip`** ao fim do build.
-3. No Appetize, **Upload App** → soltar esse `.zip`.
+2. Abrir a execução e rolar até o fim da página, seção **Artifacts**. O
+   artefato é `PTKPlays-simulador` (~81 MB, build de debug).
+3. **Descompactar uma vez** (ver a armadilha do zip duplo abaixo).
+4. No Appetize, **Upload App** → soltar o `.zip` **de dentro**.
+
+**Artefato não é release.** Ele não aparece na aba Releases nem em lugar
+nenhum fora da página da própria execução do workflow, e **expira em 14
+dias** (`retention-days: 14`). Passou disso, é só rodar de novo.
+
+**Armadilha do zip duplo**: o GitHub re-empacota todo artefato num zip
+próprio na hora do download, então o que chega no disco é
+
+```
+PTKPlays-simulador.zip      <- embalagem do GitHub
+└── PTKPlays-simulador.zip  <- o do workflow, e ESTE que vai pro Appetize
+    └── Runner.app
+```
+
+Subir o de fora faz o Appetize recusar, porque ele nao acha o `.app`.
+**Não dá pra evitar** subindo a pasta `Runner.app` direto como artefato: o
+`upload-artifact` não preserva symlinks (ele segue os links), e o bundle do
+Flutter tem symlinks dentro dos frameworks — que é justamente o motivo de o
+workflow compactar com `zip -y` antes. O zip duplo é o preço.
 
 **Armadilha do `workflow_dispatch`**: o botão "Run workflow" só aparece se o
 arquivo do workflow existir na **branch padrão** (`main`). Enquanto ele
