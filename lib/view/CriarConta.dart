@@ -74,6 +74,48 @@ List<EtapaCadastro> etapasDoCadastro({required bool contaSocial, bool pedirEmail
   ];
 }
 
+/// Se o botão "Avançar" deve **aparecer** nesta etapa.
+///
+/// Diferente de estar habilitado: o "Avançar" some enquanto a etapa não tem
+/// nem o mínimo preenchido, e surge quando tem. A ideia veio de UX — o olho
+/// nota mudança na tela antes de ler qualquer aviso, então o botão surgindo
+/// diz "é por aqui" melhor que um botão cinza parado, que a pessoa nem
+/// registra que mudou de estado.
+///
+/// Os limiares aqui são de **aparecer**, e são propositalmente mais frouxos
+/// que os de validar: no nick o botão surge na 2ª letra mas só libera na 3ª,
+/// e no e-mail basta um "@" pra ele aparecer. Quando aparece sem estar
+/// válido, ele aparece desabilitado — e aí o aviso embaixo do campo diz o
+/// que falta. As duas coisas juntas é que guiam; o botão sozinho não
+/// explicaria, e o aviso sozinho não chamaria atenção.
+bool avancarVisivel({
+  required EtapaCadastro etapa,
+  required String nickname,
+  required String email,
+  required String senha,
+  required bool temFoto,
+  required String whatsapp,
+}) {
+  switch (etapa) {
+    // Não tem o que preencher: o botão é a única saída da tela.
+    case EtapaCadastro.boasVindas:
+      return true;
+    case EtapaCadastro.nickname:
+      return nickname.trim().length >= minimoParaMostrarAvancar;
+    case EtapaCadastro.email:
+      return email.contains('@');
+    case EtapaCadastro.senha:
+      return senha.length >= minimoCaracteresSenha;
+    case EtapaCadastro.foto:
+      return temFoto;
+    // O WhatsApp é opcional: vazio significa "vou pular", e quem resolve
+    // isso é o botão Pular, não o Avançar. O Avançar só faz sentido com o
+    // número inteiro — pela metade ele não chamaria ninguém.
+    case EtapaCadastro.whatsapp:
+      return whatsappCompleto(whatsapp);
+  }
+}
+
 /// A arte do PTK que fica ao fundo de cada etapa. Etapas sem arte definida
 /// ainda caem no gradiente do app (ver [FundoPTK]).
 ///
@@ -193,15 +235,37 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.foto:
         return validarFotoEscolhida(avatarPreset: _avatarPreset, temFotoPropria: _fotoPropria != null);
       case EtapaCadastro.whatsapp:
-        return validarWhatsappObrigatorio(_whatsapp.text);
+        return validarWhatsappOpcional(_whatsapp.text);
     }
   }
 
   bool get _podeAvancar => _pendenciaDaEtapa(_etapaAtual) == null;
+
+  bool get _avancarVisivel => avancarVisivel(
+        etapa: _etapaAtual,
+        nickname: _nickname.text,
+        email: _email.text,
+        senha: _senha.text,
+        temFoto: _avatarPreset != null || _fotoPropria != null,
+        whatsapp: _whatsapp.text,
+      );
+
+  /// "Pular" só existe na etapa do WhatsApp, a única opcional. Ele aparece
+  /// mesmo com o número já digitado: quem se arrependeu de informar precisa
+  /// de uma saída que não seja apagar o campo dígito por dígito.
+  bool get _podePular => _etapaAtual == EtapaCadastro.whatsapp;
+
+  /// Conclui sem o número. Limpa o campo antes porque ele pode estar
+  /// preenchido pela metade — e meio número salvo seria pior que nenhum.
+  void _pular() {
+    if (_criando) return;
+    _whatsapp.text = MascaraTelefoneWhatsapp.mascaraVazia;
+    _avancar(ignorarPendencia: true);
+  }
   bool get _ehUltimaEtapa => _indice == _etapas.length - 1;
 
-  void _avancar() {
-    if (!_podeAvancar) return;
+  void _avancar({bool ignorarPendencia = false}) {
+    if (!ignorarPendencia && !_podeAvancar) return;
     if (_ehUltimaEtapa) {
       _criarConta();
       return;
@@ -635,7 +699,7 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.senha:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Agora crie\numa senha',
+          titulo: 'Agora crie uma senha',
           subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Guarde bem — ela é sua chave de entrada.',
           subtituloCurto: 'Pelo menos $minimoCaracteresSenha caracteres.',
           campos: [
@@ -685,7 +749,7 @@ class _CriarContaState extends State<CriarConta> {
               icone: Icons.phone_outlined,
               tipoDeTeclado: TextInputType.phone,
               formatadores: [MascaraTelefoneWhatsapp()],
-              validador: validarWhatsappObrigatorio,
+              validador: validarWhatsappOpcional,
               onMudou: () => setState(() {}),
             ),
           ],
@@ -695,24 +759,70 @@ class _CriarContaState extends State<CriarConta> {
 
   Widget _barraDeBotoes() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      // 16 de folga lateral, e não 24: na última etapa a barra carrega três
+      // controles ("Voltar", "Pular" e "Criar conta", que é o rótulo mais
+      // largo do fluxo) e estourava por 42px num aparelho de 420 de largura
+      // — faixa de celular comum, não caso extremo.
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       child: Row(
         children: [
-          TextButton.icon(
-            onPressed: _criando ? null : _voltar,
-            icon: const Icon(Icons.arrow_back, size: 18),
-            label: Text(
-              _indice == 0 ? 'Sair' : 'Voltar',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+          // Flexible + ellipsis: o "Voltar" é quem cede espaço quando os
+          // três não cabem. Ele é o controle menos importante da barra, e
+          // ainda sobra a seta pra dizer o que ele faz.
+          Flexible(
+            child: TextButton.icon(
+              onPressed: _criando ? null : _voltar,
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: Text(
+                _indice == 0 ? 'Sair' : 'Voltar',
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(foregroundColor: corDeApoioDoCadastro),
             ),
-            style: TextButton.styleFrom(foregroundColor: corDeApoioDoCadastro),
           ),
           const Spacer(),
-          _BotaoAvancar(
-            label: _ehUltimaEtapa ? 'Criar conta' : 'Avançar',
-            habilitado: _podeAvancar,
-            carregando: _criando,
-            onTap: _avancar,
+          // "Pular" fica colado no Avançar de propósito: é ali que o polegar
+          // já está, e é ali que a pessoa procura a saída da etapa. Discreto
+          // (texto, sem fundo, cor de apoio) pra não competir com a ação
+          // principal — quem quer informar o número deve ver o Avançar
+          // primeiro.
+          if (_podePular)
+            TextButton(
+              onPressed: _criando ? null : _pular,
+              style: TextButton.styleFrom(
+                foregroundColor: corDeApoioDoCadastro,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: const Size(0, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Pular',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+          if (_podePular) const SizedBox(width: 4),
+          // O botão aparece e some conforme a etapa passa a ter o mínimo
+          // preenchido. A escala junto com o fade é o que faz o olho
+          // registrar — só opacidade passa despercebido no canto da tela.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (filho, animacao) => FadeTransition(
+              opacity: animacao,
+              child: ScaleTransition(scale: Tween(begin: .8, end: 1.0).animate(animacao), child: filho),
+            ),
+            child: _avancarVisivel
+                ? _BotaoAvancar(
+                    key: const ValueKey('avancar'),
+                    label: _ehUltimaEtapa ? 'Criar conta' : 'Avançar',
+                    habilitado: _podeAvancar,
+                    carregando: _criando,
+                    onTap: _avancar,
+                  )
+                // SizedBox vazio, e não `null`: sem um filho com tamanho o
+                // AnimatedSwitcher colapsa a Row e o "Pular" pula de lugar
+                // no meio da animação.
+                : const SizedBox(key: ValueKey('sem-avancar'), height: 52),
           ),
         ],
       ),
@@ -1255,6 +1365,7 @@ class _BotaoAvancar extends StatelessWidget {
   final VoidCallback onTap;
 
   const _BotaoAvancar({
+    super.key,
     required this.label,
     required this.habilitado,
     required this.carregando,
