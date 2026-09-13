@@ -60,6 +60,17 @@ class FakeAuthViewModel implements AuthViewModel {
   String? get nomeDoProvedor => _usuarioFake.nickname;
 
   @override
+  String? get emailDoProvedor => _usuarioFake.email;
+
+  @override
+  Future<String?> completarCadastroSocial({
+    required String nickname,
+    required String telefoneWhatsapp,
+    required String avatarPreset,
+    String emailInformado = '',
+  }) async => null;
+
+  @override
   Stream<UserModel?> streamUsuarioAtual() => Stream.value(_usuarioFake);
 
   @override
