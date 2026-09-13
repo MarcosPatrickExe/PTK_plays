@@ -18,7 +18,6 @@ void main() {
         tester,
         const Size(400, 800),
         ResponsiveCenter(
-          isWebOverride: true,
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
       );
@@ -30,7 +29,6 @@ void main() {
         tester,
         const Size(1400, 900),
         ResponsiveCenter(
-          isWebOverride: true,
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
       );
@@ -43,7 +41,6 @@ void main() {
         tester,
         const Size(1000, 900),
         ResponsiveCenter(
-          isWebOverride: true,
           maxWidthFraction: 0.4,
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
@@ -57,7 +54,6 @@ void main() {
         tester,
         const Size(3840, 2160),
         ResponsiveCenter(
-          isWebOverride: true,
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
       );
@@ -66,16 +62,18 @@ void main() {
       expect(tamanho.width, 1152); // 3840 * 0.3
     });
 
-    testWidgets('NAO restringe fora da web, mesmo em tela larga (Android/iOS)', (tester) async {
+    testWidgets('restringe tambem fora da web em tela larga (iPad/tablet)', (tester) async {
       final tamanho = await tamanhoDoFilho(
         tester,
         const Size(1400, 900),
         ResponsiveCenter(
-          isWebOverride: false,
           child: Container(key: const Key('filho'), color: Colors.red, width: double.infinity, height: 10),
         ),
       );
-      expect(tamanho.width, 1400); // sem restricao nenhuma fora da web
+      // Ate 13/set isto media 1400 (sem restricao nenhuma fora da web), e
+      // era o motivo de cada tela do app esticar de ponta a ponta no iPad.
+      // Quem decide agora e a largura, nao a plataforma.
+      expect(tamanho.width, 910); // 1400 * 0.65, igual ao navegador
     });
   });
 
@@ -86,7 +84,6 @@ void main() {
         const Size(400, 800),
         Center(
           child: ResponsiveMaxWidth(
-            isWebOverride: true,
             child: Container(key: const Key('filho'), color: Colors.red, width: 350, height: 10),
           ),
         ),
@@ -100,7 +97,6 @@ void main() {
         const Size(1400, 900),
         Center(
           child: ResponsiveMaxWidth(
-            isWebOverride: true,
             child: Container(key: const Key('filho'), color: Colors.red, width: 2000, height: 10),
           ),
         ),
@@ -108,18 +104,69 @@ void main() {
       expect(tamanho.width, 910); // 1400 * 0.65, mesmo o filho pedindo 2000
     });
 
-    testWidgets('NAO aplica teto fora da web, mesmo em tela larga (Android/iOS)', (tester) async {
+    testWidgets('aplica teto tambem fora da web em tela larga (iPad/tablet)', (tester) async {
       final tamanho = await tamanhoDoFilho(
         tester,
         const Size(1400, 900),
         Center(
           child: ResponsiveMaxWidth(
-            isWebOverride: false,
             child: Container(key: const Key('filho'), color: Colors.red, width: 2000, height: 10),
           ),
         ),
       );
-      expect(tamanho.width, 1400); // clampado apenas pelo tamanho real da tela, nao pelo teto de 50%
+      expect(tamanho.width, 910); // 1400 * 0.65 — o teto passou a valer no nativo tambem
+    });
+  });
+
+  // O aparelho das duas reprovacoes da Apple. As medidas sao as reais:
+  // 1180x820 pontos. O print de 12/set mostrava o cartao de login esticado
+  // de ponta a ponta em retrato — que e o que estes testes travam.
+  group('cartão de login no iPad Air 11"', () {
+    // Mesma conta que o Login.dart faz: _fracaoNaFaixa(largura, 0.3).
+    Future<double> larguraDoCartao(WidgetTester tester, Size tela) async {
+      final tamanho = await tamanhoDoFilho(
+        tester,
+        tela,
+        Center(
+          child: ResponsiveMaxWidth(
+            maxWidthFraction: 0.3,
+            child: Container(
+              key: const Key('filho'),
+              color: Colors.red,
+              width: double.infinity,
+              height: 10,
+            ),
+          ),
+        ),
+      );
+      return tamanho.width;
+    }
+
+    testWidgets('em retrato (820) não ocupa mais que metade da tela', (tester) async {
+      final largura = await larguraDoCartao(tester, const Size(820, 1180));
+
+      // Faixa <=1000 usa base 0.85; 0.85 * (0.3/0.5) = 0.51.
+      expect(largura, closeTo(820 * 0.51, 1));
+      // O que o print mostrava: 0.85 da tela, quase encostando nas bordas.
+      expect(largura, lessThan(820 * 0.6));
+    });
+
+    testWidgets('em paisagem (1180) encolhe mais ainda, em proporção', (tester) async {
+      final largura = await larguraDoCartao(tester, const Size(1180, 820));
+
+      // Faixa <=1400 usa base 0.65; 0.65 * 0.6 = 0.39.
+      expect(largura, closeTo(1180 * 0.39, 1));
+      // A regra que importa: quanto mais larga a tela, MENOR a fracao — em
+      // pontos absolutos os dois ficam parecidos (~418 e ~460), que e o que
+      // faz o cartao nao mudar de cara ao girar o aparelho.
+      expect(largura, closeTo(460, 40));
+    });
+
+    testWidgets('celular não é afetado por nada disso', (tester) async {
+      // O breakpoint de 700 existe pra isto: nenhum telefone em retrato
+      // chega la, entao o layout de celular fica exatamente como estava.
+      final largura = await larguraDoCartao(tester, const Size(390, 844));
+      expect(largura, 390);
     });
   });
 }
