@@ -86,6 +86,46 @@ investigação começa do zero.
   `setState` que desliga o loading nunca roda e o botão fica preso em
   "carregando" pra sempre. Capturar tudo e decidir o tipo por dentro.
 
+## Regra permanente: a interface reage enquanto a pessoa digita
+
+Definida em 13/set/2026, a partir de UX: **o olho humano registra mudança na
+tela antes de ler qualquer texto.** Um botão cinza parado não comunica que
+falta algo — a pessoa nem percebe que ele mudou de estado. Um botão que
+**surge** diz "é por aqui" sem precisar de palavra nenhuma.
+
+**A regra**: em qualquer tela com formulário, o botão de ação principal
+**aparece e some** conforme a etapa passa a ter o mínimo preenchido, em vez
+de ficar sempre visível e desabilitado. Vale pra toda tela — não só o
+cadastro.
+
+**O limiar de aparecer é mais frouxo que o de validar, de propósito.** No
+cadastro: o nick mostra o botão na 2ª letra mas só libera na 3ª; o e-mail
+basta ter `@`. Quando o botão aparece sem estar válido, ele aparece
+**desabilitado**, e o aviso embaixo do campo diz o que falta. **É a folga
+entre os dois limiares que faz o mecanismo funcionar** — o botão chama
+atenção, o aviso explica. Se os limiares fossem iguais, o surgimento
+significaria só "pode clicar", e não "você está quase lá".
+
+Onde isso vive: `avancarVisivel` (`lib/view/CriarConta.dart`) e
+`minimoParaMostrarAvancar` (`lib/utils/ValidacaoCadastro.dart`).
+
+**Senha: nada de exigir maiúscula, número ou símbolo.** Mínimo de 6
+caracteres e ponto final — a força fica com o usuário. Decisão explícita:
+exigência complicada cansa e custa cadastro, e a comunidade vale mais que a
+entropia da senha.
+
+**Dado pessoal não essencial é opcional.** O WhatsApp era obrigatório e
+virou opcional em 13/set, com um botão **"Pular"** discreto ao lado do
+avançar. Dois motivos: a Apple recusa app que **exige** dado pessoal não
+essencial ao que ele faz (guideline 5.1.1(ii)), e um revisor não vai querer
+informar telefone. O que continua barrado é o dado **pela metade** — um
+número quebrado parece contato e não é.
+
+**Armadilha de teste**: `AnimatedSwitcher` só remove o filho que sai no
+frame **seguinte** ao fim da animação. Um `pump(duração)` sozinho ainda
+encontra o widget antigo, e o teste falha por timing, não por
+comportamento. Usar `pump()` antes, depois `pump(duração)`.
+
 ## Regra permanente: um commit por arquivo alterado
 
 Pedido explícito do usuário: **cada arquivo que eu mexer vira um commit
