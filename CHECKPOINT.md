@@ -117,10 +117,10 @@ pendente.
      que o iPad do revisor está sem conta Apple.
 
    *O que falta, e depende de você — nada disso é checável neste ambiente*:
-   1. **Conferir no Firebase Console se o provedor Apple está habilitado**
-      (Authentication → Sign-in method). É a checagem mais barata de todas
-      e segue **"Não confirmado"** desde 30/jul. Se estiver desligado, o
-      app agora mostra `(código: auth/operation-not-allowed)`.
+   1. ~~Conferir no Firebase Console se o provedor Apple está
+      habilitado.~~ **CONFIRMADO EM 13/set: ele estava DESLIGADO.** Era a
+      hipótese 1, a mais barata da lista, e era a certa. Ver "A causa da
+      reprovação" logo abaixo desta lista.
    2. **Reproduzir num iPad**, não num iPhone — toda tentativa até hoje foi
       em iPhone ou emulador, e as duas reprovações vieram de iPad. Anotar o
       código que aparecer: ele diz qual das hipóteses do `ROADMAP.md` é a
@@ -141,6 +141,34 @@ pendente.
    *Conferir também*: a Apple chama o binário de **"1.2.0 (17)"**, mas o
    `pubspec.yaml` diz `1.2.1+17`. Olhar a página do build no App Store
    Connect antes de concluir o que foi revisado.
+5. **Conta só-social não consegue se excluir — risco de reprovação 5.1.1(v).**
+
+   *O que é*: `AuthRepository.excluirConta` (linha 290) reautentica com
+   `EmailAuthProvider.credential(email: ..., password: senha)`. Quem entrou
+   pelo Google ou pela Apple **não tem senha** — a reautenticação sempre
+   falha. E o botão "Excluir conta" no `Profile.dart` **não é escondido**
+   pra essas contas (nada ali checa `temSenhaEmail`, ao contrário da seção
+   de trocar senha em `EditarPerfil.dart`, que checa).
+
+   *Por que é urgente*: a Apple **exige** (guideline 5.1.1(v)) que todo app
+   que cria conta permita apagá-la de dentro do app. Um revisor que entre
+   com Sign in with Apple e tente excluir a conta bate num beco sem saída.
+   Isso é uma reprovação nova, independente das duas atuais — e ela **não
+   foi levantada ainda** porque os revisores nunca conseguiram passar do
+   login (ver atenção 4).
+
+   *O que falta*: reautenticar pelo provedor social (`reauthenticateWith
+   Credential` com credencial do Google/Apple) em vez de por senha, e
+   esconder o campo de senha nesse caso. Pra contas Apple, a Apple também
+   pede **revogação do token** ao excluir — o que no Firebase é
+   `revokeTokenWithAuthorizationCode`, e exige a seção "Configuração do
+   fluxo de código OAuth" (Team ID, Key ID e chave .p8) preenchida no
+   provedor Apple do Firebase Console. Hoje ela está vazia.
+
+   *Descoberto em 13/set*, investigando o que era o campo "Services ID" do
+   provedor Apple. **Não confirmado**: se algum revisor chegou a tentar
+   excluir conta — provavelmente não, já que o login falhava antes.
+
 5. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
