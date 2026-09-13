@@ -84,6 +84,33 @@ class AuthViewModel {
     }
   }
 
+  /// E-mail que o provedor social entregou. Pode ser um endereco
+  /// `@privaterelay.appleid.com` quando a pessoa escolheu "Hide My Email" na
+  /// folha da Apple — quem decide o que fazer com isso e `precisaPedirEmail`
+  /// em CriarConta.dart.
+  String? get emailDoProvedor => _repository.usuarioAtual?.email;
+
+  /// Ver [AuthRepository.completarCadastroSocial]. Retorna null em caso de
+  /// sucesso, ou a mensagem de erro ja com o codigo da causa.
+  Future<String?> completarCadastroSocial({
+    required String nickname,
+    required String telefoneWhatsapp,
+    required String avatarPreset,
+    String emailInformado = '',
+  }) async {
+    try {
+      await _repository.completarCadastroSocial(
+        nickname: nickname,
+        telefoneWhatsapp: telefoneWhatsapp,
+        avatarPreset: avatarPreset,
+        emailInformado: emailInformado,
+      );
+      return null;
+    } catch (e, stack) {
+      return _falha(e, stack);
+    }
+  }
+
   /// Atualiza nickname e telefone de WhatsApp do usuario logado.
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
   ///
