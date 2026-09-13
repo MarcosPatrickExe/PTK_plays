@@ -188,7 +188,31 @@ pendente.
    provedor Apple. **Não confirmado**: se algum revisor chegou a tentar
    excluir conta — provavelmente não, já que o login falhava antes.
 
-7. **Google Play — aviso de nível de API.** O código está certo
+7. **WhatsApp obrigatório no cadastro é risco de reprovação 5.1.1(ii).**
+
+   *O que é*: a etapa de WhatsApp usa `validarWhatsappObrigatorio`
+   (`lib/utils/ValidacaoCadastro.dart:72`) — sem número, o "Avançar" não
+   libera e a conta não se cria.
+
+   *Por que é risco*: a Apple recusa apps que **exigem** dado pessoal não
+   essencial à funcionalidade central (guideline 5.1.1(ii)). O núcleo do PTK
+   Plays é ver feed, vídeos e avisos de live — nada disso precisa de
+   telefone. E há um agravante de contexto: exigir telefone logo depois de a
+   pessoa escolher "Hide My Email" é o oposto exato do que o Sign in with
+   Apple existe pra permitir. Um revisor que passe por esse fluxo tende a
+   reparar.
+
+   *Ainda não aconteceu* porque nenhum revisor passou do login (ver atenção
+   4) — não é sinal de que está seguro.
+
+   *Recomendação, não decidida ainda*: tornar o campo opcional e resolver o
+   aviso de live por **push** (Etapa 6 das pendências), que é gratuito,
+   instantâneo, não pede dado pessoal nenhum e a Apple não questiona. O
+   e-mail cobre o resto: desde 13/set ele é sempre capturado, inclusive no
+   "Hide My Email", e **o relay da Apple encaminha de verdade** — quem usa
+   relay continua alcançável por e-mail.
+
+8. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
