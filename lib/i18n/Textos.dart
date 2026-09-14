@@ -344,4 +344,10 @@ abstract class Textos {
   String dataDiaMesAno(String dia, String mes, String ano);
   String dataDiaMesHora(String dia, String mes, String hora, String minuto);
   String dataDiaMesAnoHora(String dia, String mes, String ano, String hora, String minuto);
+
+  // ----- Resumo de midia do WhatsApp -----
+  String get whatsappImagem;
+  String get whatsappDocumento;
+  String get whatsappFigurinha;
+  String get whatsappContato;
 }
