@@ -132,10 +132,18 @@ Definida em 14/set/2026. O app fala **português do Brasil e inglês dos
 EUA**, e escolhe sozinho pela preferência do aparelho (`IdiomaApp.detectar`,
 chamado no `main()`).
 
-**A regra**: nenhuma frase que chega na tela nasce como literal no código.
-Toda tela nova e toda feature nova entra com o texto no catálogo —
-`lib/i18n/Textos.dart` (o contrato), `TextosPtBr.dart` e `TextosEnUs.dart`
-(as duas línguas). No código, sempre `textos.algumaCoisa`.
+**A regra**, nas palavras do usuário (14/set): *"tudo que envolver texto no
+app deve ser tratado como variável, pois um texto em inglês ou português
+poderá substituir essa variável"*. Nenhuma frase que chega na tela nasce
+como literal no código. Toda tela nova e toda feature nova entra com o
+texto no catálogo — `lib/i18n/Textos.dart` (o contrato), `TextosPtBr.dart`
+e `TextosEnUs.dart` (as duas línguas). No código, sempre
+`textos.algumaCoisa`.
+
+**Isso vale inclusive pro texto que a pessoa lê quando o app a está
+recusando** — o aviso de conta banida, a mensagem de erro de login, o que
+aparece antes de qualquer sessão existir. É justamente onde é mais fácil
+esquecer, e é onde uma frase na língua errada machuca mais.
 
 **Por que uma classe abstrata e não um mapa de String pra String.** Com
 mapa, a chave que falta numa língua só aparece quando alguém abre aquela
@@ -192,6 +200,53 @@ catálogo. Sem ele, a tela nova entra em português, ninguém repara, e o app
 volta a ser meio bilíngue. A lista de exceções ali é nominal e cada linha
 tem o motivo escrito ao lado — **acrescentar arquivo naquela lista precisa
 de justificativa**, não é o jeito normal de fazer o teste passar.
+
+## Regra permanente: quem é banido é expulso, mas o login dele NÃO some
+
+Definida em 14/set/2026, corrigindo uma leitura errada minha.
+
+**O login de uma conta banida não pode ser apagado.** É ele que carrega o
+`uid` que aponta pro `users/{uid}` com o `estadoModeracao` — apagar o login
+apagaria a memória do banimento, e a pessoa criaria outra conta com o mesmo
+e-mail e entraria limpa. **O banimento mora na conta que continua
+existindo.**
+
+**E quem é banido jamais fica dentro do app como se estivesse logado.** Até
+14/set o `ContaGate` desenhava uma tela de bloqueio **por cima** do app,
+com a sessão ainda válida por baixo. Comprava uma coisa boa — uma suspensão
+vencendo com o app aberto devolvia a pessoa exatamente onde estava — e
+pagava caro: bastava a cortina falhar em qualquer caminho pra pessoa estar
+usando o app de novo.
+
+**O fluxo correto, em três tempos:**
+
+1. **Expulsar.** Bloqueio detectado com o app aberto → `logout()` →
+   `pushAndRemoveUntil` pro `Login`, levando o `BloqueioDaConta` junto.
+2. **Barrar na porta.** Toda entrada — senha, Google e Apple — lê
+   `users/{uid}` logo depois de autenticar e, se estiver bloqueada,
+   **desloga antes de devolver**. A ordem importa: a regra do Firestore só
+   libera ler `users/{uid}` pra quem está logado, então a leitura acontece
+   com a sessão ainda de pé. O caminho social é a porta dos fundos mais
+   óbvia do banimento — nunca deixá-lo de fora.
+3. **Explicar.** `mostrarModalContaBloqueada` na tela de login, dizendo que
+   a conta violou as regras de uso, o motivo que o admin escreveu (se
+   escreveu) e, na suspensão, até quando. **Nas duas línguas**, como todo o
+   resto.
+
+**Não é `mostrarErroCustom`**, e a distinção importa: não houve erro
+nenhum. A senha estava certa, a conta existe, e a entrada foi **recusada**.
+Chamar isso de "Ops!" faria parecer falha do app e convidaria a pessoa a
+tentar de novo.
+
+**Suspensão vencida libera sozinha**, sem o admin clicar em "Reativar
+conta" — quem decide é o prazo (`UserModel.estaBloqueado`), não o selo que
+o Painel ADM mostra. Se dependesse do clique, toda suspensão viraria
+banimento na prática quando o admin esquecesse de voltar nela.
+
+Onde isso vive: `bloqueioDe` e `BloqueioDaConta`
+(`lib/data/models/BloqueioDaConta.dart`), `ContaGate`
+(`lib/components/ContaGate.dart`) e `mostrarModalContaBloqueada`
+(`lib/view/ContaBloqueada.dart`).
 
 ## Regra permanente: um commit por arquivo alterado
 
