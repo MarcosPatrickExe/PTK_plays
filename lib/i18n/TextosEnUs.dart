@@ -625,4 +625,14 @@ class TextosEnUs extends Textos {
   String dataDiaMesHora(String dia, String mes, String hora, String minuto) => '$mes/$dia at $hora:$minuto';
   @override
   String dataDiaMesAnoHora(String dia, String mes, String ano, String hora, String minuto) => '$mes/$dia/$ano at $hora:$minuto';
+
+  // ----- Resumo de midia do WhatsApp -----
+  @override
+  String get whatsappImagem => '[image]';
+  @override
+  String get whatsappDocumento => '[document]';
+  @override
+  String get whatsappFigurinha => '[sticker]';
+  @override
+  String get whatsappContato => '[contact]';
 }
