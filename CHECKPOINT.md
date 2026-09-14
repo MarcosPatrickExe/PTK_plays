@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **14/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **14/set/2026** (segunda atualização do dia), escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -22,62 +22,55 @@ Só entra aqui o que **bloqueia trabalho** ou o que faria a próxima sessão
 quebrar algo por não saber. Cada item diz o que fazer, não só o que está
 pendente.
 
-1. **Seis decisões estão paradas esperando resposta do usuário.**
+1. **As regras novas do Firestore e do Storage PRECISAM ser publicadas —
+   sem elas, apagar a conta falha na metade.**
 
-   *O que é*: a sessão de 13/set terminou com perguntas feitas e não
-   respondidas. Elas foram registradas aqui porque o `/clear` apaga a
-   conversa, mas não apaga o fato de que o trabalho está bloqueado nelas.
+   *O que é*: a exclusão de conta passou a apagar tudo que está preso ao
+   uid (14/set, ver "Exclusão de conta" mais abaixo). Três dessas remoções
+   dependem de regras que **só existem no repositório**, ainda não no
+   Firebase:
+   - `nicknamesParaEmail`: o dono passou a poder apagar a própria reserva
+     (antes, só admin);
+   - `posts`: o dono passou a poder tirar o próprio uid de `votantes` e
+     `votosPorUsuario` em enquetes **dos outros**;
+   - `storage.rules`: `delete` ganhou regra própria em `fotos_perfil/` e
+     `posts_midia/` — a de `write` não cobria, porque numa exclusão o
+     `request.resource` é nulo e a condição de tamanho estourava.
 
-   *Por que é atenção*: **não decidir nada disso sozinho.** Cada item
-   abaixo tem uma recomendação minha registrada — recomendação não é
-   decisão tomada.
+   *Por que é atenção*: sem publicar, a exclusão **falha no meio**. O
+   desenho é que falhar deixe a conta **existindo** (e não meio apagada),
+   então dá pra tentar de novo — mas de fora parece um bug, e ninguém vai
+   ligar o erro à falta do deploy se isto não estiver escrito.
 
-   1. **Campo "confirmar senha": remover?** O usuário perguntou que motivo
-      plausível ele tem pra existir. **Minha resposta foi: não tem um bom.**
-      O argumento clássico é erro de digitação em campo mascarado, mas o
-      campo de senha do app **já tem o olhinho de mostrar/ocultar**, que
-      resolve melhor e cobra um campo a menos. **Recomendei remover.** O
-      "confirmar e-mail" é caso diferente e recomendei **manter**: e-mail
-      errado deixa a conta irrecuperável, e ninguém relê o que digitou.
-   2. **Ordem entre push e i18n.** Recomendei **push primeiro** — mais
-      valor imediato, e é ele que destrava o aviso de live que motivou toda
-      a discussão do WhatsApp.
-   3. **Chave APNs.** É o **único bloqueio real** do push: sem a chave gerada
-      no Apple Developer Portal e carregada no Firebase Console,
-      notificação no iOS não sai de jeito nenhum. Essa parte **só o usuário
-      pode fazer**. O resto (dependência, token no perfil, Cloud Function
-      disparada pelos webhooks de live que já existem) é comigo.
-   4. **Exclusão de conta para login social** (a "Etapa 2" que propus em
-      13/set e ficou sem resposta). Ver atenção 8 — é risco de reprovação
-      5.1.1(v).
-   5. **Tornar o WhatsApp opcional no código foi feito**; falta decidir se o
-      texto da etapa muda pra explicar por que o número é pedido. Sem isso,
-      a taxa de preenchimento tende a cair junto com a obrigatoriedade.
-   6. **i18n: qual o corte da primeira leva?** Recomendei começar por
-      login + cadastro, que é o que um revisor vê primeiro, e deixar o
-      resto pra segunda leva.
+   *O que fazer*, no Cloud Shell:
+   ```
+   firebase deploy --only firestore:rules
+   firebase deploy --only storage
+   ```
+   Atenção: `--only storage:rules` **não funciona** (o CLI lê "rules" como
+   nome de target).
 
-2. **A arte nova do PTK chegou e ainda não foi preparada.**
+2. **Conta banida não consegue apagar a própria conta.**
 
-   *O que é*: em 13/set o usuário subiu `assets/ptk/selfie do PTK.png`
-   (1,5 MB) pela interface web do GitHub — commit `9378987`, direto na
-   `main`. É a substituição pedida pra arte da **etapa da foto**
-   (`ptk_foto.webp`).
+   *O que é*: quem está banido ou suspenso cai no `ContaBloqueadaView`, que
+   cobre o app inteiro e oferece **só o botão "Sair"**. O botão de excluir
+   conta mora no `Profile`, que essa pessoa não alcança mais.
 
-   *Por que é atenção*: o arquivo está **cru**. Do jeito que está, ele não
-   pode ser usado: tem fundo, é PNG de 1,5 MB (as outras artes têm 62–80 KB)
-   e o nome tem espaços. Trocar `assetDaEtapa` pra apontar pra ele agora
-   deixaria a tela pior do que está.
+   *Por que é atenção*: a Apple exige (5.1.1(v)) que quem criou conta
+   consiga apagá-la de dentro do app, e **não abre exceção pra conta
+   moderada**. O usuário pediu em 14/set que "todas as contas criadas
+   dentro do app" possam ser apagadas pelo próprio dono — esta é a única
+   que ficou de fora.
 
-   *O preparo que falta*, na ordem — está documentado em "Artes do
-   cadastro" mais abaixo, com as três armadilhas do recorte:
-   1. Recortar o fundo com o script em **PIL puro** (não há numpy aqui).
-   2. Recortar pela silhueta (`getbbox()` no canal alfa).
-   3. Colar no **quadro comum às cinco** (755×1159), ancorado embaixo e
-      **sem reescalar** — é isso que impede o PTK de mudar de tamanho entre
-      as etapas.
-   4. Salvar como WebP, renomear sem espaços, apontar `assetDaEtapa`
-      (`lib/view/CriarConta.dart`) e **apagar o PNG cru**.
+   *Por que não foi feito junto*: exige passar um callback de exclusão pelo
+   `ContaGate` até o `ContaBloqueadaView` e extrair o diálogo de exclusão
+   do `Profile` pra um lugar compartilhado. É mudança de encanamento, não
+   de texto, e **não foi pedida** — está aqui como achado, pra decidir.
+
+   *O lado bom*: as regras do Firestore **já permitem**. Nem a exclusão de
+   post nem a saída de enquete checam `contaBloqueada()`, de propósito —
+   uma conta banida continua conseguindo apagar o próprio rastro. Falta só
+   o caminho na tela.
 
 3. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
    verdade.**
@@ -217,33 +210,44 @@ pendente.
    Firebase real. O que dá pra fazer aqui é teste de widget do fluxo de
    etapas, que existe.
 
-8. **Conta só-social não consegue se excluir — risco de reprovação 5.1.1(v).**
+8. **Exclusão de conta por login social — CORRIGIDO em 14/set, falta
+   validar num aparelho.**
 
-   *O que é*: `AuthRepository.excluirConta` (linha 290) reautentica com
-   `EmailAuthProvider.credential(email: ..., password: senha)`. Quem entrou
-   pelo Google ou pela Apple **não tem senha** — a reautenticação sempre
-   falha. E o botão "Excluir conta" no `Profile.dart` **não é escondido**
-   pra essas contas (nada ali checa `temSenhaEmail`, ao contrário da seção
-   de trocar senha em `EditarPerfil.dart`, que checa).
+   *O que era*: `AuthRepository.excluirConta` reautenticava sempre com
+   `EmailAuthProvider.credential(email: user.email!, password: senha)`.
+   Quem entrou pelo Google ou pela Apple **não tem senha** e podia nem ter
+   e-mail — a reautenticação sempre falhava, e o diálogo ainda por cima
+   exigia preencher um campo de senha que não existia em lugar nenhum. Beco
+   sem saída, e reprovação na 5.1.1(v).
 
-   *Por que é urgente*: a Apple **exige** (guideline 5.1.1(v)) que todo app
-   que cria conta permita apagá-la de dentro do app. Um revisor que entre
-   com Sign in with Apple e tente excluir a conta bate num beco sem saída.
-   Isso é uma reprovação nova, independente das duas atuais — e ela **não
-   foi levantada ainda** porque os revisores nunca conseguiram passar do
-   login (ver atenção 6).
+   *O que foi feito*: a forma de reautenticar passou a sair de
+   `providerData` (`formaParaProvedores`), e o diálogo esconde o campo de
+   senha pra conta social. A cascata de exclusão também cresceu: antes
+   apagava só `users/{uid}`, agora apaga posts, reserva de nickname, os
+   arquivos no Storage e o uid nas enquetes votadas.
 
-   *O que falta*: reautenticar pelo provedor social (`reauthenticateWith
-   Credential` com credencial do Google/Apple) em vez de por senha, e
-   esconder o campo de senha nesse caso. Pra contas Apple, a Apple também
-   pede **revogação do token** ao excluir — o que no Firebase é
-   `revokeTokenWithAuthorizationCode`, e exige a seção "Configuração do
-   fluxo de código OAuth" (Team ID, Key ID e chave .p8) preenchida no
-   provedor Apple do Firebase Console. Hoje ela está vazia.
+   *O que falta, e só dá pra ver num aparelho* — o roteiro de 6 passos está
+   escrito no fim de `test/exclusao_de_conta_test.dart`. Em resumo: apagar
+   uma conta descartável de cada tipo (senha, Google, Apple) e conferir que
+   o nick volta a ficar livre, que os posts somem, e que numa enquete
+   votada o total continua igual e o uid sumiu.
 
-   *Descoberto em 13/set*, investigando o que era o campo "Services ID" do
-   provedor Apple. **Não confirmado**: se algum revisor chegou a tentar
-   excluir conta — provavelmente não, já que o login falhava antes.
+   *A parte da Apple que continua pendente*: eles exigem (desde jun/2022)
+   revogar o token ao apagar a conta. O código chama
+   `revokeTokenWithAuthorizationCode`, mas isso depende da seção
+   **"Configuração do fluxo de código OAuth"** (Team ID, Key ID e chave
+   .p8) no provedor Apple do Firebase Console, que **continua vazia**. Sem
+   ela a revogação falha, e a exclusão segue assim mesmo — de propósito:
+   travar a exclusão da conta por causa da revogação seria trocar um
+   problema por um pior. O efeito prático é o PTK Plays continuar listado
+   em Ajustes → Apple ID → Login com a Apple.
+
+   *E o que nenhum código do app alcança*: as mensagens em
+   `mensagensWhatsapp` são indexadas por telefone e só o webhook escreve
+   nelas (`write: if false` vale pra todo mundo, admin incluído). Limpá-las
+   ao apagar a conta precisa de uma Cloud Function com o Admin SDK, que não
+   existe. **Isso é dado pessoal** (telefone e nome de perfil) sobrevivendo
+   à exclusão — vale resolver junto com o custom claim de admin (atenção 5).
 
 9. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
@@ -311,6 +315,122 @@ encaminha mas não serve pra contato nem pra reconhecer a pessoa.
 Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
 verificação e mexeria no vínculo com a Apple, que é a identidade da conta —
 risco alto pra ganho baixo.
+
+## Duas línguas, o app inteiro (14/set)
+
+O app fala **português do Brasil e inglês dos EUA**, e escolhe sozinho pela
+preferência do aparelho. O motivo que o usuário deu não foi alcance de
+público: **o revisor da App Store e o da Play Store leem em inglês**, e
+duas reprovações já custaram semanas adivinhando o que o revisor viu na
+tela.
+
+O corte foi **nenhum**: ele pediu explicitamente o app inteiro de uma vez,
+e não em levas. Foram ~300 frases em 40 arquivos.
+
+### Onde isso mora
+
+- `lib/i18n/Textos.dart` — o contrato (classe abstrata);
+- `lib/i18n/TextosPtBr.dart` e `TextosEnUs.dart` — as duas línguas;
+- `lib/i18n/Idioma.dart` — o enum, a detecção e o `IdiomaController`.
+
+No código, sempre `textos.algumaCoisa`. A regra permanente, com o porquê de
+cada decisão e as armadilhas, está no **`CLAUDE.md`**.
+
+### O que uma sessão nova precisa saber pra não quebrar isto
+
+1. **A detecção mora no `main()`**, não no catálogo. Se o global
+   consultasse a plataforma sozinho, todo `flutter test` viraria inglês (o
+   ambiente de teste responde en-US) e centenas de asserts de texto
+   quebrariam de uma vez. O padrão é português; é o `main()` que troca.
+2. **O último teste de `test/i18n_test.dart` varre `lib/`** atrás de
+   literal com acento fora do catálogo. É ele que impede a regra de virar
+   boa intenção. A lista de exceções ali é nominal — **acrescentar arquivo
+   naquela lista precisa de justificativa**, não é o jeito normal de fazer
+   o teste passar.
+3. **`const` congela a frase na compilação.** Vários lugares tiveram que
+   deixar de ser `const`: itens da barra de navegação, catálogo de
+   avatares, catálogo de badges, mapa de selos do painel.
+4. **Uma tela que só lê `textos.` não redesenha sozinha** quando o idioma
+   muda. Quem precisa reagir na hora observa o `IdiomaController`, do mesmo
+   jeito que já observa o `ThemeController` — hoje só `Configuracoes` e
+   `PoliticaPrivacidadeWeb` precisam disso.
+
+### Duas coisas que mudaram de comportamento junto
+
+- **A política de privacidade segue o idioma do app**, não mais a região do
+  aparelho. A regra antiga era `locale.countryCode == 'BR'` e errava dos
+  dois lados: quem configurava só `pt`, sem região, lia a política em
+  inglês com o app inteiro em português. Português de Portugal passou a ler
+  em português, o que antes não acontecia — mudança consciente.
+- **`?lang=en` no arranque de screenshots** (`lib/main_screenshots.dart`),
+  igual ao `?theme=dark` que já existia. A ficha da loja é **por idioma**:
+  a listagem em inglês precisa de capturas em inglês.
+
+### Sobre a dúvida do idioma na web
+
+O usuário perguntou se, na web, isso exigiria pedir **permissão de
+localização**. **Não exige, e não tem relação.** O Flutter web preenche
+`locales` a partir do `navigator.languages`, que é a lista de idiomas
+configurada no próprio navegador. Idioma é uma preferência declarada; onde
+a pessoa está é outro assunto, e o app não precisa saber.
+
+## Exclusão de conta: qualquer login, e apagando tudo (14/set)
+
+Pedido do usuário em 14/set: "todas as contas criadas dentro do app devem
+fornecer a possibilidade de serem apagadas pelo próprio usuário", com
+perfil, badges, cargo, posts, comentários e curtidas **apagados**, e
+redirecionamento pro login.
+
+**O que estava quebrado**: `excluirConta` reautenticava sempre com senha, e
+apagava **só** `users/{uid}`. Detalhes e o que falta validar: atenção 8.
+
+**A ordem da exclusão não é arbitrária** — é a parte que mais fácil se
+quebra numa refatoração futura:
+
+- a conta do **Auth cai por último**, porque as regras só autorizam apagar
+  o que é "meu" enquanto `request.auth` existe. Apagando o login primeiro,
+  todo o resto vira lixo que só o Admin SDK alcança;
+- `users/{uid}` é o **último documento** do Firestore a sair, porque a
+  regra de apagar post faz `get()` nele pra descobrir o cargo de quem
+  chama. Sem o documento, a regra não avalia e a exclusão dos próprios
+  posts é negada.
+
+Falhar no meio deixa a conta **existindo**, e não meio apagada — de
+propósito: dá pra tentar de novo.
+
+**Comentários e curtidas não aparecem na cascata porque não existem como
+documento**: hoje são só contadores dentro do post (`comentariosCount`,
+`curtidas`). Quando virarem coleção, entram aqui.
+
+**Nas enquetes, só o uid sai; a contagem fica.** O que identifica a pessoa
+é o uid em `votantes`/`votosPorUsuario`; o total de votos é número agregado
+que não aponta pra ninguém. Tirar o nome e deixar o número é o que
+anonimizar significa — e liberar `opcoes` naquela regra daria ao cliente
+uma porta pra reescrever placar de enquete alheia.
+
+## Cadastro: o campo de confirmar senha saiu (14/set)
+
+O usuário perguntou em 13/set que motivo plausível o campo tinha pra
+existir, e a resposta honesta foi que não tinha um bom. Ele decidiu
+remover.
+
+O campo nasceu num mundo onde senha era sempre mascarada: digitar errado só
+aparecia no próximo login, e repetir era a única defesa. Aqui o campo tem o
+olho — dá pra ler o que foi digitado antes de seguir.
+
+**O "Confirme o e-mail" continua**, e a assimetria é o ponto: e-mail errado
+não tem conserto de dentro do app (a recuperação de senha vai pro endereço
+errado e a conta fica órfã), senha errada tem — é só redefinir, justamente
+pelo e-mail.
+
+Junto saiu `validarConfirmacaoSenha`, e no lugar dela ficou um comentário
+explicando a assimetria — pra ninguém recriá-la por simetria com o
+`validarConfirmacaoEmail`, que continua ali do lado.
+
+**O texto da etapa do WhatsApp mudou junto**, respondendo à outra pergunta
+parada: o número é pedido pra **dar outra forma de entrar, confirmar troca
+de senha e avisar quando o canal abre ao vivo**. Enquanto era obrigatório,
+o texto não precisava convencer ninguém; opcional, precisa.
 
 ## Revisão geral das mensagens de erro (12/set)
 
@@ -468,21 +588,20 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 ## Estado do git
 
 - Branch de dev: **`claude/ptk-plays-setup-2q86aw`**. Últimos merges em
-  `main`: **PR #74** (`eac8212`, instrumentação de erro + workflow do
-  Appetize) e **PR #75** (`131c2f8`, varredura geral das mensagens de erro
-  + correções do iPad). Depois deles veio `9378987` — **o usuário subiu a
-  arte nova direto na `main` pela interface web do GitHub** (ver atenção 2).
-- A branch tem **20 commits além da `main`**, já rebaseados em cima dela e
-  **sem PR aberto**: é o trabalho de 13/set (WhatsApp opcional + botão
-  "Avançar" reativo + as duas correções visuais). **Falta abrir o PR** —
-  a sessão acabou antes.
-- **Nenhum PR aberto no momento.**
+  `main`: **PR #74** (`eac8212`), **PR #75** (`131c2f8`) e **PR #76**
+  (documentação). Depois deles veio `9378987` — o usuário subiu a arte
+  nova direto na `main` pela interface web do GitHub; ela **já foi
+  preparada e o PNG cru foi apagado** (ver "Artes do cadastro").
+- A branch tem o trabalho de **14/set** por cima disso: campo de confirmar
+  senha removido, texto da etapa de WhatsApp, a arte nova, o i18n inteiro
+  e a exclusão de conta para qualquer login.
 - **`main` → deploy automático no Vercel em `https://ptk-plays.vercel.app`**
   (atenção: `plays.vercel.app`, que consta em versões antigas deste
   arquivo, **dá 404** — não é o endereço certo).
 - Cada PR gera um **preview próprio no Vercel**, comentado no próprio PR —
   é assim que o usuário revisa mudança visual antes de mesclar.
-- `pubspec.yaml`: `version: 1.2.1+17`.
+- `pubspec.yaml`: `version: 1.2.1+17`. Dependência nova:
+  **`flutter_localizations`**.
 - iOS/Android buildam via Codemagic **só** quando uma tag `v*` é criada e
   enviada — nunca criar/enviar tag sem o usuário pedir, e esta sessão não
   consegue dar `git push` de tag de qualquer forma.
@@ -499,12 +618,12 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **352 testes** passando (`flutter test`), mais **46** no backend
+- **370 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
   deprecated) — não são regressão, não mexer sem pedir.
-- O warning é em **`lib/view/Videos.dart:131`**
+- O warning é em **`lib/view/Videos.dart:132`**
   (`body_might_complete_normally_nullable`: o `itemBuilder` tem um `if` sem
   `else`, então retorna `null` implicitamente). Versões anteriores deste
   arquivo o chamavam de "fantasma que some na segunda execução" — **isso
@@ -531,9 +650,13 @@ Cloud Shell):
 - `functions` e `firestore.rules` — republicados em **08/set**, com a
   caixa de entrada do WhatsApp.
 
-**Não há deploy pendente no momento.** Atenção: `firebase deploy --only
-storage:rules` **não funciona** (o CLI interpreta "rules" como nome de
-target); o comando certo é `firebase deploy --only storage`.
+**HÁ DEPLOY PENDENTE desde 14/set**: `firestore.rules` e `storage.rules`
+mudaram pra deixar o dono apagar a própria conta por inteiro. Ver atenção
+1 — sem publicar, a exclusão de conta falha na metade.
+
+Atenção: `firebase deploy --only storage:rules` **não funciona** (o CLI
+interpreta "rules" como nome de target); o comando certo é `firebase
+deploy --only storage`.
 
 ## O que foi feito nas últimas sessões (28/ago → 09/set)
 
@@ -614,8 +737,10 @@ do app. Em 07/set foram substituídas pelas versões **1:1** que o usuário
 mandou, e hoje são **WebP com transparência**, só o personagem: quem pinta
 a área de cima é o `gradienteDoCenario` do `FundoPTK`.
 
-O recorte foi feito com um script em **PIL puro** (não há numpy neste
-ambiente): flood fill a partir da borda **de cima**, comparando cada pixel
+O recorte foi feito com um script em **PIL puro** (em 07/set não havia
+numpy no ambiente; em 14/set ele instalou normalmente com `pip install
+numpy scipy` — ver "A arte da selfie de joinha" no fim desta seção): flood
+fill a partir da borda **de cima**, comparando cada pixel
 com o **vizinho** de onde veio — o degradê do fundo é suave e a
 propagação atravessa ele inteiro, enquanto o contorno de alto contraste do
 personagem segura. Três armadilhas que custaram tempo, caso precise
@@ -644,11 +769,38 @@ arte nova entrar:
 1. **Recorte pela silhueta** (`getbbox()` no canal alfa). No quadrado
    original quase metade da largura era margem vazia; sem cortar isso o
    PTK aparecia pequeno demais na tela.
-2. **Quadro comum às cinco**, ancorado embaixo e **sem reescalar**. As
-   artes foram desenhadas na mesma escala, então colar cada recorte num
-   quadro único mantém o PTK do mesmo tamanho em todas as etapas —
-   recortar cada uma no próprio limite faria ele pular de tamanho na
-   transição entre telas. O quadro hoje é 755×1159.
+2. **Quadro comum às cinco**, ancorado embaixo. As artes foram desenhadas
+   na mesma escala, então colar cada recorte num quadro único mantém o PTK
+   do mesmo tamanho em todas as etapas — recortar cada uma no próprio
+   limite faria ele pular de tamanho na transição entre telas. O quadro
+   hoje é 755×1159.
+
+   **O encaixe é pela LARGURA, e isso importa.** Nas artes originais a
+   silhueta ocupa os 755px inteiros, e é a largura que dá a sensação de
+   "mesmo tamanho" entre as etapas. Encaixar pela altura faria o PTK sair
+   6% maior que o das outras telas.
+
+### A arte da selfie de joinha (14/set)
+
+O PNG que o usuário subiu em 13/set (1,5 MB, fundo azul, espaços no nome)
+substituiu a arte da **etapa da foto**. O recorte dele derrubou a técnica
+descrita acima, e vale registrar por quê:
+
+- **O flood fill a partir da borda não serve nesta arte.** A calça e a
+  camisa são quase pretas, o fundo escurece embaixo, e o preenchimento
+  vazava por ali e comia o personagem inteiro — sobrava só a cabeça e o
+  braço.
+- **O que separou foi a cor.** O fundo é azul saturado: o canal azul passa
+  dos outros dois por 120 a 190, e nenhuma parte do desenho chega perto
+  (camisa 15, celular 16, calça 6, pele negativa). Essa distância virando
+  alfa já entrega o contorno com a borda suave de brinde.
+- **Um risco de luz roxa do fundo encosta na camisa** e viajava junto por
+  estar colado. A regra que resolve: só entra na componente o que é opaco
+  sem dúvida (alfa ≥ 0.98), e a borda suave volta por dilatação curta — o
+  risco, meio transparente, fica de fora.
+
+Este ambiente **tem** `numpy`/`scipy` disponíveis via `pip install` (ao
+contrário do que versões antigas deste arquivo diziam sobre "PIL puro").
 
 **O enquadramento mudou junto** (`FundoPTK._arte`). O jeito antigo —
 `cover` na tela inteira, alinhado ao topo, com `Transform.scale` — foi
@@ -847,22 +999,19 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
    saiu em 11/set; o que resta — reproduzir num iPad e escrever as App
    Review Notes — depende do usuário e de aparelho físico. O provedor Apple
    no Firebase Console **já foi ligado** pelo usuário em 13/set.
-4. **Notificações push** — pedido explícito do usuário em 13/set, e
-   recomendei fazer **antes** do i18n. Bloqueado na **chave APNs** (ver
-   atenção 1, item 3), que só ele pode gerar. O lado do código é:
+4. **Notificações push** — pedido em 13/set e **adiado pelo usuário em
+   14/set** ("vamos deixar para a próxima etapa"), que escolheu o i18n
+   primeiro. Bloqueado na **chave APNs**, que só ele pode gerar. O lado do
+   código é:
    `firebase_messaging` no `pubspec.yaml`, token salvo no perfil do usuário,
    e uma Cloud Function disparada pelos webhooks de live **que já existem**
    (`twitchWebhook`, `kickWebhook`, `verificarYoutubeAoVivo`) — o gatilho
    está pronto, falta o disparo. Depois disso, o **envio por cargo pelo
    Painel ADM** (a aba Notificações já existe e explica que não está
    pronta) sai de graça em cima da mesma infra.
-5. **Internacionalização (pt-BR + en-US)** com detecção automática do idioma
-   do aparelho. Pedido em 13/set, com um motivo concreto: **os revisores da
-   Apple e do Google falam inglês**. São centenas de strings em ~20 telas —
-   a infraestrutura (`flutter_localizations` + ARB) é rápida, a varredura é
-   longa. Recomendei fazer em duas levas, começando por **login + cadastro**,
-   que é o que um revisor vê primeiro. **Meio traduzido é pior que nada**:
-   é exatamente a impressão ruim que se quer evitar.
+5. ~~**Internacionalização (pt-BR + en-US)**~~ — **FEITA em 14/set**, sem
+   corte: o usuário pediu o app inteiro de uma vez, não em levas. Ver
+   "Duas línguas" mais abaixo e a regra permanente no `CLAUDE.md`.
 6. **Custom claim de admin** no Auth (ver atenção 5).
 7. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
    tela de chat. A opção já existe no menu e avisa que não está pronta.
@@ -903,9 +1052,13 @@ fluxo novo estiver validado em produção.
 - `node`/`npm` disponíveis (`/opt/node22`) — `npm test` roda dentro de
   `functions/` (**46 testes Jest**). O `node_modules/` é gitignored e some
   na reciclagem do container: rodar `npm install` antes.
-- **Python com PIL disponível, mas NÃO numpy** — foi assim que as artes
-  do PTK tiveram o fundo recortado e viraram WebP. Qualquer script de
-  imagem aqui precisa ser PIL puro.
+- **Python com PIL disponível.** `numpy` e `scipy` **não vêm de fábrica**,
+  mas instalam normalmente com `pip install numpy scipy` (confirmado em
+  14/set) — versões anteriores deste arquivo diziam que não havia numpy e
+  que todo script de imagem tinha que ser PIL puro, e **isso estava
+  errado**: era só falta de instalar. Com scipy, `ndimage.label` resolve
+  "fica só com o maior componente conectado" em uma linha, que em PIL puro
+  vira uma BFS na mão.
 - **Anexos de imagem geralmente NÃO chegam ao disco.** Em 05 e 07/set o
   usuário mandou artes que apareciam na conversa mas nunca foram salvas —
   em 07/set o diretório `/root/.claude/uploads/` nem existia. Sempre
