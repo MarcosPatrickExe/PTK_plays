@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -51,7 +52,7 @@ class _LoginState extends State<Login> {
     final senha = _senhaController.text;
 
     if (login.isEmpty || senha.isEmpty) {
-      mostrarErroCustom(context, title: "Ops!", msg: "Preencha login e senha.");
+      mostrarErroCustom(context, title: textos.ops, msg: textos.loginPreenchaTudo);
       return;
     }
 
@@ -63,7 +64,7 @@ class _LoginState extends State<Login> {
     setState(() => _carregando = false);
 
     if (erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erro);
+      mostrarErroCustom(context, title: textos.ops, msg: erro);
       return;
     }
 
@@ -107,7 +108,7 @@ class _LoginState extends State<Login> {
     setState(() => _carregando = false);
 
     if (resultado.erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: resultado.erro!);
+      mostrarErroCustom(context, title: textos.ops, msg: resultado.erro!);
       return;
     }
 
@@ -177,7 +178,7 @@ class _LoginState extends State<Login> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'FAÇA SEU LOGIN',
+                            textos.loginTitulo,
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -193,15 +194,15 @@ class _LoginState extends State<Login> {
                               children: [
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Login ou nickname',
+                                  label: textos.loginCampoLogin,
                                   controller: _emailController,
                                   icone: iconPessoa,
-                                  hint: 'Email ou nickname',
+                                  hint: textos.loginDicaLogin,
                                 ),
                                 const SizedBox(height: 16),
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Senha',
+                                  label: textos.senha,
                                   controller: _senhaController,
                                   icone: iconSenha,
                                   hint: '••••••••',
@@ -212,7 +213,7 @@ class _LoginState extends State<Login> {
                                   ),
                                 ),
                                 const SizedBox(height: 22),
-                                BotaoPrimario(label: 'Entrar', carregando: _carregando, onTap: _entrar),
+                                BotaoPrimario(label: textos.entrar, carregando: _carregando, onTap: _entrar),
                                 const SizedBox(height: 20),
                                 Center(
                                   child: GestureDetector(
@@ -225,9 +226,9 @@ class _LoginState extends State<Login> {
                                           color: isDark ? AuthTheme.registerDark : AuthTheme.registerLight,
                                         ),
                                         children: [
-                                          const TextSpan(text: 'Não tem uma conta? '),
+                                          TextSpan(text: textos.loginNaoTemConta),
                                           TextSpan(
-                                            text: 'Clique aqui!',
+                                            text: textos.loginCliqueAqui,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w700,
                                               color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
@@ -326,7 +327,7 @@ class _BotaoApple extends StatelessWidget {
             Icon(Icons.apple, size: 22, color: fg),
             const SizedBox(width: 10),
             Text(
-              'Entrar com a Apple',
+              textos.loginComApple,
               style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: fg),
             ),
           ],
@@ -362,7 +363,7 @@ class _BotaoGoogle extends StatelessWidget {
             SvgPicture.string(_iconGoogle, width: 20, height: 20),
             const SizedBox(width: 12),
             Text(
-              'Entrar com o Google',
+              textos.loginComGoogle,
               style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: AuthTheme.googleText),
             ),
           ],
