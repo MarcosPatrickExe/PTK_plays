@@ -17,6 +17,11 @@ service firebase.storage {
         && request.auth.uid == uid
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
+      // `delete` precisa de regra propria, e nao e detalhe de estilo: numa
+      // exclusao o `request.resource` e nulo, entao a regra de `write`
+      // acima estoura em `request.resource.size` e nega. O dono nao
+      // conseguia apagar a propria foto — nem ao apagar a conta.
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     // Midia anexada a um post do feed. A regra so consegue amarrar a
@@ -30,6 +35,9 @@ service firebase.storage {
         && request.auth.uid == uid
         && ((request.resource.contentType.matches('image/.*') && request.resource.size < 10 * 1024 * 1024)
             || (request.resource.contentType.matches('video/.*') && request.resource.size < 50 * 1024 * 1024));
+      // Ver a mesma regra em fotos_perfil: sem um `delete` proprio, apagar
+      // esbarra no `request.resource` nulo da regra de escrita.
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     match /{allPaths=**} {
