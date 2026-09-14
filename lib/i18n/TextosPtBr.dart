@@ -667,4 +667,12 @@ class TextosPtBr extends Textos {
   String get seloLive => 'LIVE';
   @override
   String get adminVocePrefixo => 'Você: ';
+
+  // ----- Exclusao da propria conta -----
+  @override
+  String get perfilExcluirContaOQueSai => 'Some com tudo: seu perfil, suas badges, seu cargo, seus posts e seus votos nas enquetes. Não dá pra desfazer.';
+  @override
+  String get perfilExcluirContaSocial => 'Pra confirmar que é você, vamos abrir a tela do provedor com que você entrou mais uma vez.';
+  @override
+  String get perfilExcluirContaDigiteSenha => 'Digite sua senha pra confirmar.';
 }
