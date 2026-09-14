@@ -631,4 +631,40 @@ class TextosPtBr extends Textos {
   String get whatsappFigurinha => '[figurinha]';
   @override
   String get whatsappContato => '[contato]';
+
+  // ----- O que faltou na primeira varredura -----
+  @override
+  String get feedEncerrada => 'ENCERRADA';
+  @override
+  String get dataAgora => 'agora';
+  @override
+  String duracaoSoHoras(int horas) => '${horas}h';
+  @override
+  String duracaoSegundos(int segundos) => '${segundos}s';
+  @override
+  String get cadastroAntigoTitulo => 'CRIE SUA CONTA';
+  @override
+  String get cadastroEscolhaAvatar => 'Escolha seu avatar';
+  @override
+  String get cadastroJaTemConta => 'Já tem uma conta? ';
+  @override
+  String get cadastroFazerLogin => 'Fazer login';
+  @override
+  String get cadastroDigiteEmail => 'Digite seu email';
+  @override
+  String get validaNickComArrobaAntigo => 'O nickname não pode conter @.';
+  @override
+  String apenasOCodigo(String codigo) => '(código: $codigo)';
+
+  // ----- Selos de tipo de post, no painel -----
+  @override
+  String get seloAviso => 'AVISO';
+  @override
+  String get seloFoto => 'FOTO';
+  @override
+  String get seloEnquete => 'ENQUETE';
+  @override
+  String get seloLive => 'LIVE';
+  @override
+  String get adminVocePrefixo => 'Você: ';
 }
