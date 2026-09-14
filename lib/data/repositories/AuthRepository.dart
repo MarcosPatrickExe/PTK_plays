@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../models/BloqueioDaConta.dart';
 import '../models/UserModel.dart';
 import '../../i18n/Idioma.dart';
 
@@ -203,15 +204,39 @@ class AuthRepository {
     return doc.data()!['email'] as String;
   }
 
-  Future<void> login({required String loginOuEmail, required String senha}) async {
+  Future<BloqueioDaConta?> login({required String loginOuEmail, required String senha}) async {
     final email = await _resolverEmailParaLogin(loginOuEmail);
     final credential = await _auth.signInWithEmailAndPassword(email: email, password: senha);
     final uid = credential.user!.uid;
+
+    final bloqueio = await _barrarSeBloqueado(uid);
+    if (bloqueio != null) return bloqueio;
 
     await _firestore.collection('users').doc(uid).set(
       UserModel.touchUltimoAcesso(),
       SetOptions(merge: true),
     );
+    return null;
+  }
+
+  /// Lê o estado de moderação de quem acabou de entrar e, se estiver
+  /// bloqueado, **desloga antes de devolver**.
+  ///
+  /// A ordem importa: a regra do Firestore só libera ler `users/{uid}` pra
+  /// quem está logado, então a leitura tem que acontecer com a sessão ainda
+  /// de pé. Logo depois ela cai.
+  ///
+  /// Sem isto, quem foi banido entrava normalmente e só era barrado quando
+  /// o `ContaGate` reagisse — ou seja, **depois** de já estar dentro do app.
+  Future<BloqueioDaConta?> _barrarSeBloqueado(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
+
+    final bloqueio = bloqueioDe(UserModel.fromFirestore(doc.data() ?? {}));
+    if (bloqueio == null) return null;
+
+    await _auth.signOut();
+    return bloqueio;
   }
 
   Future<void> _garantirGoogleSignInInicializado() async {
@@ -228,7 +253,7 @@ class AuthRepository {
   /// Retorna true quando a conta acabou de ser criada — e o que o Login usa
   /// pra mandar a pessoa completar o cadastro (nick, foto e WhatsApp) em vez
   /// de cair direto no feed.
-  Future<bool> loginComGoogle() async {
+  Future<({bool contaNova, BloqueioDaConta? bloqueio})> loginComGoogle() async {
     UserCredential credential;
 
     if (kIsWeb) {
@@ -248,7 +273,7 @@ class AuthRepository {
   /// ao Google Sign-In. So funciona em iOS/macOS: nao ha configuracao de
   /// Service ID/return URL feita pro fluxo web do pacote em Android/Web.
   /// Ver [loginComGoogle] sobre o retorno.
-  Future<bool> loginComApple() async {
+  Future<({bool contaNova, BloqueioDaConta? bloqueio})> loginComApple() async {
     final rawNonce = _gerarNonce();
     final nonce = _sha256DoNonce(rawNonce);
 
@@ -278,9 +303,28 @@ class AuthRepository {
   }
 
   /// Cria o documento do usuario no primeiro login social, ou so atualiza o
-  /// ultimo acesso nos seguintes. Retorna true quando acabou de criar.
-  Future<bool> _sincronizarUsuarioNoFirestore(User user, {String? nicknameSugerido}) async {
+  /// ultimo acesso nos seguintes.
+  ///
+  /// `contaNova` e true quando acabou de criar — e o que o Login usa pra
+  /// mandar a pessoa completar o cadastro em vez de cair no feed.
+  /// `bloqueio` vem preenchido quando a conta esta banida/suspensa; nesse
+  /// caso a sessao **ja foi encerrada** aqui dentro.
+  Future<({bool contaNova, BloqueioDaConta? bloqueio})> _sincronizarUsuarioNoFirestore(
+    User user, {
+    String? nicknameSugerido,
+  }) async {
     final doc = await _firestore.collection('users').doc(user.uid).get();
+
+    // Antes de tocar em qualquer coisa: conta banida que volta pelo Google
+    // ou pela Apple tem que ser barrada igual a que volta por senha. Sem
+    // isto, o caminho social seria a porta dos fundos do banimento.
+    if (doc.exists) {
+      final bloqueio = bloqueioDe(UserModel.fromFirestore(doc.data() ?? {}));
+      if (bloqueio != null) {
+        await _auth.signOut();
+        return (contaNova: false, bloqueio: bloqueio);
+      }
+    }
 
     if (!doc.exists) {
       final novoUsuario = UserModel.novoInscrito(
@@ -290,7 +334,7 @@ class AuthRepository {
         fotoUrl: user.photoURL ?? '',
       );
       await _firestore.collection('users').doc(user.uid).set(novoUsuario.toFirestore());
-      return true;
+      return (contaNova: true, bloqueio: null);
     } else {
       // Conta que ja existia: so toca o ultimoAcesso, MENOS quando ela esta
       // sem foto nenhuma e o provedor social traz uma. E o caso de quem se
@@ -310,7 +354,7 @@ class AuthRepository {
         },
         SetOptions(merge: true),
       );
-      return false;
+      return (contaNova: false, bloqueio: null);
     }
   }
 
