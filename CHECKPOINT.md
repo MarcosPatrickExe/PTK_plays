@@ -50,27 +50,42 @@ pendente.
    Atenção: `--only storage:rules` **não funciona** (o CLI lê "rules" como
    nome de target).
 
-2. **Conta banida não consegue apagar a própria conta.**
+2. **Conta banida agora é EXPULSA pro login — e o login dela continua
+   existindo, de propósito.**
 
-   *O que é*: quem está banido ou suspenso cai no `ContaBloqueadaView`, que
-   cobre o app inteiro e oferece **só o botão "Sair"**. O botão de excluir
-   conta mora no `Profile`, que essa pessoa não alcança mais.
+   *Correção de uma leitura errada deste arquivo*: a versão anterior
+   registrava "conta banida não consegue apagar a própria conta" como
+   pendência de 5.1.1(v), como se apagar fosse o certo a fazer. **Não é.**
+   O login é o que carrega o `uid` que aponta pro `users/{uid}` com o
+   `estadoModeracao`. Apagar o login apagaria a memória do banimento — a
+   pessoa criaria outra conta com o mesmo e-mail e entraria limpa.
 
-   *Por que é atenção*: a Apple exige (5.1.1(v)) que quem criou conta
-   consiga apagá-la de dentro do app, e **não abre exceção pra conta
-   moderada**. O usuário pediu em 14/set que "todas as contas criadas
-   dentro do app" possam ser apagadas pelo próprio dono — esta é a única
-   que ficou de fora.
+   *O que estava errado de verdade*: o `ContaGate` desenhava uma tela de
+   bloqueio **por cima** do app, com a sessão ainda válida por baixo. Quem
+   foi banido continuava dentro do app, só com uma cortina na frente.
 
-   *Por que não foi feito junto*: exige passar um callback de exclusão pelo
-   `ContaGate` até o `ContaBloqueadaView` e extrair o diálogo de exclusão
-   do `Profile` pra um lugar compartilhado. É mudança de encanamento, não
-   de texto, e **não foi pedida** — está aqui como achado, pra decidir.
+   *O que mudou em 14/set*: bloqueio detectado → desloga → `Login` com o
+   modal explicando. E **toda entrada** (senha, Google e Apple) lê
+   `users/{uid}` logo depois de autenticar e desloga antes de devolver se
+   a conta estiver bloqueada.
 
-   *O lado bom*: as regras do Firestore **já permitem**. Nem a exclusão de
-   post nem a saída de enquete checam `contaBloqueada()`, de propósito —
-   uma conta banida continua conseguindo apagar o próprio rastro. Falta só
-   o caminho na tela.
+   *O que sumiu junto*: a preservação de navegação. Antes, uma suspensão
+   vencendo com o app aberto devolvia a pessoa exatamente onde estava; hoje
+   ela cai no login. Troca aceita: quem está banido não tem pra onde
+   navegar mesmo.
+
+   *O que falta validar num aparelho* — o roteiro de 5 passos está no fim
+   de `test/conta_gate_test.dart`. O principal: banir a própria conta pelo
+   Painel ADM em outro aparelho, com o app aberto, e confirmar que a pessoa
+   é jogada pro login com o modal.
+
+   *Ainda vale conferir*: a Apple exige (5.1.1(v)) que **toda** conta possa
+   ser apagada de dentro do app, e quem está banido não alcança mais o
+   botão de excluir conta (ele mora no `Profile`). Diferente do que este
+   arquivo dizia antes, isso **não** se resolve apagando o login no
+   banimento — se for necessário atender à regra, o caminho é oferecer a
+   exclusão a partir do próprio modal, com a pessoa reautenticando.
+   **Não confirmado**: se a Apple de fato exige isso de conta moderada.
 
 3. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
    verdade.**
@@ -315,6 +330,51 @@ encaminha mas não serve pra contato nem pra reconhecer a pessoa.
 Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
 verificação e mexeria no vínculo com a Apple, que é a identidade da conta —
 risco alto pra ganho baixo.
+
+## Banimento: expulsa, não cobre (14/set)
+
+Pedido do usuário, corrigindo o que eu tinha anotado: *"uma pessoa banida
+jamais deve ficar dentro do app como se estivesse logada. Ela deve ser
+expulsa para a tela de login. Pra quando ela tentar entrar de novo,
+aparecer um modal avisando que ela violou os termos de uso."*
+
+**O login não é apagado, e é isso que faz o mecanismo funcionar.** Ele
+carrega o `uid` que aponta pro `users/{uid}` com o `estadoModeracao` — é a
+memória do banimento. Apagar o login deixaria a pessoa criar outra conta com
+o mesmo e-mail e entrar limpa.
+
+**Três caminhos, todos cobertos:**
+
+| Situação | Onde é barrado |
+|---|---|
+| Banido com o app aberto | `ContaGate` → `logout()` → `Login` com o modal |
+| Tenta entrar com senha | `AuthRepository.login` → desloga e devolve o bloqueio |
+| Tenta entrar pelo Google/Apple | `_sincronizarUsuarioNoFirestore` → idem |
+
+O caminho social é o que mais fácil se esquece, e é a porta dos fundos mais
+óbvia do banimento.
+
+**A ordem dentro do repositório importa**: a regra do Firestore só libera
+ler `users/{uid}` pra quem está logado. A leitura acontece com a sessão
+ainda de pé, e o `signOut()` vem logo depois.
+
+**O modal não é `mostrarErroCustom`**, e a distinção é deliberada: não houve
+erro nenhum. A senha estava certa, a conta existe, e a entrada foi
+**recusada**. Chamar isso de "Ops!" faria parecer falha do app e convidaria
+a pessoa a tentar de novo.
+
+**O que se perdeu**: a preservação de navegação. A versão antiga cobria o
+app e, quando a suspensão vencia com o app aberto, a pessoa voltava
+exatamente pro lugar onde estava. Hoje ela cai no login. Foi troca
+consciente — o preço de manter aquilo era uma sessão válida na mão de quem
+acabou de ser banido.
+
+**Onde vive**: `bloqueioDe` e `BloqueioDaConta`
+(`lib/data/models/BloqueioDaConta.dart`), `ContaGate`
+(`lib/components/ContaGate.dart`), `mostrarModalContaBloqueada`
+(`lib/view/ContaBloqueada.dart`). O `ContaBloqueadaView` e o `GateDeConta`
+**não existem mais** — se algum código antigo os procurar, é daqui que eles
+saíram.
 
 ## Duas línguas, o app inteiro (14/set)
 
@@ -618,7 +678,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **370 testes** passando (`flutter test`), mais **46** no backend
+- **372 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
