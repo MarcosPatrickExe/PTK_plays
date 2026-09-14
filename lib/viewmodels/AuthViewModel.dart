@@ -183,7 +183,16 @@ class AuthViewModel {
   }
 
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
-  Future<String?> excluirConta({required String senha}) async {
+  /// Como a conta logada consegue provar que e ela mesma pra apagar a
+  /// propria conta. A tela usa isso pra decidir se pede senha ou se abre a
+  /// folha do Google/Apple.
+  FormaDeReautenticar get formaDeReautenticar => _repository.formaDeReautenticar();
+
+  /// [senha] so e usada quando [formaDeReautenticar] e
+  /// `FormaDeReautenticar.senha`. Nos outros casos a prova vem do provedor,
+  /// e nao ha senha nenhuma pra pedir — era exatamente esse o buraco que
+  /// impedia conta de Google/Apple de se apagar ate 14/set.
+  Future<String?> excluirConta({String? senha}) async {
     try {
       await _repository.excluirConta(senha: senha);
       return null;
