@@ -500,9 +500,13 @@ class TextosPtBr extends Textos {
   @override
   String get bloqueioSuspensa => 'Sua conta está suspensa';
   @override
-  String get bloqueioBanidaTexto => 'Você não pode mais usar o PTK Plays.';
+  String get bloqueioBanidaTexto => 'Esta conta foi banida por violar as regras de uso do PTK Plays e não pode mais entrar.';
   @override
-  String bloqueioSuspensaTexto(String ate) => 'Você não pode usar o PTK Plays até $ate.';
+  String bloqueioSuspensaTexto(String ate) => 'Esta conta foi suspensa por violar as regras de uso do PTK Plays. Dá pra entrar de novo a partir de $ate.';
+  @override
+  String get bloqueioEntendi => 'Entendi';
+  @override
+  String get bloqueioLeiaAsRegras => 'As regras da comunidade valem pra todo mundo, sem exceção.';
   @override
   String bloqueioMotivo(String motivo) => 'Motivo: $motivo';
   @override
