@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/AuthTheme.dart';
 
@@ -105,7 +106,7 @@ class MenuLateral extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    'Menu',
+                    textos.menuTitulo,
                     style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -116,7 +117,7 @@ class MenuLateral extends StatelessWidget {
                 const SizedBox(height: 16),
                 _ItemMenu(
                   icone: Icons.lock_reset,
-                  texto: 'Recuperação de senha',
+                  texto: textos.loginRecuperarSenha,
                   onTap: () {
                     Navigator.of(context).pop();
                     onRecuperacaoSenha();
@@ -124,7 +125,7 @@ class MenuLateral extends StatelessWidget {
                 ),
                 _ItemMenu(
                   icone: Icons.privacy_tip_outlined,
-                  texto: 'Privacidade',
+                  texto: textos.privacidade,
                   onTap: () {
                     Navigator.of(context).pop();
                     onPrivacidade();
@@ -132,7 +133,7 @@ class MenuLateral extends StatelessWidget {
                 ),
                 _ItemMenu(
                   icone: Icons.policy_outlined,
-                  texto: 'Política de Privacidade',
+                  texto: textos.menuPoliticaDePrivacidade,
                   onTap: () {
                     Navigator.of(context).pop();
                     onPoliticaPrivacidade();
@@ -141,7 +142,7 @@ class MenuLateral extends StatelessWidget {
                 if (ehAdmin)
                   _ItemMenu(
                     icone: Icons.admin_panel_settings_outlined,
-                    texto: 'Painel ADM',
+                    texto: textos.menuPainelAdm,
                     cor: const Color(0xFFA12EE0),
                     onTap: () {
                       Navigator.of(context).pop();
@@ -150,7 +151,7 @@ class MenuLateral extends StatelessWidget {
                   ),
                 _ItemMenu(
                   icone: Icons.settings_outlined,
-                  texto: 'Configurações',
+                  texto: textos.configuracoes,
                   onTap: () {
                     Navigator.of(context).pop();
                     onConfiguracoes();
@@ -162,7 +163,7 @@ class MenuLateral extends StatelessWidget {
                 ),
                 _ItemMenu(
                   icone: Icons.logout,
-                  texto: 'Sair da conta',
+                  texto: textos.perfilSairDaConta,
                   cor: const Color(0xFFE0264F),
                   onTap: () {
                     Navigator.of(context).pop();
