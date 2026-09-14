@@ -671,4 +671,12 @@ class TextosEnUs extends Textos {
   String get seloLive => 'LIVE';
   @override
   String get adminVocePrefixo => 'You: ';
+
+  // ----- Exclusao da propria conta -----
+  @override
+  String get perfilExcluirContaOQueSai => 'Everything goes: your profile, your badges, your role, your posts and your poll votes. This can\'t be undone.';
+  @override
+  String get perfilExcluirContaSocial => 'To confirm it\'s you, we\'ll open the sign-in screen of the provider you used, one more time.';
+  @override
+  String get perfilExcluirContaDigiteSenha => 'Type your password to confirm.';
 }
