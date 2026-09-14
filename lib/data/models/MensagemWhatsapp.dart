@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../i18n/Idioma.dart';
 
 /// Uma mensagem da caixa de entrada do WhatsApp, como o webhook
 /// (`functions/index.js`) gravou na coleção `mensagensWhatsapp`.
@@ -87,19 +88,19 @@ class MensagemWhatsapp {
     if (texto.isNotEmpty) return texto;
     switch (tipo) {
       case 'image':
-        return '[imagem]';
+        return textos.whatsappImagem;
       case 'video':
-        return '[vídeo]';
+        return textos.whatsappVideo;
       case 'audio':
-        return '[áudio]';
+        return textos.whatsappAudio;
       case 'document':
-        return '[documento]';
+        return textos.whatsappDocumento;
       case 'sticker':
-        return '[figurinha]';
+        return textos.whatsappFigurinha;
       case 'location':
-        return '[localização]';
+        return textos.whatsappLocalizacao;
       case 'contacts':
-        return '[contato]';
+        return textos.whatsappContato;
       default:
         return '[$tipo]';
     }
@@ -111,13 +112,13 @@ class MensagemWhatsapp {
     if (recebida) return '';
     switch (status) {
       case 'sent':
-        return 'Enviada';
+        return textos.whatsappEnviada;
       case 'delivered':
-        return 'Entregue';
+        return textos.whatsappEntregue;
       case 'read':
-        return 'Lida';
+        return textos.whatsappLida;
       case 'failed':
-        return erro.isEmpty ? 'Falhou' : 'Falhou: $erro';
+        return erro.isEmpty ? textos.whatsappFalhou : textos.whatsappFalhouCom(erro);
       default:
         return '';
     }
