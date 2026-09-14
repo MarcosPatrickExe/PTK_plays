@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/Header.dart';
+import 'package:ptk_plays/i18n/Idioma.dart';
 import 'package:ptk_plays/components/MenuLateral.dart';
 import 'package:ptk_plays/utils/ThemeController.dart';
 import 'package:ptk_plays/view/Configuracoes.dart';
 import 'package:ptk_plays/view/Privacidade.dart';
 
 Widget _comTema(Widget child) {
-  return ChangeNotifierProvider(
-    create: (_) => ThemeController(),
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => ThemeController()),
+      // Configuracoes observa o idioma pra redesenhar quando ele troca,
+      // entao o provider precisa existir mesmo em teste que so le o titulo.
+      ChangeNotifierProvider(create: (_) => IdiomaController()),
+    ],
     child: MaterialApp(home: child),
   );
 }
