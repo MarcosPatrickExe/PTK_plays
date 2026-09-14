@@ -114,7 +114,7 @@ class TextosEnUs extends Textos {
   @override
   String get erroNicknameEmUsoCurto => 'That nickname is taken.';
   @override
-  String codigoDoErro(String mensagem, String codigo) => '\$mensagem\n\n(code: \$codigo)';
+  String codigoDoErro(String mensagem, String codigo) => '$mensagem\n\n(code: $codigo)';
 
   // ----- Login -----
   @override
@@ -146,7 +146,7 @@ class TextosEnUs extends Textos {
 
   // ----- Cadastro em etapas -----
   @override
-  String cadastroPasso(int numero, int total) => 'STEP \$numero OF \$total';
+  String cadastroPasso(int numero, int total) => 'STEP $numero OF $total';
   @override
   String get cadastroBoasVindasTitulo => 'Welcome to the\nPTK Plays community!';
   @override
@@ -172,9 +172,9 @@ class TextosEnUs extends Textos {
   @override
   String get cadastroSenhaTitulo => 'Now create a password';
   @override
-  String cadastroSenhaTexto(int minimo) => 'At least \$minimo characters. Tap the eye to check what you typed.';
+  String cadastroSenhaTexto(int minimo) => 'At least $minimo characters. Tap the eye to check what you typed.';
   @override
-  String cadastroSenhaCurto(int minimo) => 'At least \$minimo characters.';
+  String cadastroSenhaCurto(int minimo) => 'At least $minimo characters.';
   @override
   String get cadastroFotoTitulo => 'Your profile\npicture';
   @override
@@ -206,9 +206,9 @@ class TextosEnUs extends Textos {
   @override
   String get validaNickVazio => 'Pick a nickname so we can call you something.';
   @override
-  String validaNickCurto(int minimo) => 'The nickname needs at least \$minimo letters.';
+  String validaNickCurto(int minimo) => 'The nickname needs at least $minimo letters.';
   @override
-  String validaNickLongo(int maximo) => 'The nickname went past \$maximo characters.';
+  String validaNickLongo(int maximo) => 'The nickname went past $maximo characters.';
   @override
   String get validaNickComArroba => 'The nickname can\'t contain @.';
   @override
@@ -222,7 +222,7 @@ class TextosEnUs extends Textos {
   @override
   String get validaSenhaVazia => 'Create a password.';
   @override
-  String validaSenhaCurta(int minimo) => 'The password needs at least \$minimo characters.';
+  String validaSenhaCurta(int minimo) => 'The password needs at least $minimo characters.';
   @override
   String get validaWhatsappIncompleto => 'Incomplete number. Fill in the area code and the number, or skip this step.';
   @override
@@ -262,7 +262,7 @@ class TextosEnUs extends Textos {
   @override
   String get feedComoAdmin => 'As an admin, your post stays at the top of the feed — and you can attach a photo and a video.';
   @override
-  String feedPublicandoComo(String nickname) => 'Posting as \$nickname.';
+  String feedPublicandoComo(String nickname) => 'Posting as $nickname.';
   @override
   String get feedDicaAviso => 'What do you want to announce?';
   @override
@@ -270,7 +270,7 @@ class TextosEnUs extends Textos {
   @override
   String get feedDicaPergunta => 'What\'s the question?';
   @override
-  String feedOpcaoNumero(int numero) => 'Option \$numero';
+  String feedOpcaoNumero(int numero) => 'Option $numero';
   @override
   String get feedRemoverOpcao => 'Remove option';
   @override
@@ -298,11 +298,11 @@ class TextosEnUs extends Textos {
   @override
   String get feedCorrePraAssistir => 'Go watch it now!';
   @override
-  String feedDurou(String duracao) => 'Lasted \$duracao';
+  String feedDurou(String duracao) => 'Lasted $duracao';
   @override
-  String feedEncerradaEm(String quando) => 'Ended on \$quando';
+  String feedEncerradaEm(String quando) => 'Ended on $quando';
   @override
-  String feedComecouAs(String quando) => 'Started at \$quando';
+  String feedComecouAs(String quando) => 'Started at $quando';
   @override
   String get feedJaVotou => 'You already voted';
   @override
@@ -328,21 +328,21 @@ class TextosEnUs extends Textos {
   @override
   String get validaPostVazio => 'Write something before posting.';
   @override
-  String validaAvisoLongo(int limite) => 'The announcement went past \$limite characters. Shorten it a bit.';
+  String validaAvisoLongo(int limite) => 'The announcement went past $limite characters. Shorten it a bit.';
   @override
   String get validaPerguntaVazia => 'Write the poll question.';
   @override
-  String validaPerguntaLonga(int limite) => 'The question went past \$limite characters. Shorten it a bit.';
+  String validaPerguntaLonga(int limite) => 'The question went past $limite characters. Shorten it a bit.';
   @override
-  String validaPoucasOpcoes(int minimo) => 'A poll needs at least \$minimo filled options.';
+  String validaPoucasOpcoes(int minimo) => 'A poll needs at least $minimo filled options.';
   @override
-  String validaMuitasOpcoes(int maximo) => 'A poll takes at most \$maximo options.';
+  String validaMuitasOpcoes(int maximo) => 'A poll takes at most $maximo options.';
   @override
   String get validaOpcoesRepetidas => 'The poll has duplicate options.';
   @override
-  String validaVideoGrande(int limiteEmMb) => 'The video went past \$limiteEmMb MB. Pick a smaller one or trim it.';
+  String validaVideoGrande(int limiteEmMb) => 'The video went past $limiteEmMb MB. Pick a smaller one or trim it.';
   @override
-  String validaImagemGrande(int limiteEmMb) => 'The image went past \$limiteEmMb MB. Pick a smaller one.';
+  String validaImagemGrande(int limiteEmMb) => 'The image went past $limiteEmMb MB. Pick a smaller one.';
 
   // ----- Videos -----
   @override
@@ -354,9 +354,9 @@ class TextosEnUs extends Textos {
   @override
   String get videosNaoCarregou => 'Couldn\'t load the video.';
   @override
-  String videosPublicadoEm(String data) => 'Published on \$data';
+  String videosPublicadoEm(String data) => 'Published on $data';
   @override
-  String videosErroCru(String erro) => 'Error: \$erro';
+  String videosErroCru(String erro) => 'Error: $erro';
 
   // ----- Foto e recorte -----
   @override
@@ -388,7 +388,7 @@ class TextosEnUs extends Textos {
   @override
   String get perfilEsqueceuSenha => 'Forgot your current password? Send a link by email';
   @override
-  String perfilLinkEnviado(String email) => 'We sent a link to your email (\$email) to reset your password.';
+  String perfilLinkEnviado(String email) => 'We sent a link to your email ($email) to reset your password.';
   @override
   String get perfilSalvar => 'Save changes';
   @override
@@ -506,9 +506,9 @@ class TextosEnUs extends Textos {
   @override
   String get bloqueioBanidaTexto => 'You can no longer use PTK Plays.';
   @override
-  String bloqueioSuspensaTexto(String ate) => 'You can\'t use PTK Plays until \$ate.';
+  String bloqueioSuspensaTexto(String ate) => 'You can\'t use PTK Plays until $ate.';
   @override
-  String bloqueioMotivo(String motivo) => 'Reason: \$motivo';
+  String bloqueioMotivo(String motivo) => 'Reason: $motivo';
   @override
   String get bloqueioDataFutura => 'a future date';
 
@@ -542,11 +542,11 @@ class TextosEnUs extends Textos {
   @override
   String get adminNaoAtualizou => 'Couldn\'t update.';
   @override
-  String adminRemoverTitulo(String nickname) => 'Remove \$nickname?';
+  String adminRemoverTitulo(String nickname) => 'Remove $nickname?';
   @override
   String get adminRemoverTexto => 'The account disappears and, with it, every post, message and conversation of that person. This can\'t be undone.\n\nTheir Firebase login still exists: if they sign in again with Google/Apple, a new empty account is created.';
   @override
-  String adminUsuarioRemovido(int posts) => 'User removed, along with \$posts post(s).';
+  String adminUsuarioRemovido(int posts) => 'User removed, along with $posts post(s).';
   @override
   String get adminNaoRemoveu => 'Couldn\'t remove.';
   @override
@@ -558,7 +558,7 @@ class TextosEnUs extends Textos {
   @override
   String get adminNenhumAvisoAntigo => 'No old announcements to clear.';
   @override
-  String adminAvisosApagados(int quantos) => '\$quantos old announcement(s) deleted.';
+  String adminAvisosApagados(int quantos) => '$quantos old announcement(s) deleted.';
   @override
   String get adminNaoCarregouConversas => 'Couldn\'t load the conversations.';
   @override
@@ -602,27 +602,27 @@ class TextosEnUs extends Textos {
   @override
   String get whatsappFalhou => 'Failed';
   @override
-  String whatsappFalhouCom(String erro) => 'Failed: \$erro';
+  String whatsappFalhouCom(String erro) => 'Failed: $erro';
 
   // ----- Datas e duracoes -----
   @override
-  String dataHaMinutos(int minutos) => '\${minutos}m ago';
+  String dataHaMinutos(int minutos) => '${minutos}m ago';
   @override
-  String dataHaHoras(int horas) => '\${horas}h ago';
+  String dataHaHoras(int horas) => '${horas}h ago';
   @override
-  String dataHaDias(int dias) => '\${dias}d ago';
+  String dataHaDias(int dias) => '${dias}d ago';
   @override
-  String duracaoHorasMinutos(int horas, int minutos) => '\${horas}h \${minutos}m';
+  String duracaoHorasMinutos(int horas, int minutos) => '${horas}h ${minutos}m';
   @override
-  String duracaoMinutos(int minutos) => '\${minutos}m';
+  String duracaoMinutos(int minutos) => '${minutos}m';
 
   // ----- Formato de data (a ordem dia/mes inverte em en-US) -----
   @override
-  String dataDiaMes(String dia, String mes) => '\$mes/\$dia';
+  String dataDiaMes(String dia, String mes) => '$mes/$dia';
   @override
-  String dataDiaMesAno(String dia, String mes, String ano) => '\$mes/\$dia/\$ano';
+  String dataDiaMesAno(String dia, String mes, String ano) => '$mes/$dia/$ano';
   @override
-  String dataDiaMesHora(String dia, String mes, String hora, String minuto) => '\$mes/\$dia at \$hora:\$minuto';
+  String dataDiaMesHora(String dia, String mes, String hora, String minuto) => '$mes/$dia at $hora:$minuto';
   @override
-  String dataDiaMesAnoHora(String dia, String mes, String ano, String hora, String minuto) => '\$mes/\$dia/\$ano at \$hora:\$minuto';
+  String dataDiaMesAnoHora(String dia, String mes, String ano, String hora, String minuto) => '$mes/$dia/$ano at $hora:$minuto';
 }
