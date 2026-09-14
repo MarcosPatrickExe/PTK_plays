@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
@@ -50,7 +51,7 @@ class Conquistas extends StatelessWidget {
                               children: [
                                 const SizedBox(height: 44),
                                 Text(
-                                  'Conquistas',
+                                  textos.conquistasTitulo,
                                   style: GoogleFonts.outfit(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
@@ -64,11 +65,11 @@ class Conquistas extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _TituloSecao(isDark: isDark, texto: 'Badges conquistadas'),
+                                      _TituloSecao(isDark: isDark, texto: textos.conquistasBadgesConquistadas),
                                       const SizedBox(height: 10),
                                       conquistadas.isEmpty
                                           ? Text(
-                                              'Nenhuma badge conquistada ainda',
+                                              textos.perfilNenhumaBadge,
                                               style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
                                             )
                                           : Wrap(
@@ -85,7 +86,7 @@ class Conquistas extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _TituloSecao(isDark: isDark, texto: 'Progresso'),
+                                      _TituloSecao(isDark: isDark, texto: textos.conquistasProgresso),
                                       const SizedBox(height: 16),
                                       for (final conquista in emProgresso) ...[
                                         _BarraDeProgresso(

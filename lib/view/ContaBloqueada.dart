@@ -1,91 +1,126 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:ptk_plays/components/AuthBackground.dart';
-import 'package:ptk_plays/components/AuthWidgets.dart';
-import 'package:ptk_plays/data/models/UserModel.dart';
-import 'package:ptk_plays/utils/AuthTheme.dart';
+import 'package:ptk_plays/data/models/BloqueioDaConta.dart';
+import 'package:ptk_plays/i18n/Idioma.dart';
 
-/// Tela que substitui o Feed inteiro quando a conta logada está banida ou
-/// suspensa (ver [UserModel.estaBloqueado]). Só existe pra impedir o uso do
-/// app pela UI — quem barra de verdade a publicação e o voto é o
-/// `firestore.rules` (`contaBloqueada()`), então mesmo alguém que
-/// contornasse essa tela não conseguiria fazer nada no feed.
-class ContaBloqueadaView extends StatelessWidget {
-  final bool isDark;
-  final UserModel usuario;
-  final VoidCallback onSair;
+/// O aviso de conta banida/suspensa, mostrado **na tela de login**.
+///
+/// **Até 14/set isto era uma tela inteira desenhada POR CIMA do app**, com a
+/// pessoa ainda logada por baixo. A ideia era boa por um motivo (uma
+/// suspensão vencendo com o app aberto devolvia a pessoa exatamente onde
+/// estava, sem perder navegação), mas o preço era alto: quem foi banido
+/// continuava **dentro** do app, com sessão válida, só com uma cortina na
+/// frente. Basta a cortina falhar em qualquer caminho pra pessoa estar
+/// usando o app de novo.
+///
+/// Agora quem é bloqueado é **expulso** pro login, e o aviso vira este
+/// modal. O que a conta perde é só a navegação — e quem está banido não tem
+/// pra onde navegar mesmo.
+///
+/// **A conta do Firebase Auth continua existindo, e isso é o ponto**: é ela
+/// que carrega o `uid` que aponta pro `users/{uid}` com o
+/// `estadoModeracao`. Apagar o login de quem foi banido apagaria justamente
+/// a memória do banimento — a pessoa criaria outra conta com o mesmo e-mail
+/// e entraria limpa.
+Future<void> mostrarModalContaBloqueada(BuildContext context, BloqueioDaConta bloqueio) {
+  return showDialog<void>(
+    context: context,
+    // Sem toque fora pra fechar: a pessoa tem que ler por que não entrou.
+    barrierDismissible: false,
+    builder: (_) => _ModalContaBloqueada(bloqueio: bloqueio),
+  );
+}
 
-  const ContaBloqueadaView({super.key, required this.isDark, required this.usuario, required this.onSair});
+const Color _corDeBloqueio = Color(0xFFE0264F);
 
-  bool get _banido => usuario.estadoModeracao == 'banido';
+class _ModalContaBloqueada extends StatelessWidget {
+  final BloqueioDaConta bloqueio;
+
+  const _ModalContaBloqueada({required this.bloqueio});
 
   @override
   Widget build(BuildContext context) {
-    final corTitulo = isDark ? AuthTheme.titleDark : AuthTheme.titleLight;
-    final corSub = isDark ? AuthTheme.subDark : AuthTheme.subLight;
-    final motivo = usuario.motivoModeracao;
+    final motivo = bloqueio.motivo;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Container(decoration: BoxDecoration(gradient: isDark ? AuthTheme.backgroundDark : AuthTheme.backgroundLight)),
-          Positioned.fill(child: AuthBackground(isDark: isDark)),
-          SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_banido ? Icons.block : Icons.pause_circle_outline, size: 64, color: const Color(0xFFE0264F)),
-                    const SizedBox(height: 20),
-                    Text(
-                      _banido ? 'Sua conta foi banida' : 'Sua conta está suspensa',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: corTitulo),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _banido
-                          ? 'Você não pode mais usar o PTK Plays.'
-                          : 'Você não pode usar o PTK Plays até ${_formatarData(usuario.suspensoAte)}.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(fontSize: 14, color: corSub),
-                    ),
-                    if (motivo != null && motivo.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: (isDark ? Colors.white : Colors.black).withOpacity(.06),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          'Motivo: $motivo',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(fontSize: 13, color: corSub),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: 220,
-                      child: BotaoPrimario(label: 'Sair', carregando: false, onTap: onSair),
-                    ),
-                  ],
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Icon(
+              bloqueio.banido ? Icons.block : Icons.pause_circle_outline,
+              color: _corDeBloqueio,
+              size: 48,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              bloqueio.banido ? textos.bloqueioBanida : textos.bloqueioSuspensa,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              bloqueio.banido
+                  ? textos.bloqueioBanidaTexto
+                  : textos.bloqueioSuspensaTexto(formatarDataDoBloqueio(bloqueio.ate)),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(color: Colors.black54, height: 1.4),
+            ),
+            if (motivo != null && motivo.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0x14000000),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  textos.bloqueioMotivo(motivo),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.black54),
                 ),
               ),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              textos.bloqueioLeiaAsRegras,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(fontSize: 12, color: Colors.black38),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _corDeBloqueio,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                textos.bloqueioEntendi,
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-String _formatarData(DateTime? data) {
-  if (data == null) return 'uma data futura';
-  final dia = data.day.toString().padLeft(2, '0');
-  final mes = data.month.toString().padLeft(2, '0');
-  return '$dia/$mes/${data.year} às ${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
+/// A data até quando a suspensão vale, no formato da língua da vez.
+String formatarDataDoBloqueio(DateTime? data) {
+  if (data == null) return textos.bloqueioDataFutura;
+
+  final local = data.toLocal();
+  return textos.dataDiaMesAnoHora(
+    local.day.toString().padLeft(2, '0'),
+    local.month.toString().padLeft(2, '0'),
+    local.year.toString(),
+    local.hour.toString().padLeft(2, '0'),
+    local.minute.toString().padLeft(2, '0'),
+  );
 }

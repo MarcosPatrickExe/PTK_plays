@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ptk_plays/components/ImagemRede.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
@@ -27,7 +28,7 @@ class VideoCard extends StatelessWidget {
     final local = data.toLocal();
     final dia = local.day.toString().padLeft(2, '0');
     final mes = local.month.toString().padLeft(2, '0');
-    return '$dia/$mes/${local.year}';
+    return textos.dataDiaMesAno(dia, mes, local.year.toString());
   }
 
   Widget _badgeYoutube() {
@@ -147,7 +148,7 @@ class VideoCard extends StatelessWidget {
                                       // a largura.
                                       Flexible(
                                         child: Text(
-                                          'Publicado em ${_dataPublicacao()}',
+                                          textos.videosPublicadoEm(_dataPublicacao()!),
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.outfit(
                                             color: isDark ? AuthTheme.subDark : AuthTheme.subLight,

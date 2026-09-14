@@ -68,33 +68,37 @@ void main() {
     });
   });
 
-  group('validarConfirmacaoSenha', () {
-    test('recusa vazia e diferente', () {
-      expect(validarConfirmacaoSenha(senha: '123456', confirmacao: ''), isNotNull);
-      expect(validarConfirmacaoSenha(senha: '123456', confirmacao: '123457'), isNotNull);
+  // Nao ha group de 'validarConfirmacaoSenha': a funcao deixou de existir
+  // junto com o campo "Confirme a senha" (14/set). O que substitui esse
+  // teste e o widget test que garante UM campo na etapa de senha, em
+  // test/criar_conta_test.dart — se o campo voltar por engano, e la que
+  // quebra.
+
+  group('validarWhatsappOpcional', () {
+    test('campo vazio passa: o WhatsApp deixou de ser obrigatório em 13/set', () {
+      // Era obrigatório, e isso era risco de reprovação 5.1.1(ii) — a Apple
+      // recusa app que EXIGE dado pessoal não essencial ao que ele faz.
+      expect(validarWhatsappOpcional(MascaraTelefoneWhatsapp.mascaraVazia), isNull);
     });
 
-    test('senha diferencia maiúscula de minúscula, ao contrário do e-mail', () {
-      expect(validarConfirmacaoSenha(senha: 'Senha123', confirmacao: 'senha123'), isNotNull);
+    test('número pela metade continua barrado', () {
+      // O que se ganha permitindo isso seria um número que não chama
+      // ninguém — pior que nenhum, porque parece que temos contato.
+      expect(validarWhatsappOpcional('+55 (11) 999'), isNotNull);
     });
 
-    test('aceita iguais', () {
-      expect(validarConfirmacaoSenha(senha: '123456', confirmacao: '123456'), isNull);
+    test('fixo e celular completos passam', () {
+      expect(validarWhatsappOpcional('+55 (11) 3333-4444'), isNull);
+      expect(validarWhatsappOpcional('+55 (11) 99999-8888'), isNull);
     });
   });
 
-  group('validarWhatsappObrigatorio', () {
-    test('recusa vazio — aqui o número não é opcional', () {
-      expect(validarWhatsappObrigatorio(MascaraTelefoneWhatsapp.mascaraVazia), isNotNull);
-    });
-
-    test('recusa número incompleto', () {
-      expect(validarWhatsappObrigatorio('+55 (11) 999'), isNotNull);
-    });
-
-    test('aceita fixo (10 dígitos) e celular (11)', () {
-      expect(validarWhatsappObrigatorio('+55 (11) 3333-4444'), isNull);
-      expect(validarWhatsappObrigatorio('+55 (11) 99999-8888'), isNull);
+  group('whatsappCompleto', () {
+    test('separa vazio, pela metade e completo', () {
+      expect(whatsappCompleto(MascaraTelefoneWhatsapp.mascaraVazia), isFalse);
+      expect(whatsappCompleto('+55 (11) 999'), isFalse);
+      expect(whatsappCompleto('+55 (11) 3333-4444'), isTrue);
+      expect(whatsappCompleto('+55 (11) 99999-8888'), isTrue);
     });
   });
 

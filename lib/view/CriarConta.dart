@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,18 +37,84 @@ const Color corDeApoioDoCadastro = Color(0xFF6E5B92);
 /// retrato com a onda de sempre.
 const double larguraDoCadastroDesktop = 900;
 
-/// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve
-/// e-mail e senha resolvidos pelo provedor, então essas duas etapas somem —
-/// pedir de novo seria pedir uma segunda senha pra mesma conta.
-List<EtapaCadastro> etapasDoCadastro({required bool contaSocial}) {
+/// Domínio que a Apple usa quando a pessoa escolhe "Hide My Email" na folha
+/// do Sign in with Apple: em vez do endereço real, ela entrega um relay que
+/// reencaminha pra ele.
+const String _dominioRelayDaApple = '@privaterelay.appleid.com';
+
+/// Se o cadastro social ainda precisa perguntar o e-mail.
+///
+/// Google sempre entrega o endereço real, e a Apple entrega quando a pessoa
+/// escolhe "Share My Email" — nesses casos não há o que perguntar, o e-mail
+/// já está no Firebase Auth e vai pro Firestore junto.
+///
+/// **O caso que obriga a etapa a existir** é o "Hide My Email" da Apple: o
+/// que chega é um relay `@privaterelay.appleid.com`, que reencaminha mas não
+/// serve pra contato nem pra reconhecer a pessoa. Sem perguntar, a conta
+/// ficaria pra sempre sem um e-mail de verdade.
+bool precisaPedirEmail({required bool contaSocial, String? emailDoProvedor}) {
+  if (!contaSocial) return true;
+  final email = emailDoProvedor?.trim().toLowerCase() ?? '';
+  return email.isEmpty || email.endsWith(_dominioRelayDaApple);
+}
+
+/// Quais etapas o cadastro tem. Quem entrou pelo Google/Apple já teve senha
+/// resolvida pelo provedor, então essa etapa some — pedir de novo seria
+/// pedir uma segunda senha pra mesma conta.
+///
+/// A de e-mail é diferente: ela some só quando o provedor entregou um
+/// endereço utilizável (ver [precisaPedirEmail]).
+List<EtapaCadastro> etapasDoCadastro({required bool contaSocial, bool pedirEmail = true}) {
   return [
     EtapaCadastro.boasVindas,
     EtapaCadastro.nickname,
-    if (!contaSocial) EtapaCadastro.email,
+    if (!contaSocial || pedirEmail) EtapaCadastro.email,
     if (!contaSocial) EtapaCadastro.senha,
     EtapaCadastro.foto,
     EtapaCadastro.whatsapp,
   ];
+}
+
+/// Se o botão "Avançar" deve **aparecer** nesta etapa.
+///
+/// Diferente de estar habilitado: o "Avançar" some enquanto a etapa não tem
+/// nem o mínimo preenchido, e surge quando tem. A ideia veio de UX — o olho
+/// nota mudança na tela antes de ler qualquer aviso, então o botão surgindo
+/// diz "é por aqui" melhor que um botão cinza parado, que a pessoa nem
+/// registra que mudou de estado.
+///
+/// Os limiares aqui são de **aparecer**, e são propositalmente mais frouxos
+/// que os de validar: no nick o botão surge na 2ª letra mas só libera na 3ª,
+/// e no e-mail basta um "@" pra ele aparecer. Quando aparece sem estar
+/// válido, ele aparece desabilitado — e aí o aviso embaixo do campo diz o
+/// que falta. As duas coisas juntas é que guiam; o botão sozinho não
+/// explicaria, e o aviso sozinho não chamaria atenção.
+bool avancarVisivel({
+  required EtapaCadastro etapa,
+  required String nickname,
+  required String email,
+  required String senha,
+  required bool temFoto,
+  required String whatsapp,
+}) {
+  switch (etapa) {
+    // Não tem o que preencher: o botão é a única saída da tela.
+    case EtapaCadastro.boasVindas:
+      return true;
+    case EtapaCadastro.nickname:
+      return nickname.trim().length >= minimoParaMostrarAvancar;
+    case EtapaCadastro.email:
+      return email.contains('@');
+    case EtapaCadastro.senha:
+      return senha.length >= minimoCaracteresSenha;
+    case EtapaCadastro.foto:
+      return temFoto;
+    // O WhatsApp é opcional: vazio significa "vou pular", e quem resolve
+    // isso é o botão Pular, não o Avançar. O Avançar só faz sentido com o
+    // número inteiro — pela metade ele não chamaria ninguém.
+    case EtapaCadastro.whatsapp:
+      return whatsappCompleto(whatsapp);
+  }
 }
 
 /// A arte do PTK que fica ao fundo de cada etapa. Etapas sem arte definida
@@ -92,6 +159,10 @@ class CriarConta extends StatefulWidget {
   /// já vir preenchido em vez de campo em branco.
   final String? nicknameSugerido;
 
+  /// E-mail que o provedor entregou. Decide se a etapa de e-mail aparece —
+  /// ver [precisaPedirEmail].
+  final String? emailDoProvedor;
+
   const CriarConta({
     super.key,
     required this.viewmodelYT,
@@ -99,6 +170,7 @@ class CriarConta extends StatefulWidget {
     required this.authViewModel,
     this.contaSocial = false,
     this.nicknameSugerido,
+    this.emailDoProvedor,
   });
 
   @override
@@ -106,7 +178,13 @@ class CriarConta extends StatefulWidget {
 }
 
 class _CriarContaState extends State<CriarConta> {
-  late final List<EtapaCadastro> _etapas = etapasDoCadastro(contaSocial: widget.contaSocial);
+  late final List<EtapaCadastro> _etapas = etapasDoCadastro(
+    contaSocial: widget.contaSocial,
+    pedirEmail: precisaPedirEmail(
+      contaSocial: widget.contaSocial,
+      emailDoProvedor: widget.emailDoProvedor,
+    ),
+  );
   final _paginas = PageController();
   int _indice = 0;
 
@@ -114,7 +192,6 @@ class _CriarContaState extends State<CriarConta> {
   final _email = TextEditingController();
   final _confirmarEmail = TextEditingController();
   final _senha = TextEditingController();
-  final _confirmarSenha = TextEditingController();
   final _whatsapp = TextEditingController();
 
   String? _avatarPreset;
@@ -134,7 +211,7 @@ class _CriarContaState extends State<CriarConta> {
   @override
   void dispose() {
     _paginas.dispose();
-    for (final campo in [_nickname, _email, _confirmarEmail, _senha, _confirmarSenha, _whatsapp]) {
+    for (final campo in [_nickname, _email, _confirmarEmail, _senha, _whatsapp]) {
       campo.dispose();
     }
     super.dispose();
@@ -153,20 +230,41 @@ class _CriarContaState extends State<CriarConta> {
         return validarEmail(_email.text) ??
             validarConfirmacaoEmail(email: _email.text, confirmacao: _confirmarEmail.text);
       case EtapaCadastro.senha:
-        return validarSenha(_senha.text) ??
-            validarConfirmacaoSenha(senha: _senha.text, confirmacao: _confirmarSenha.text);
+        return validarSenha(_senha.text);
       case EtapaCadastro.foto:
         return validarFotoEscolhida(avatarPreset: _avatarPreset, temFotoPropria: _fotoPropria != null);
       case EtapaCadastro.whatsapp:
-        return validarWhatsappObrigatorio(_whatsapp.text);
+        return validarWhatsappOpcional(_whatsapp.text);
     }
   }
 
   bool get _podeAvancar => _pendenciaDaEtapa(_etapaAtual) == null;
+
+  bool get _avancarVisivel => avancarVisivel(
+        etapa: _etapaAtual,
+        nickname: _nickname.text,
+        email: _email.text,
+        senha: _senha.text,
+        temFoto: _avatarPreset != null || _fotoPropria != null,
+        whatsapp: _whatsapp.text,
+      );
+
+  /// "Pular" só existe na etapa do WhatsApp, a única opcional. Ele aparece
+  /// mesmo com o número já digitado: quem se arrependeu de informar precisa
+  /// de uma saída que não seja apagar o campo dígito por dígito.
+  bool get _podePular => _etapaAtual == EtapaCadastro.whatsapp;
+
+  /// Conclui sem o número. Limpa o campo antes porque ele pode estar
+  /// preenchido pela metade — e meio número salvo seria pior que nenhum.
+  void _pular() {
+    if (_criando) return;
+    _whatsapp.text = MascaraTelefoneWhatsapp.mascaraVazia;
+    _avancar(ignorarPendencia: true);
+  }
   bool get _ehUltimaEtapa => _indice == _etapas.length - 1;
 
-  void _avancar() {
-    if (!_podeAvancar) return;
+  void _avancar({bool ignorarPendencia = false}) {
+    if (!ignorarPendencia && !_podeAvancar) return;
     if (_ehUltimaEtapa) {
       _criarConta();
       return;
@@ -222,7 +320,7 @@ class _CriarContaState extends State<CriarConta> {
       // Falha de camera/galeria vem do lado nativo (`plataforma/...`), e o
       // codigo distingue "o usuario negou a permissao" de "o aparelho nao
       // tem camera" — que pedem respostas opostas de quem for ajudar.
-      mostrarToast(context, mensagem: comCodigo('Não foi possível abrir a câmera.', e), erro: true);
+      mostrarToast(context, mensagem: comCodigo(textos.cadastroCameraFalhou, e), erro: true);
     } finally {
       if (mounted) setState(() => _escolhendoFoto = false);
     }
@@ -231,13 +329,26 @@ class _CriarContaState extends State<CriarConta> {
   Future<void> _criarConta() async {
     setState(() => _criando = true);
 
-    final erro = await widget.authViewModel.cadastrar(
-      nickname: _nickname.text.trim(),
-      email: _email.text.trim(),
-      senha: _senha.text,
-      telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
-      avatarPreset: _avatarPreset ?? '',
-    );
+    // Conta social JÁ EXISTE — o provedor a criou no login. Chamar
+    // `cadastrar` aqui (que era o que acontecia até 13/set) vira
+    // `createUserWithEmailAndPassword('', '')`, porque neste fluxo os campos
+    // de e-mail e senha nem chegam a ser exibidos. O cadastro social não
+    // tinha como ser concluído: quem entrava pela Apple ficava preso na
+    // última etapa.
+    final erro = widget.contaSocial
+        ? await widget.authViewModel.completarCadastroSocial(
+            nickname: _nickname.text.trim(),
+            telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
+            avatarPreset: _avatarPreset ?? '',
+            emailInformado: _email.text.trim(),
+          )
+        : await widget.authViewModel.cadastrar(
+            nickname: _nickname.text.trim(),
+            email: _email.text.trim(),
+            senha: _senha.text,
+            telefoneWhatsapp: MascaraTelefoneWhatsapp.paraSalvar(_whatsapp.text),
+            avatarPreset: _avatarPreset ?? '',
+          );
 
     if (!mounted) return;
 
@@ -257,7 +368,7 @@ class _CriarContaState extends State<CriarConta> {
         // disso — a pessoa troca a foto depois na edição de perfil.
         mostrarToast(
           context,
-          mensagem: 'Conta criada! Só a foto não subiu, tente de novo no perfil.',
+          mensagem: textos.cadastroFotoNaoSubiu,
           erro: true,
         );
       }
@@ -543,13 +654,13 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.nickname:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Como a gente\nte chama?',
-          subtitulo: 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.',
-          subtituloCurto: 'É o nick que aparece nos seus posts e comentários.',
+          titulo: textos.cadastroNickTitulo,
+          subtitulo: textos.cadastroNickTexto,
+          subtituloCurto: textos.cadastroNickCurto,
           campos: [
             CampoFlutuante(
               controller: _nickname,
-              rotulo: 'Seu nick',
+              rotulo: textos.cadastroNickCampo,
               icone: Icons.person_outline,
               capitalizacao: TextCapitalization.words,
               validador: validarNickname,
@@ -561,13 +672,13 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.email:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Qual é o\nseu e-mail?',
-          subtitulo: 'É por ele que você entra na conta e recupera a senha se esquecer.',
-          subtituloCurto: 'Serve pra entrar e recuperar a senha.',
+          titulo: textos.cadastroEmailTitulo,
+          subtitulo: textos.cadastroEmailTexto,
+          subtituloCurto: textos.cadastroEmailCurto,
           campos: [
             CampoFlutuante(
               controller: _email,
-              rotulo: 'E-mail',
+              rotulo: textos.email,
               icone: Icons.mail_outline,
               tipoDeTeclado: TextInputType.emailAddress,
               validador: validarEmail,
@@ -575,7 +686,7 @@ class _CriarContaState extends State<CriarConta> {
             ),
             CampoFlutuante(
               controller: _confirmarEmail,
-              rotulo: 'Confirme o e-mail',
+              rotulo: textos.cadastroConfirmeEmail,
               icone: Icons.mark_email_read_outlined,
               tipoDeTeclado: TextInputType.emailAddress,
               validador: (valor) => validarConfirmacaoEmail(email: _email.text, confirmacao: valor),
@@ -587,24 +698,16 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.senha:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Agora crie\numa senha',
-          subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Guarde bem — ela é sua chave de entrada.',
-          subtituloCurto: 'Pelo menos $minimoCaracteresSenha caracteres.',
+          titulo: textos.cadastroSenhaTitulo,
+          subtitulo: textos.cadastroSenhaTexto(minimoCaracteresSenha),
+          subtituloCurto: textos.cadastroSenhaCurto(minimoCaracteresSenha),
           campos: [
             CampoFlutuante(
               controller: _senha,
-              rotulo: 'Senha',
+              rotulo: textos.senha,
               icone: Icons.lock_outline,
               ehSenha: true,
               validador: validarSenha,
-              onMudou: () => setState(() {}),
-            ),
-            CampoFlutuante(
-              controller: _confirmarSenha,
-              rotulo: 'Confirme a senha',
-              icone: Icons.lock_reset_outlined,
-              ehSenha: true,
-              validador: (valor) => validarConfirmacaoSenha(senha: _senha.text, confirmacao: valor),
               onMudou: () => setState(() {}),
             ),
           ],
@@ -627,17 +730,17 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.whatsapp:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Seu WhatsApp',
-          subtitulo: 'Serve pra avisos do canal e pra recuperar sua conta. Aceita celular ou fixo.',
-          subtituloCurto: 'Pra avisos do canal. Aceita celular ou fixo.',
+          titulo: textos.cadastroWhatsappTitulo,
+          subtitulo: textos.cadastroWhatsappTexto,
+          subtituloCurto: textos.cadastroWhatsappCurto,
           campos: [
             CampoFlutuante(
               controller: _whatsapp,
-              rotulo: 'Número com DDD',
+              rotulo: textos.cadastroWhatsappCampo,
               icone: Icons.phone_outlined,
               tipoDeTeclado: TextInputType.phone,
               formatadores: [MascaraTelefoneWhatsapp()],
-              validador: validarWhatsappObrigatorio,
+              validador: validarWhatsappOpcional,
               onMudou: () => setState(() {}),
             ),
           ],
@@ -647,24 +750,70 @@ class _CriarContaState extends State<CriarConta> {
 
   Widget _barraDeBotoes() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      // 16 de folga lateral, e não 24: na última etapa a barra carrega três
+      // controles ("Voltar", "Pular" e "Criar conta", que é o rótulo mais
+      // largo do fluxo) e estourava por 42px num aparelho de 420 de largura
+      // — faixa de celular comum, não caso extremo.
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       child: Row(
         children: [
-          TextButton.icon(
-            onPressed: _criando ? null : _voltar,
-            icon: const Icon(Icons.arrow_back, size: 18),
-            label: Text(
-              _indice == 0 ? 'Sair' : 'Voltar',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+          // Flexible + ellipsis: o "Voltar" é quem cede espaço quando os
+          // três não cabem. Ele é o controle menos importante da barra, e
+          // ainda sobra a seta pra dizer o que ele faz.
+          Flexible(
+            child: TextButton.icon(
+              onPressed: _criando ? null : _voltar,
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: Text(
+                _indice == 0 ? textos.sair : textos.voltar,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(foregroundColor: corDeApoioDoCadastro),
             ),
-            style: TextButton.styleFrom(foregroundColor: corDeApoioDoCadastro),
           ),
           const Spacer(),
-          _BotaoAvancar(
-            label: _ehUltimaEtapa ? 'Criar conta' : 'Avançar',
-            habilitado: _podeAvancar,
-            carregando: _criando,
-            onTap: _avancar,
+          // "Pular" fica colado no Avançar de propósito: é ali que o polegar
+          // já está, e é ali que a pessoa procura a saída da etapa. Discreto
+          // (texto, sem fundo, cor de apoio) pra não competir com a ação
+          // principal — quem quer informar o número deve ver o Avançar
+          // primeiro.
+          if (_podePular)
+            TextButton(
+              onPressed: _criando ? null : _pular,
+              style: TextButton.styleFrom(
+                foregroundColor: corDeApoioDoCadastro,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: const Size(0, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                textos.pular,
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+          if (_podePular) const SizedBox(width: 4),
+          // O botão aparece e some conforme a etapa passa a ter o mínimo
+          // preenchido. A escala junto com o fade é o que faz o olho
+          // registrar — só opacidade passa despercebido no canto da tela.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (filho, animacao) => FadeTransition(
+              opacity: animacao,
+              child: ScaleTransition(scale: Tween(begin: .8, end: 1.0).animate(animacao), child: filho),
+            ),
+            child: _avancarVisivel
+                ? _BotaoAvancar(
+                    key: const ValueKey('avancar'),
+                    label: _ehUltimaEtapa ? textos.criarConta : textos.avancar,
+                    habilitado: _podeAvancar,
+                    carregando: _criando,
+                    onTap: _avancar,
+                  )
+                // SizedBox vazio, e não `null`: sem um filho com tamanho o
+                // AnimatedSwitcher colapsa a Row e o "Pular" pula de lugar
+                // no meio da animação.
+                : const SizedBox(key: ValueKey('sem-avancar'), height: 52),
           ),
         ],
       ),
@@ -770,13 +919,9 @@ class _EtapaBoasVindas extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Etapa(
       estilo: estilo,
-      titulo: 'Bem-vindo(a) à\ncomunidade PTK Plays!',
-      subtitulo:
-          'Aqui você acompanha de perto tudo o que rola no canal: avisos de live, '
-          'os vídeos novos e as enquetes do PTK — e ainda fala com a galera no feed.\n\n'
-          'São só alguns passos pra criar sua conta. Bora?',
-      subtituloCurto: 'Avisos de live, vídeos novos, enquetes e o feed da galera. '
-          'Bora criar sua conta?',
+      titulo: textos.cadastroBoasVindasTitulo,
+      subtitulo: textos.cadastroBoasVindasTexto,
+      subtituloCurto: textos.cadastroBoasVindasCurto,
       campos: const [],
     );
   }
@@ -907,7 +1052,7 @@ class _SeloDeEtapa extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'PASSO $numero DE $total',
+            textos.cadastroPasso(numero, total),
             style: GoogleFonts.outfit(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
@@ -1054,9 +1199,9 @@ class _EtapaFoto extends StatelessWidget {
         children: [
           _CabecalhoDaEtapa(
             estilo: estilo,
-            titulo: 'Sua foto\nde perfil',
-            subtitulo: 'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
-            subtituloCurto: 'Escolha um avatar ou tire uma selfie.',
+            titulo: textos.cadastroFotoTitulo,
+            subtitulo: textos.cadastroFotoTexto,
+            subtituloCurto: textos.cadastroFotoCurto,
           ),
           const SizedBox(height: 16),
 
@@ -1077,7 +1222,7 @@ class _EtapaFoto extends StatelessWidget {
               Expanded(
                 child: _BotaoDeFoto(
                   icone: Icons.photo_camera_outlined,
-                  label: fotoPropria == null ? 'Tirar foto' : 'Tirar outra',
+                  label: fotoPropria == null ? textos.cadastroTirarFoto : textos.cadastroTirarOutra,
                   carregando: escolhendo,
                   onTap: onTirarFoto,
                 ),
@@ -1086,7 +1231,7 @@ class _EtapaFoto extends StatelessWidget {
               Expanded(
                 child: _BotaoDeFoto(
                   icone: Icons.photo_library_outlined,
-                  label: 'Da galeria',
+                  label: textos.cadastroDaGaleria,
                   carregando: false,
                   onTap: onEscolherDaGaleria,
                 ),
@@ -1096,7 +1241,7 @@ class _EtapaFoto extends StatelessWidget {
 
           const SizedBox(height: 24),
           Text(
-            'Ou escolha um avatar:',
+            textos.cadastroOuEscolhaAvatar,
             style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: corDeApoioDoCadastro),
           ),
           const SizedBox(height: 12),
@@ -1207,6 +1352,7 @@ class _BotaoAvancar extends StatelessWidget {
   final VoidCallback onTap;
 
   const _BotaoAvancar({
+    super.key,
     required this.label,
     required this.habilitado,
     required this.carregando,

@@ -1900,3 +1900,457 @@ de revisão por tentativa**. Vale a feiura de um código de erro na tela.
 o estado do provedor Apple no Firebase Console, a chave/Services ID no Apple
 Developer Portal, qual frase exata apareceu no print do revisor, e qual
 binário a Apple realmente revisou (ver a divergência 1.2.0 × 1.2.1 no topo).
+
+# Cadastro reativo, WhatsApp opcional e Hide My Email (13/set/2026)
+
+Sessão que começou como ajuste visual no iPad e terminou desenterrando o bug
+mais grave do fluxo de cadastro.
+
+## O cadastro social nunca teve como ser concluído
+
+`CriarConta._criarConta` chamava `cadastrar` nos **dois** fluxos. Na conta
+social isso vira `createUserWithEmailAndPassword('', '')`: as etapas de
+e-mail e senha não são exibidas ali, então os dois campos vão vazios — e a
+conta **já existia**, criada pelo provedor no momento do login.
+
+O que torna isso pior que um bug comum é quem ia encontrá-lo. Quem entra
+pela Apple ou pelo Google percorre boas-vindas, nick, foto e WhatsApp, e
+**trava na última tela**, sem forma nenhuma de concluir. É exatamente o
+caminho de um revisor da App Store assim que o login com Apple voltasse a
+funcionar — ou seja, seria a terceira reprovação, logo depois de
+resolvermos a segunda. O usuário estava a uma tela de bater nisso no teste
+de iPad.
+
+A correção é `AuthRepository.completarCadastroSocial`, que preenche o perfil
+em vez de criar conta. Três detalhes que o diff não explica:
+
+- **`merge`, e não `set` inteiro.** O documento nasceu no login social
+  (`_sincronizarUsuarioNoFirestore`) já com `cargo`, `badges` e
+  `contadores`, e as regras do Firestore recusam um update que mexa em
+  qualquer um dos três.
+- **A colisão de nickname compara o `uid`.** Sem isso, alguém que voltasse
+  pra completar o cadastro com o mesmo nick que já reservou seria barrado
+  pelo próprio registro.
+- **A reserva em `nicknamesParaEmail` não é opcional.** É ela que resolve o
+  e-mail no login por nickname; sem a escrita, a pessoa nunca conseguiria
+  entrar pelo nick que escolheu.
+
+**Não validado de ponta a ponta** — exige Firebase real. O que existe é
+teste de widget do fluxo de etapas.
+
+## Hide My Email: por que a etapa de e-mail voltou
+
+A etapa de e-mail sumia pra toda conta social, e isso estava certo pro
+Google e pro "Share My Email" da Apple — o endereço real já chega pelo
+provedor e vai pro Firestore junto.
+
+O caso que quebrava é o **"Hide My Email"**: o que chega é um relay
+`@privaterelay.appleid.com`. Ele **encaminha de verdade** (a pessoa continua
+alcançável por e-mail, e isso importa pra decisão do WhatsApp mais abaixo),
+mas não serve pra contato direto nem pra reconhecer quem é. Sem perguntar, a
+conta ficaria pra sempre sem um e-mail utilizável.
+
+`precisaPedirEmail` decide isso. A etapa de **senha** continua fora nos dois
+casos — ela é do provedor; só a de e-mail volta.
+
+**O que NÃO foi feito, de propósito**: o e-mail informado vai pro Firestore,
+e o Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
+verificação por e-mail e mexeria no vínculo com a Apple, que é a identidade
+da conta. Risco alto pra ganho baixo, já que o app lê o e-mail do Firestore
+pra tudo.
+
+O `default` de `pedirEmail` é `true`: na dúvida, perguntar é melhor que
+deixar a conta sem e-mail nenhum.
+
+## O botão que aparece em vez de ficar cinza
+
+Veio de uma observação de UX do usuário: **o olho registra mudança na tela
+antes de ler qualquer texto**. Um botão cinza parado não comunica que falta
+algo — a pessoa nem percebe que ele mudou de estado.
+
+Virou regra permanente no `CLAUDE.md`, valendo pro app inteiro. A parte que
+não se deduz do código, e que é o mecanismo todo: **o limiar de aparecer é
+de propósito mais frouxo que o de validar**. O nick mostra o botão na 2ª
+letra mas só libera na 3ª; o e-mail basta ter `@`. Quando o botão aparece
+sem estar válido, ele aparece **desabilitado**, e o aviso embaixo do campo
+diz o que falta — o botão chama atenção, o aviso explica.
+
+Se os dois limiares fossem iguais, o surgimento significaria só "pode
+clicar", e não "você está quase lá". Quem for "consertar" a inconsistência
+entre `minimoParaMostrarAvancar` (2) e `minimoCaracteresNickname` (3) vai
+piorar a tela sem entender por quê.
+
+Senha ficou em 6 caracteres sem exigir maiúscula, número ou símbolo —
+decisão explícita do usuário: exigência complicada cansa e custa cadastro,
+e a comunidade vale mais que a entropia da senha.
+
+## WhatsApp obrigatório era risco de reprovação
+
+A Apple recusa app que **exige** dado pessoal não essencial à funcionalidade
+central (guideline 5.1.1(ii)), e ver feed, vídeos e avisos de live não
+precisa de telefone. O agravante era o contexto: exigíamos o número logo
+depois de a pessoa escolher "Hide My Email" — logo depois de ela usar um
+recurso que existe justamente pra não entregar dado pessoal.
+
+Virou opcional, com um **"Pular"** discreto colado no avançar (é onde o
+polegar já está, e onde a pessoa procura a saída da etapa). Ele continua
+visível mesmo com o número digitado: quem se arrependeu precisa de saída que
+não seja apagar o campo dígito por dígito. E limpa o campo antes de
+concluir, porque ele pode estar preenchido pela metade.
+
+**O que continua barrado é o número pela metade.** Melhor nenhum número do
+que um que não chama ninguém — um número quebrado parece contato e não é.
+
+A objeção natural do usuário foi "mas preciso avisar quando estou ao vivo".
+Duas coisas desfazem isso, e valem registrar porque a leitura fácil é a
+contrária: o **relay da Apple encaminha**, então mesmo quem esconde o e-mail
+continua alcançável; e **push** é melhor que WhatsApp pra esse fim
+específico — chega na hora, não pede dado pessoal, a Apple não questiona, e
+é o único canal que traz a pessoa **de volta pro app** em vez de mantê-la no
+WhatsApp.
+
+## Correções visuais, e por que elas não eram valores errados
+
+**O degradê sobre a logo** tinha duas camadas escurecendo, ambas abrindo em
+45% da faixa — somadas, cobriam o rosto. O problema real que elas existem
+pra resolver é bem menor: a borda reta embaixo da logo. E ela já era
+resolvida no próprio arquivo, pelo alfa que dissolve nos últimos 30% (feito
+em 07/set). As camadas ficaram na intensidade de quando o alfa ainda não
+existia — cinto e suspensório.
+
+**Os avatares** não estavam com um valor errado de tamanho; estavam com a
+**ausência** de um. A grade é de 3 colunas e divide a largura disponível,
+então na coluna larga do cartão desktop cada avatar esticava junto. Um teto
+de 84px resolve sem afetar o celular, onde a célula já é menor.
+
+E o círculo precisa de `Center` + `AspectRatio(1)`, não só de
+`BoxShape.circle`: a célula da grade não é quadrada (`childAspectRatio`
+0.82, menos o rótulo), e um `BoxShape.circle` solto ali viraria uma
+**elipse** — que é o resultado provável da tentativa óbvia.
+
+## Duas armadilhas de harness
+
+**A barra de botões estourava 42px** num aparelho de 420 de largura quando
+os três controles apareciam juntos ("Voltar" + "Pular" + "Criar conta", o
+rótulo mais largo do fluxo). Isso é faixa de celular comum, não caso
+extremo, e só apareceu porque o teste novo do "Pular" precisou de um
+viewport estreito pra ficar no layout de celular. Vale como argumento pra
+testar em largura de aparelho real, não só na padrão de 800x600.
+
+**`AnimatedSwitcher` só remove o filho que sai no frame seguinte** ao fim da
+animação. Um `pump(duração)` sozinho ainda encontra o widget antigo, e o
+teste falha por timing — não por comportamento. O helper `_esperarBotao`
+faz `pump()` antes do `pump(duração)`. Custou uma rodada de depuração
+inteira procurando bug em código que estava certo.
+
+E o tap num avatar tem que sair do `SeletorAvatarPreset`, não de
+`find.byType(GestureDetector)` solto: a etapa da foto tem outros
+`GestureDetector` antes dos avatares na árvore, e o primeiro deles não
+seleciona nada.
+
+## O campo "confirmar senha": pergunta em aberto
+
+O usuário questionou por que ele existe. **A resposta honesta é que não há
+um bom motivo.** O argumento clássico é erro de digitação em campo
+mascarado, mas o campo de senha do app **já tem o olhinho de
+mostrar/ocultar** — que resolve melhor e cobra um campo a menos. É o
+consenso de UX moderna (NN/g, GOV.UK) que o toggle substitui o confirmar.
+
+Recomendei **remover**. O "confirmar e-mail" é caso diferente e recomendei
+**manter**: e-mail errado deixa a conta irrecuperável, e ninguém relê o que
+digitou.
+
+Não foi removido porque é mudança de produto que o usuário não pediu — está
+aguardando decisão dele.
+
+---
+
+## Duas línguas, exclusão de conta e o fim do "confirmar senha" (14/set/2026)
+
+Dia em que o usuário respondeu as seis decisões que estavam paradas desde
+13/set, e mandou fazer o que saiu delas. Este registro guarda o **porquê**;
+o estado de hoje está no `CHECKPOINT.md`.
+
+### Por que o i18n veio antes do push
+
+A recomendação registrada em 13/set era o contrário: push primeiro, porque
+é ele que destrava o aviso de live que motivou toda a discussão do
+WhatsApp. O usuário decidiu ao contrário, e a decisão dele tem uma razão
+que a minha não tinha: o push depende de uma **chave APNs** que só ele pode
+gerar, e ele preferiu não parar o trabalho numa dependência externa.
+
+Ele também recusou o corte que eu havia proposto ("primeira leva: login +
+cadastro"). Pediu o app inteiro de uma vez. Em retrospecto ele estava
+certo pelo motivo que eu mesmo tinha escrito na recomendação: **meio
+traduzido é pior que nada** — é exatamente a impressão ruim que se queria
+evitar. Um corte teria deixado o app metade em cada língua por tempo
+indeterminado.
+
+### Por que não o `gen_l10n` com ARB
+
+É a escolha padrão do Flutter, e foi descartada por um motivo de formato,
+não de gosto. O gerado exige `AppLocalizations.of(context)`, e boa parte do
+texto deste app **nasce longe de um `BuildContext`**: `ValidacaoCadastro`,
+`AuthErrorTranslator`, `AuthViewModel` e os repositórios todos devolvem
+frase pronta pra tela.
+
+Passar um contexto até lá seria arrastar UI pra dentro da regra de negócio.
+A saída que todo mundo usa nesse caso — guardar o `AppLocalizations` num
+global — perde exatamente a garantia que o ARB dava, que é a checagem de
+chave faltante.
+
+Uma classe abstrata com um getter por frase dá as duas coisas de uma vez: o
+mesmo `textos.x` serve dentro e fora da árvore de widgets, e **esquecer uma
+frase em `TextosEnUs` não compila**. Com mapa de `String` pra `String`, a
+chave faltante só apareceria quando alguém abrisse aquela tela naquela
+língua — e o que chegaria na tela seria `null` ou a própria chave.
+
+O `flutter_localizations` entrou mesmo assim, mas pra outra coisa: o
+"OK"/"Cancelar" de um diálogo de data e os textos de acessibilidade vêm de
+dentro do framework. Sem ele o `MaterialApp` só falaria inglês nessas
+peças.
+
+### O detalhe que quase derrubou 350 testes
+
+A detecção do idioma mora no `main()`, e **nunca** dentro do catálogo. Não
+é organização: o ambiente de `flutter test` responde **en-US**. Se o global
+consultasse a plataforma sozinho, todo `flutter test` viraria inglês e
+centenas de asserts de texto quebrariam de uma vez, sem nada no app ter
+mudado. O padrão do global é português; é o `main()` que troca.
+
+### A regressão que o analyze não pega
+
+O catálogo foi gerado a partir de uma tabela única, pra garantir que as
+duas línguas ficassem na mesma ordem e nada faltasse. O gerador deixou
+`\$mensagem` escapado, e em Dart isso é um **cifrão literal**: a mensagem de
+erro chegava na tela como `$mensagem (código: $codigo)`, com o nome da
+variável no lugar do valor.
+
+Isso não é erro de compilação — é `String` válida, e o `analyze` fica
+quieto. Foram 49 frases em cada língua. Só um teste que **lê o resultado**
+pega esse tipo de coisa, e é por isso que `test/i18n_test.dart` tem um
+grupo só pra frases com variável.
+
+### Data não é só palavra
+
+`09/03` é setembro no Brasil e março nos EUA. Deixar a ordem fixa e traduzir
+só o "às" faria a data **mentir** pra metade de quem lê, sem nenhum sinal
+de que mentiu. Por isso `dataDiaMes`, `dataDiaMesAno`, `dataDiaMesHora` e
+`dataDiaMesAnoHora` invertem a ordem junto com a língua.
+
+O relógio ficou em 24h nas duas: AM/PM traria uma segunda dimensão de
+formatação (e uma segunda chance de errar) por um ganho pequeno.
+
+### O que NÃO se traduz, e por quê
+
+Três casos, e nenhum é esquecimento:
+
+- **o nome do app** é marca, não texto;
+- **as chaves salvas no Firestore** (`'admin'`, `'novato'`, `'gamer'`): o
+  rótulo traduz, a chave não. Se o título traduzido fosse o que vai pro
+  banco, uma conta criada com o app em inglês teria badges que o app em
+  português não reconheceria. Foi por isso que `Conquista` e `AvatarPreset`
+  trocaram o campo guardado por um getter que resolve pela chave — a lista
+  continua `const`, porque o desenho e a chave não mudam de língua;
+- **os nomes das línguas** na tela de configurações. Este é o mais fácil de
+  errar por excesso de zelo: "Inglês (EUA)" parece o certo a fazer num app
+  em português. Só que **quem abre aquela tela é justamente quem não está
+  entendendo o que está escrito** — traduzir o nome de uma língua é o jeito
+  exato de esconder a opção de quem precisa dela.
+
+### A política de privacidade seguia a região, e isso era bug
+
+A regra antiga era `locale.countryCode == 'BR'`, e ela errava dos dois
+lados. Quem configurava só `pt`, sem região, lia a política em inglês com o
+app inteiro em português. E, com o seletor manual de idioma, alguém que
+trocasse pra inglês continuaria preso à região do aparelho, que não muda
+junto.
+
+Passou a seguir o idioma que o app está falando. Efeito colateral aceito de
+propósito: **português de Portugal passou a ler em português**, o que antes
+não acontecia. Quem configurou o aparelho em português lê melhor em
+português, mesmo que a tradução automática seja pro pt-BR.
+
+### Sobre a dúvida do idioma na web
+
+O usuário perguntou se, na web, a detecção exigiria pedir **permissão de
+localização**. Não exige, e não tem relação nenhuma: o Flutter web preenche
+`locales` a partir do `navigator.languages`, que é a lista configurada no
+próprio navegador. **Idioma é uma preferência declarada; onde a pessoa está
+é outro assunto**, e o app não precisa saber.
+
+---
+
+### Exclusão de conta: o que estava quebrado era pior do que parecia
+
+`excluirConta` reautenticava sempre com
+`EmailAuthProvider.credential(email: user.email!, password: senha)`. Quem
+entrou pelo Google ou pela Apple não tem senha do PTK Plays em lugar
+nenhum — e, no caso do "Hide My Email", o `user.email` podia nem ser um
+endereço real. O diálogo ainda exigia preencher o campo de senha pra
+habilitar o botão. Beco sem saída completo, e reprovação na 5.1.1(v).
+
+E apagava **só** `users/{uid}`. Sobravam os posts, a reserva do nickname,
+as fotos no Storage e o uid nas enquetes votadas.
+
+**A ordem da exclusão é a parte que mais fácil se quebra numa refatoração
+futura**, então vale escrever o porquê de cada posição:
+
+- a conta do **Auth cai por último**. As regras do Firestore e do Storage só
+  autorizam apagar o que é "meu" enquanto `request.auth` existe — apagando
+  o login primeiro, todo o resto viraria lixo que só o Admin SDK alcança;
+- `users/{uid}` é o **último documento** do Firestore a sair. A regra de
+  apagar post faz `get()` nele pra descobrir o cargo de quem chama; sem o
+  documento, a regra não avalia e a exclusão dos próprios posts é negada.
+
+**Falhar no meio deixa a conta existindo**, e não meio apagada. É
+deliberado: dá pra tentar de novo. O contrário — login apagado, dados de pé
+— não teria conserto por nenhum caminho que o app alcance.
+
+### Os votos em enquete: o caso que exigiu regra nova
+
+Os votos estão em posts de **outras pessoas**, que o dono não pode apagar.
+Sem regra nova, o uid dele ficaria pra sempre em `votantes` e
+`votosPorUsuario` de cada enquete que votou.
+
+A regra nova deixa ele tirar o próprio uid — e **trava `opcoes`**. Essa
+parte é a que mais parece incompleta e é a mais pensada: o que identifica a
+pessoa é o uid; o total de votos de cada opção é número agregado que não
+aponta pra ninguém. **Tirar o nome e deixar o número é exatamente o que
+anonimizar significa.** E liberar `opcoes` nessa regra daria ao cliente uma
+porta pra reescrever placar de enquete alheia — justamente o que `podeVotar`
+passa o tempo todo impedindo.
+
+Rules não tem subtração de lista. A remoção de um item só se descreve por
+três condições juntas: meu uid não está mais lá, nada novo entrou, e a
+lista encolheu em exatamente um.
+
+### O `delete` do Storage precisava de regra própria
+
+Esta é sutil e vale registrar: numa exclusão o `request.resource` é **nulo**.
+A regra de `write` do `fotos_perfil/` checava `request.resource.size < 5MB`,
+então estourava e negava. O dono nunca conseguiu apagar a própria foto — e
+ninguém tinha percebido, porque até agora ninguém precisava.
+
+### O que continua fora do alcance do app
+
+As mensagens em `mensagensWhatsapp` são indexadas por telefone e só o
+webhook escreve nelas (`write: if false` vale pra todo mundo, admin
+incluído). São **dado pessoal** — telefone e nome de perfil — que sobrevive
+à exclusão da conta. Limpá-las precisa de uma Cloud Function com o Admin
+SDK.
+
+Comentários e curtidas não aparecem na cascata por outro motivo: **não
+existem como documento**. Hoje são só contadores dentro do post.
+
+---
+
+### Por que o "confirmar senha" não tinha defesa
+
+O campo nasceu num mundo onde senha era sempre mascarada: digitar errado só
+aparecia no próximo login, e repetir era a única defesa possível. Aqui o
+campo tem o olho de mostrar/ocultar — dá pra ler o que foi digitado antes
+de seguir, e a defesa já está no lugar sem custar uma segunda digitação.
+
+**O "Confirme o e-mail" fica, e a assimetria é o ponto**: e-mail errado não
+tem conserto de dentro do app — a recuperação de senha vai pro endereço
+errado e a conta fica órfã. Senha errada tem conserto: é só pedir pra
+redefinir, justamente pelo e-mail.
+
+`validarConfirmacaoSenha` saiu junto, e no lugar dela ficou um comentário
+explicando a assimetria — senão a próxima sessão a recria por simetria com
+o `validarConfirmacaoEmail`, que continua ali do lado.
+
+### O texto do WhatsApp precisou mudar porque o campo virou opcional
+
+Enquanto o número era obrigatório, o texto não tinha que convencer ninguém:
+não havia escolha. Agora que dá pra pular, quem não entende o que ganha ao
+preencher pula — e o aviso de live não chega em ninguém, que era o motivo
+de pedir o número.
+
+O usuário deu os três usos: **outra forma de entrar, confirmação de troca
+de senha, e o aviso quando o canal abre ao vivo**. O subtítulo da etapa
+passou a dizer os três.
+
+### Banimento: expulsar, não cobrir (14/set/2026, correção do mesmo dia)
+
+Eu tinha registrado no `CHECKPOINT.md` que "conta banida não consegue apagar
+a própria conta" era pendência de 5.1.1(v) — como se apagar o login fosse o
+certo a fazer. O usuário corrigiu, e a correção é estrutural:
+
+> "conta banida não deve ter seu login apagado, pois é justamente isso que o
+> app usará pra saber se uma pessoa foi banida e barrar o acesso à conta
+> dela"
+
+Está certo, e é o tipo de coisa que só se enxerga olhando de onde o dado
+mora. O `uid` do Firebase Auth é a chave do `users/{uid}`, e é lá que vive o
+`estadoModeracao`. **Apagar o login apagaria a memória do banimento**: a
+pessoa criaria outra conta com o mesmo e-mail e entraria limpa. O banimento
+depende da conta continuar existindo.
+
+**O que estava errado de verdade era o oposto**: o app deixava a pessoa
+banida **dentro**, com sessão válida, e desenhava uma tela de bloqueio por
+cima. Aquilo comprava uma coisa boa — uma suspensão vencendo com o app
+aberto devolvia a pessoa exatamente pro lugar onde estava, sem perder
+navegação, porque o `Stack` só parava de desenhar a cortina. Mas o preço era
+uma sessão autenticada na mão de quem acabou de ser banido, protegida por
+nada além de um widget desenhado em cima.
+
+### Três caminhos, e o que mais fácil se esquece
+
+| Situação | Onde é barrado |
+|---|---|
+| Banido com o app aberto | `ContaGate` → `logout()` → `Login` com o modal |
+| Tenta entrar com senha | `AuthRepository.login` |
+| Tenta entrar pelo Google/Apple | `_sincronizarUsuarioNoFirestore` |
+
+O terceiro é o que se esquece, e é a **porta dos fundos mais óbvia do
+banimento**: bastaria voltar pelo Google. Antes desta mudança, nenhum dos
+três barrava na entrada — todos dependiam do gate reagir depois, ou seja,
+com a pessoa já dentro.
+
+### A ordem dentro do repositório não é livre
+
+A regra do Firestore só libera ler `users/{uid}` pra quem está logado. Então
+a leitura do estado de moderação **acontece com a sessão ainda de pé**, e o
+`signOut()` vem logo depois. Inverter isso faria a leitura ser negada e o
+banimento nunca ser detectado.
+
+### A corrida que exigiu guarda dupla no gate
+
+O repositório desloga sozinho ao ver a conta bloqueada. Mas o
+`streamUsuarioReativo` do gate pode entregar o documento antigo **depois**
+disso — e aí o gate empilharia um segundo `Login` por cima do primeiro, com
+dois modais. Duas guardas resolvem: um `_expulsando` que impede reentrada, e
+uma checagem de `usuarioLogado` que ignora bloqueio de quem já saiu.
+
+O gate também deixou de ser `StreamBuilder` e virou `listen()`. Expulsar é
+efeito colateral, e efeito colateral no `build` roda a cada reconstrução —
+navegar dali é exatamente o que produz "setState during build".
+
+### Por que o modal não é `mostrarErroCustom`
+
+Não houve erro nenhum: a senha estava certa, a conta existe, e a entrada foi
+**recusada**. Chamar isso de "Ops!" faria parecer falha do app e convidaria
+a pessoa a tentar de novo — o contrário do que a mensagem precisa
+comunicar. Ele também não fecha ao tocar fora: a pessoa tem que ler por que
+não entrou.
+
+### O texto mudou junto, e precisava mudar
+
+O antigo era *"Você não pode mais usar o PTK Plays."* — diz o **quê**, não o
+**porquê**. Quem é expulso sem saber o motivo acha que é bug e tenta de
+novo. O novo cita as regras de uso, mostra o motivo que o admin escreveu (se
+escreveu) e, na suspensão, até quando.
+
+E é bilíngue como todo o resto. O usuário fez questão de registrar isso como
+regra geral: *"tudo que envolver texto no app deve ser tratado como
+variável"*. **Vale inclusive pro texto que a pessoa lê quando o app a está
+recusando** — é onde é mais fácil esquecer, porque é fora do fluxo feliz, e
+é onde a língua errada machuca mais.
+
+### O que se perdeu, de propósito
+
+A navegação preservada. Hoje uma suspensão que vence com o app aberto não
+devolve a pessoa pro lugar onde ela estava — ela cai no login. Quem for
+"consertar" isso no futuro precisa saber o que aquilo custava.

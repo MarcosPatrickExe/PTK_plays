@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -55,34 +56,34 @@ class _CadastroState extends State<Cadastro> {
     final confirmarSenha = _confirmarSenhaController.text;
 
     if (nickname.isEmpty || email.isEmpty || senha.isEmpty) {
-      mostrarErroCustom(context, title: "Ops!", msg: "Preencha todos os campos.");
+      mostrarErroCustom(context, title: textos.ops, msg: textos.validaPreenchaTudo);
       return;
     }
 
     if (nickname.contains('@')) {
-      mostrarErroCustom(context, title: "Ops!", msg: "O nickname não pode conter @.");
+      mostrarErroCustom(context, title: textos.ops, msg: textos.validaNickComArrobaAntigo);
       return;
     }
 
     final erroAvatar = validarAvatarPreset(_avatarPresetSelecionado);
     if (erroAvatar != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erroAvatar);
+      mostrarErroCustom(context, title: textos.ops, msg: erroAvatar);
       return;
     }
 
     final erroTelefone = validarTelefoneWhatsapp(telefoneWhatsapp);
     if (erroTelefone != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erroTelefone);
+      mostrarErroCustom(context, title: textos.ops, msg: erroTelefone);
       return;
     }
 
     if (senha.length < 6) {
-      mostrarErroCustom(context, title: "Ops!", msg: "A senha precisa ter pelo menos 6 caracteres.");
+      mostrarErroCustom(context, title: textos.ops, msg: textos.erroSenhaFraca);
       return;
     }
 
     if (senha != confirmarSenha) {
-      mostrarErroCustom(context, title: "Ops!", msg: "As senhas não coincidem.");
+      mostrarErroCustom(context, title: textos.ops, msg: textos.validaSenhasDiferentes);
       return;
     }
 
@@ -100,7 +101,7 @@ class _CadastroState extends State<Cadastro> {
     setState(() => _carregando = false);
 
     if (erro != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erro);
+      mostrarErroCustom(context, title: textos.ops, msg: erro);
       return;
     }
 
@@ -156,7 +157,7 @@ class _CadastroState extends State<Cadastro> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'CRIE SUA CONTA',
+                            textos.cadastroAntigoTitulo,
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -173,7 +174,7 @@ class _CadastroState extends State<Cadastro> {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 4, bottom: 12),
                                   child: Text(
-                                    'Escolha seu avatar',
+                                    textos.cadastroEscolhaAvatar,
                                     style: GoogleFonts.outfit(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w600,
@@ -198,24 +199,24 @@ class _CadastroState extends State<Cadastro> {
                               children: [
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Nickname',
+                                  label: textos.nickname,
                                   controller: _nicknameController,
                                   icone: iconPessoa,
-                                  hint: 'Como quer ser chamado',
+                                  hint: textos.perfilComoQuerSerChamado,
                                 ),
                                 const SizedBox(height: 16),
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Email',
+                                  label: textos.email,
                                   controller: _emailController,
                                   icone: iconEmail,
-                                  hint: 'Digite seu email',
+                                  hint: textos.cadastroDigiteEmail,
                                   keyboardType: TextInputType.emailAddress,
                                 ),
                                 const SizedBox(height: 16),
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'WhatsApp (opcional)',
+                                  label: textos.perfilWhatsappOpcional,
                                   controller: _telefoneController,
                                   icone: iconTelefone,
                                   hint: MascaraTelefoneWhatsapp.mascaraVazia,
@@ -225,7 +226,7 @@ class _CadastroState extends State<Cadastro> {
                                 const SizedBox(height: 16),
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Senha',
+                                  label: textos.senha,
                                   controller: _senhaController,
                                   icone: iconSenha,
                                   hint: '••••••••',
@@ -238,7 +239,7 @@ class _CadastroState extends State<Cadastro> {
                                 const SizedBox(height: 16),
                                 CampoTexto(
                                   isDark: isDark,
-                                  label: 'Confirmar senha',
+                                  label: textos.perfilConfirmarNovaSenha,
                                   controller: _confirmarSenhaController,
                                   icone: iconSenha,
                                   hint: '••••••••',
@@ -249,7 +250,7 @@ class _CadastroState extends State<Cadastro> {
                                   ),
                                 ),
                                 const SizedBox(height: 22),
-                                BotaoPrimario(label: 'Criar conta', carregando: _carregando, onTap: _criarConta),
+                                BotaoPrimario(label: textos.criarConta, carregando: _carregando, onTap: _criarConta),
                                 const SizedBox(height: 20),
                                 Center(
                                   child: GestureDetector(
@@ -262,9 +263,9 @@ class _CadastroState extends State<Cadastro> {
                                           color: isDark ? AuthTheme.registerDark : AuthTheme.registerLight,
                                         ),
                                         children: [
-                                          const TextSpan(text: 'Já tem uma conta? '),
+                                          TextSpan(text: textos.cadastroJaTemConta),
                                           TextSpan(
-                                            text: 'Fazer login',
+                                            text: textos.cadastroFazerLogin,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w700,
                                               color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,

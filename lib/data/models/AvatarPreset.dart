@@ -1,19 +1,36 @@
+import '../../i18n/Idioma.dart';
+
 /// Um dos 6 avatares pre-definidos que o usuario escolhe no cadastro (e pode
 /// trocar depois na edicao de perfil). Ver UserModel.avatarPreset.
 class AvatarPreset {
   final String chave;
-  final String label;
   final String asset;
-  const AvatarPreset({required this.chave, required this.label, required this.asset});
+  const AvatarPreset({required this.chave, required this.asset});
+
+  /// O nome que aparece embaixo do avatar.
+  ///
+  /// E getter, e nao campo guardado, porque a lista abaixo e `const` e o
+  /// texto muda com o idioma: um `const` congela a frase na compilacao, e o
+  /// avatar ficaria em portugues dentro de um app em ingles. O que a chave
+  /// identifica — o desenho — nao muda de lingua; so o rotulo muda.
+  String get label => switch (chave) {
+        'gamer' => textos.avatarGamer,
+        'streamer' => textos.avatarStreamer,
+        'inscrito' => textos.avatarInscrito,
+        'blogueiro' => textos.avatarBlogueiro,
+        'maratonista' => textos.avatarMaratonista,
+        'otaku' => textos.avatarOtaku,
+        _ => chave,
+      };
 }
 
 const List<AvatarPreset> catalogoAvataresPreset = [
-  AvatarPreset(chave: 'gamer', label: 'Gamer', asset: 'assets/avatares/avatar_gamer.png'),
-  AvatarPreset(chave: 'streamer', label: 'Streamer', asset: 'assets/avatares/avatar_streamer.png'),
-  AvatarPreset(chave: 'inscrito', label: 'Inscrito do canal', asset: 'assets/avatares/avatar_inscrito.png'),
-  AvatarPreset(chave: 'blogueiro', label: 'Blogueiro', asset: 'assets/avatares/avatar_blogueiro.png'),
-  AvatarPreset(chave: 'maratonista', label: 'Maratonista', asset: 'assets/avatares/avatar_maratonista.png'),
-  AvatarPreset(chave: 'otaku', label: 'Otaku', asset: 'assets/avatares/avatar_otaku.png'),
+  AvatarPreset(chave: 'gamer', asset: 'assets/avatares/avatar_gamer.png'),
+  AvatarPreset(chave: 'streamer', asset: 'assets/avatares/avatar_streamer.png'),
+  AvatarPreset(chave: 'inscrito', asset: 'assets/avatares/avatar_inscrito.png'),
+  AvatarPreset(chave: 'blogueiro', asset: 'assets/avatares/avatar_blogueiro.png'),
+  AvatarPreset(chave: 'maratonista', asset: 'assets/avatares/avatar_maratonista.png'),
+  AvatarPreset(chave: 'otaku', asset: 'assets/avatares/avatar_otaku.png'),
 ];
 
 /// Retorna true se [chave] corresponde a um dos presets do catalogo.

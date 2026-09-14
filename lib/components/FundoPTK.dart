@@ -435,8 +435,14 @@ class _LogoComDegrade extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: const [Colors.transparent, Color(0x262A1163), Color(0x8C2A1163)],
-                    stops: [onda.topoDaCurva * .45, onda.topoDaCurva * .9, onda.fundoDaCurva],
+                    // Paradas empurradas pra baixo e opacidade reduzida em
+                    // 13/set: antes o escurecimento comecava em 45% da faixa
+                    // e ja chegava opaco, o que cobria o rosto da logo — nao
+                    // so a borda de baixo, que e o unico problema real a
+                    // resolver aqui (e que o alfa do proprio arquivo ja
+                    // dissolve). Agora ele so aparece onde a onda comeca.
+                    colors: const [Colors.transparent, Color(0x142A1163), Color(0x662A1163)],
+                    stops: [onda.topoDaCurva * .78, onda.topoDaCurva * .95, onda.fundoDaCurva],
                   ),
                 ),
               ),
@@ -458,7 +464,10 @@ class _LogoComDegrade extends StatelessWidget {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: cores,
-        stops: const [0, .45, .8],
+        // O borrado so entra nos ultimos ~30% da faixa (antes eram 55%):
+        // a logo inteira ficava levemente fora de foco a troco de esconder
+        // uma borda que o alfa do arquivo ja resolve.
+        stops: const [0, .7, .92],
       ).createShader(limites),
       child: borrar
           ? ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 3.5, sigmaY: 3.5), child: child)

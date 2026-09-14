@@ -8,6 +8,8 @@
 /// toast.
 library;
 
+import '../i18n/Idioma.dart';
+
 const int limiteCaracteresAviso = 500;
 
 /// Tamanho maximo da midia anexada a um post (so o admin anexa). O
@@ -23,9 +25,9 @@ const int minimoOpcoesEnquete = 2;
 /// video nao precisa de legenda pra fazer sentido.
 String? validarAviso(String texto, {bool temMidia = false}) {
   final valor = texto.trim();
-  if (valor.isEmpty && !temMidia) return 'Escreva alguma coisa antes de publicar.';
+  if (valor.isEmpty && !temMidia) return textos.validaPostVazio;
   if (valor.length > limiteCaracteresAviso) {
-    return 'O aviso passou de $limiteCaracteresAviso caracteres. Encurte um pouco.';
+    return textos.validaAvisoLongo(limiteCaracteresAviso);
   }
   return null;
 }
@@ -35,20 +37,20 @@ String? validarAviso(String texto, {bool temMidia = false}) {
 /// [opcoesPreenchidas], usada tambem na hora de salvar.
 String? validarEnquete({required String pergunta, required List<String> opcoes}) {
   final titulo = pergunta.trim();
-  if (titulo.isEmpty) return 'Escreva a pergunta da enquete.';
+  if (titulo.isEmpty) return textos.validaPerguntaVazia;
   if (titulo.length > limiteCaracteresPergunta) {
-    return 'A pergunta passou de $limiteCaracteresPergunta caracteres. Encurte um pouco.';
+    return textos.validaPerguntaLonga(limiteCaracteresPergunta);
   }
 
   final validas = opcoesPreenchidas(opcoes);
   if (validas.length < minimoOpcoesEnquete) {
-    return 'Uma enquete precisa de pelo menos $minimoOpcoesEnquete opções preenchidas.';
+    return textos.validaPoucasOpcoes(minimoOpcoesEnquete);
   }
   if (validas.length > maximoOpcoesEnquete) {
-    return 'Uma enquete aceita no máximo $maximoOpcoesEnquete opções.';
+    return textos.validaMuitasOpcoes(maximoOpcoesEnquete);
   }
   if (validas.toSet().length != validas.length) {
-    return 'Tem opções repetidas na enquete.';
+    return textos.validaOpcoesRepetidas;
   }
   return null;
 }
@@ -64,6 +66,6 @@ String? validarTamanhoMidia({required int bytes, required bool ehVideo}) {
 
   final limiteEmMb = limite ~/ (1024 * 1024);
   return ehVideo
-      ? 'O vídeo passou de $limiteEmMb MB. Escolha um menor ou corte um trecho.'
-      : 'A imagem passou de $limiteEmMb MB. Escolha uma menor.';
+      ? textos.validaVideoGrande(limiteEmMb)
+      : textos.validaImagemGrande(limiteEmMb);
 }

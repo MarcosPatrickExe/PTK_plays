@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -79,7 +80,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       _fotoUrl = resultado.url!;
       _avatarPresetSelecionado = null;
     });
-    mostrarToast(context, mensagem: 'Foto de perfil atualizada!');
+    mostrarToast(context, mensagem: textos.fotoAtualizada);
   }
 
   Future<void> _enviarEmailRedefinicaoSenha() async {
@@ -92,7 +93,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
 
     mostrarToast(
       context,
-      mensagem: erro ?? 'Enviamos um link pro seu e-mail (${widget.usuario.email}) pra redefinir a senha.',
+      mensagem: erro ?? textos.perfilLinkEnviado(widget.usuario.email),
       erro: erro != null,
     );
   }
@@ -103,13 +104,13 @@ class _EditarPerfilState extends State<EditarPerfil> {
 
     final erroNickname = validarNickname(novoNickname);
     if (erroNickname != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erroNickname);
+      mostrarErroCustom(context, title: textos.ops, msg: erroNickname);
       return;
     }
 
     final erroTelefone = validarTelefoneWhatsapp(telefoneWhatsapp);
     if (erroTelefone != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erroTelefone);
+      mostrarErroCustom(context, title: textos.ops, msg: erroTelefone);
       return;
     }
 
@@ -119,7 +120,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       confirmarNovaSenha: _confirmarNovaSenhaController.text,
     );
     if (erroSenha != null) {
-      mostrarErroCustom(context, title: "Ops!", msg: erroSenha);
+      mostrarErroCustom(context, title: textos.ops, msg: erroSenha);
       return;
     }
 
@@ -154,7 +155,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       return;
     }
 
-    mostrarToast(context, mensagem: 'Perfil salvo com sucesso!');
+    mostrarToast(context, mensagem: textos.perfilSalvo);
     Navigator.of(context).pop();
   }
 
@@ -192,7 +193,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                           children: [
                             const SizedBox(height: 44),
                             Text(
-                              'Editar perfil',
+                              textos.perfilEditar,
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
@@ -215,15 +216,15 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                 children: [
                                   CampoTexto(
                                     isDark: isDark,
-                                    label: 'Nickname',
+                                    label: textos.nickname,
                                     controller: _nicknameController,
                                     icone: iconPessoa,
-                                    hint: 'Como quer ser chamado',
+                                    hint: textos.perfilComoQuerSerChamado,
                                   ),
                                   const SizedBox(height: 16),
                                   CampoTexto(
                                     isDark: isDark,
-                                    label: 'Email',
+                                    label: textos.email,
                                     controller: _emailController,
                                     icone: iconEmail,
                                     hint: '',
@@ -232,7 +233,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                   const SizedBox(height: 16),
                                   CampoTexto(
                                     isDark: isDark,
-                                    label: 'WhatsApp (opcional)',
+                                    label: textos.perfilWhatsappOpcional,
                                     controller: _telefoneController,
                                     icone: iconTelefone,
                                     hint: MascaraTelefoneWhatsapp.mascaraVazia,
@@ -255,7 +256,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                   Padding(
                                     padding: const EdgeInsets.only(left: 4, bottom: 12),
                                     child: Text(
-                                      'Foto de perfil',
+                                      textos.perfilFotoDePerfil,
                                       style: GoogleFonts.outfit(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.w600,
@@ -286,7 +287,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                     Padding(
                                       padding: const EdgeInsets.only(left: 4, bottom: 12),
                                       child: Text(
-                                        'Alterar senha (opcional)',
+                                        textos.perfilAlterarSenha,
                                         style: GoogleFonts.outfit(
                                           fontSize: 12.5,
                                           fontWeight: FontWeight.w600,
@@ -297,7 +298,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                     ),
                                     CampoTexto(
                                       isDark: isDark,
-                                      label: 'Senha atual',
+                                      label: textos.perfilSenhaAtual,
                                       controller: _senhaAtualController,
                                       icone: iconSenha,
                                       hint: '••••••••',
@@ -310,7 +311,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                     const SizedBox(height: 16),
                                     CampoTexto(
                                       isDark: isDark,
-                                      label: 'Nova senha',
+                                      label: textos.perfilNovaSenha,
                                       controller: _novaSenhaController,
                                       icone: iconSenha,
                                       hint: '••••••••',
@@ -323,7 +324,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                     const SizedBox(height: 16),
                                     CampoTexto(
                                       isDark: isDark,
-                                      label: 'Confirmar nova senha',
+                                      label: textos.perfilConfirmarNovaSenha,
                                       controller: _confirmarNovaSenhaController,
                                       icone: iconSenha,
                                       hint: '••••••••',
@@ -343,7 +344,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                                                 ),
                                               )
                                             : Text(
-                                                'Esqueceu sua senha atual? Enviar link por e-mail',
+                                                textos.perfilEsqueceuSenha,
                                                 textAlign: TextAlign.center,
                                                 style: GoogleFonts.outfit(
                                                   fontSize: 13,
@@ -358,7 +359,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                               ),
                             ],
                             const SizedBox(height: 22),
-                            BotaoPrimario(label: 'Salvar alterações', carregando: _carregando, onTap: _salvar),
+                            BotaoPrimario(label: textos.perfilSalvar, carregando: _carregando, onTap: _salvar),
                           ],
                         ),
                       ),

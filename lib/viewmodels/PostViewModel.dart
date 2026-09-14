@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import '../data/models/PostModel.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/PostRepository.dart';
+import '../i18n/Idioma.dart';
 import '../utils/ValidacaoPost.dart';
 import '../utils/DiagnosticoDeErro.dart';
 
@@ -86,7 +87,7 @@ class PostViewModel {
       return (url: url, erro: null);
     } catch (e, stack) {
       debugPrint('envio de midia falhou: $e\n$stack');
-      return (url: null, erro: comCodigo('Não foi possível enviar o arquivo. Tente de novo.', e));
+      return (url: null, erro: comCodigo(textos.erroEnvioDeMidia, e));
     }
   }
 
@@ -107,9 +108,9 @@ class PostViewModel {
     } catch (e, stack) {
       debugPrint('limpeza de posts antigos falhou: $e\n$stack');
       if (e is FirebaseException && e.code == 'permission-denied') {
-        return (apagados: 0, erro: comCodigo('Só o admin pode fazer essa limpeza.', e));
+        return (apagados: 0, erro: comCodigo(textos.erroSoAdminLimpa, e));
       }
-      return (apagados: 0, erro: comCodigo('Não foi possível concluir. Tente de novo.', e));
+      return (apagados: 0, erro: comCodigo(textos.erroNaoConcluiu, e));
     }
   }
 
@@ -124,11 +125,11 @@ class PostViewModel {
       // firestore:rules) — vale dizer isso em vez de um erro generico.
       if (e is FirebaseException && e.code == 'permission-denied') {
         return comCodigo(
-          'Você não tem permissão pra isso. Se acabou de virar admin, saia e entre de novo.',
+          textos.erroSemPermissaoFeed,
           e,
         );
       }
-      return comCodigo('Não foi possível concluir. Tente de novo.', e);
+      return comCodigo(textos.erroNaoConcluiu, e);
     }
   }
 }

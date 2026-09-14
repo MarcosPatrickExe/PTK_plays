@@ -1,34 +1,36 @@
+import '../i18n/Idioma.dart';
+
 String traduzirErroDeAuth(String codigo) {
   switch (codigo) {
     case 'email-already-in-use':
-      return 'Esse email já está cadastrado. Tente fazer login.';
+      return textos.erroEmailJaCadastrado;
     case 'invalid-email':
-      return 'Email inválido.';
+      return textos.erroEmailInvalido;
     case 'weak-password':
-      return 'A senha precisa ter pelo menos 6 caracteres.';
+      return textos.erroSenhaFraca;
     case 'user-not-found':
     case 'wrong-password':
     case 'invalid-credential':
-      return 'Login ou senha incorretos.';
+      return textos.erroLoginOuSenha;
     case 'nickname-em-uso':
-      return 'Esse nickname já está em uso. Escolha outro.';
+      return textos.erroNicknameEmUso;
     case 'too-many-requests':
-      return 'Muitas tentativas. Tente novamente mais tarde.';
+      return textos.erroMuitasTentativas;
     case 'network-request-failed':
-      return 'Sem conexão com a internet.';
+      return textos.erroSemInternet;
     case 'unauthorized-domain':
-      return 'Esse domínio não está autorizado a fazer login com Google. Avise o administrador do app.';
+      return textos.erroDominioNaoAutorizado;
     case 'popup-blocked':
-      return 'O navegador bloqueou o popup de login. Permita popups pra esse site e tente novamente.';
+      return textos.erroPopupBloqueado;
     // Nao citar provedor aqui: este codigo vale pros dois. O Firebase o
     // devolve pra QUALQUER provedor desabilitado no Console (Authentication
     // -> Sign-in method), e a versao anterior dizia "Google" mesmo quando
     // quem tinha falhado era a Apple — mandando quem investiga pro painel
     // errado. Foi um dos suspeitos da reprovacao de 27/ago/2026.
     case 'operation-not-allowed':
-      return 'Esse jeito de entrar não está habilitado pra o app no momento. Avise o administrador.';
+      return textos.erroMetodoDesabilitado;
     default:
-      return 'Algo deu errado. Tente novamente.';
+      return textos.erroGenerico;
   }
 }
 
@@ -43,25 +45,25 @@ String traduzirErroDeServico(String codigo) {
     // Firestore e Storage usam nomes diferentes pra mesma ideia.
     case 'permission-denied':
     case 'unauthorized':
-      return 'Você não tem permissão pra fazer isso. Se você deveria ter, avise o administrador.';
+      return textos.erroSemPermissao;
     case 'unauthenticated':
-      return 'Sua sessão expirou. Entre de novo pra continuar.';
+      return textos.erroSessaoExpirada;
     case 'unavailable':
     case 'deadline-exceeded':
     case 'retry-limit-exceeded':
-      return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+      return textos.erroServidorIndisponivel;
     case 'not-found':
     case 'object-not-found':
-      return 'O item que você tentou abrir não existe mais.';
+      return textos.erroItemNaoExiste;
     case 'already-exists':
-      return 'Isso já existe.';
+      return textos.erroJaExiste;
     case 'resource-exhausted':
     case 'quota-exceeded':
-      return 'O limite do serviço foi atingido. Tente mais tarde.';
+      return textos.erroLimiteDoServico;
     case 'cancelled':
     case 'canceled':
-      return 'A operação foi cancelada.';
+      return textos.erroOperacaoCancelada;
     default:
-      return 'Algo deu errado. Tente novamente.';
+      return textos.erroGenerico;
   }
 }

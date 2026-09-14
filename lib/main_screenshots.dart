@@ -4,6 +4,10 @@
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:ptk_plays/data/models/BloqueioDaConta.dart';
+import 'package:ptk_plays/data/repositories/AuthRepository.dart';
+import 'package:ptk_plays/i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -60,6 +64,17 @@ class FakeAuthViewModel implements AuthViewModel {
   String? get nomeDoProvedor => _usuarioFake.nickname;
 
   @override
+  String? get emailDoProvedor => _usuarioFake.email;
+
+  @override
+  Future<String?> completarCadastroSocial({
+    required String nickname,
+    required String telefoneWhatsapp,
+    required String avatarPreset,
+    String emailInformado = '',
+  }) async => null;
+
+  @override
   Stream<UserModel?> streamUsuarioAtual() => Stream.value(_usuarioFake);
 
   @override
@@ -69,13 +84,18 @@ class FakeAuthViewModel implements AuthViewModel {
   Future<void> logout() async {}
 
   @override
-  Future<({String? erro, bool contaNova})> loginComGoogle() async => (erro: null, contaNova: false);
+  Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComGoogle() async =>
+      (erro: null, contaNova: false, bloqueio: null);
 
   @override
-  Future<({String? erro, bool contaNova})> loginComApple() async => (erro: null, contaNova: false);
+  Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComApple() async =>
+      (erro: null, contaNova: false, bloqueio: null);
 
   @override
-  Future<String?> excluirConta({required String senha}) async => null;
+  FormaDeReautenticar get formaDeReautenticar => FormaDeReautenticar.senha;
+
+  @override
+  Future<String?> excluirConta({String? senha}) async => null;
 
   @override
   Future<String?> alterarSenha({required String senhaAtual, required String novaSenha}) async => null;
@@ -107,7 +127,11 @@ class FakeAuthViewModel implements AuthViewModel {
       null;
 
   @override
-  Future<String?> login({required String loginOuEmail, required String senha}) async => null;
+  Future<({String? erro, BloqueioDaConta? bloqueio})> login({
+    required String loginOuEmail,
+    required String senha,
+  }) async =>
+      (erro: null, bloqueio: null);
 }
 
 class FakePostRepository implements PostRepository {
@@ -249,9 +273,20 @@ void main() {
     themeController.toggleTheme();
   }
 
+  // Mesma ideia do tema, pelo mesmo motivo: a ficha da loja e POR IDIOMA,
+  // e a listagem em ingles precisa de screenshots em ingles. Sem isso, o
+  // jeito de gerar os dois conjuntos seria trocar o idioma do aparelho
+  // entre uma captura e outra.
+  final idiomaController = IdiomaController(
+    inicial: Uri.base.queryParameters['lang'] == 'en' ? Idioma.enUS : Idioma.ptBR,
+  );
+
   runApp(
-    ChangeNotifierProvider.value(
-      value: themeController,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeController),
+        ChangeNotifierProvider.value(value: idiomaController),
+      ],
       child: const ScreenshotApp(),
     ),
   );
@@ -266,9 +301,18 @@ class ScreenshotApp extends StatelessWidget {
     final ytVM = FakeYoutubeViewModel();
     const apiKey = '';
 
+    final idioma = context.watch<IdiomaController>().idioma;
+
     return MaterialApp(
       title: 'PTK plays - screenshots',
       debugShowCheckedModeBanner: false,
+      locale: idioma.locale,
+      supportedLocales: Idioma.values.map((i) => i.locale),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: context.watch<ThemeController>().getThemeMode,

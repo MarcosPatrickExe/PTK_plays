@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -98,7 +99,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
 
       final erroDeTamanho = validarTamanhoMidia(bytes: bytes.length, ehVideo: ehVideo);
       if (erroDeTamanho != null) {
-        mostrarErroCustom(context, title: 'Arquivo grande demais', msg: erroDeTamanho);
+        mostrarErroCustom(context, title: textos.feedArquivoGrande, msg: erroDeTamanho);
         return;
       }
 
@@ -123,7 +124,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
     // Erro de formulario é modal bloqueante; erro da escrita em si é toast
     // (regra de feedback do CLAUDE.md).
     if (erroDeValidacao != null) {
-      mostrarErroCustom(context, title: 'Ops!', msg: erroDeValidacao);
+      mostrarErroCustom(context, title: textos.ops, msg: erroDeValidacao);
       return;
     }
 
@@ -208,14 +209,14 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Nova publicação',
+              textos.feedNovaPublicacao,
               style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w800, color: corTitulo),
             ),
             const SizedBox(height: 4),
             Text(
               widget.autor.ehAdmin
-                  ? 'Como admin, seu post fica no topo do feed — e você pode anexar foto e vídeo.'
-                  : 'Publicando como ${widget.autor.nickname}.',
+                  ? textos.feedComoAdmin
+                  : textos.feedPublicandoComo(widget.autor.nickname),
               style: GoogleFonts.outfit(fontSize: 13, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
             ),
             const SizedBox(height: 18),
@@ -225,14 +226,14 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
               Row(
                 children: [
                   _BotaoTipo(
-                    label: 'Aviso',
+                    label: textos.feedAviso,
                     selecionado: !_enquete,
                     isDark: isDark,
                     onTap: () => setState(() => _enquete = false),
                   ),
                   const SizedBox(width: 10),
                   _BotaoTipo(
-                    label: 'Enquete',
+                    label: textos.feedEnquete,
                     selecionado: _enquete,
                     isDark: isDark,
                     onTap: () => setState(() => _enquete = true),
@@ -245,7 +246,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
             if (_enquete) ..._camposDeEnquete(isDark) else _campoDeAviso(isDark),
 
             const SizedBox(height: 22),
-            BotaoPrimario(label: 'Publicar', carregando: _publicando, onTap: _publicar),
+            BotaoPrimario(label: textos.feedPublicar, carregando: _publicando, onTap: _publicar),
           ],
         ),
       ),
@@ -260,8 +261,8 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
           isDark: isDark,
           controller: _texto,
           hint: widget.autor.ehAdmin
-              ? 'O que você quer avisar pra galera?'
-              : 'O que você quer dizer pra galera?',
+              ? textos.feedDicaAviso
+              : textos.feedDicaTexto,
           linhas: 5,
           limite: limiteCaracteresAviso,
         ),
@@ -286,14 +287,14 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
       children: [
         _BotaoAnexo(
           icone: Icons.image_outlined,
-          label: _foto == null ? 'Foto' : 'Trocar foto',
+          label: _foto == null ? textos.feedFoto : textos.feedTrocarFoto,
           isDark: isDark,
           onTap: _escolhendoMidia ? null : () => _escolherMidia(ehVideo: false),
         ),
         const SizedBox(width: 10),
         _BotaoAnexo(
           icone: Icons.videocam_outlined,
-          label: _video == null ? 'Vídeo' : 'Trocar vídeo',
+          label: _video == null ? textos.feedVideo : textos.feedTrocarVideo,
           isDark: isDark,
           onTap: _escolhendoMidia ? null : () => _escolherMidia(ehVideo: true),
         ),
@@ -356,7 +357,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
       _CampoMultilinha(
         isDark: isDark,
         controller: _pergunta,
-        hint: 'Qual é a pergunta?',
+        hint: textos.feedDicaPergunta,
         linhas: 2,
         limite: limiteCaracteresPergunta,
       ),
@@ -368,13 +369,13 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
               child: _CampoMultilinha(
                 isDark: isDark,
                 controller: _opcoes[i],
-                hint: 'Opção ${i + 1}',
+                hint: textos.feedOpcaoNumero(i + 1),
                 linhas: 1,
               ),
             ),
             if (_opcoes.length > minimoOpcoesEnquete)
               IconButton(
-                tooltip: 'Remover opção',
+                tooltip: textos.feedRemoverOpcao,
                 icon: Icon(Icons.close, size: 18, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
                 onPressed: () => setState(() => _opcoes.removeAt(i).dispose()),
               ),
@@ -386,7 +387,7 @@ class _FormularioNovoPostState extends State<_FormularioNovoPost> {
         TextButton.icon(
           onPressed: () => setState(() => _opcoes.add(TextEditingController())),
           icon: const Icon(Icons.add, size: 18),
-          label: const Text('Adicionar opção'),
+          label: Text(textos.feedAdicionarOpcao),
           style: TextButton.styleFrom(foregroundColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight),
         ),
     ];

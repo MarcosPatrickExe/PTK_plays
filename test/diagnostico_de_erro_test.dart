@@ -67,7 +67,7 @@ void main() {
 
   group('mensagemDeErro escolhe a tradução certa por camada', () {
     test('erro de Auth usa o tradutor de Auth', () {
-      expect(mensagemDeErro(FirebaseAuthException(code: 'invalid-email')), 'Email inválido.');
+      expect(mensagemDeErro(FirebaseAuthException(code: 'invalid-email')), 'E-mail inválido.');
     });
 
     test('erro de Firestore/Storage NÃO cai mais no genérico', () {

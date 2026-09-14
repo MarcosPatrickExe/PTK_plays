@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../components/AuthBackground.dart';
@@ -37,7 +38,7 @@ class Privacidade extends StatelessWidget {
                           children: [
                             const SizedBox(height: 44),
                             Text(
-                              'Privacidade',
+                              textos.privacidade,
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
@@ -49,7 +50,7 @@ class Privacidade extends StatelessWidget {
                             CardVidro(
                               isDark: isDark,
                               child: Text(
-                                'Nossa política de privacidade ainda está sendo escrita. Em breve você vai encontrar aqui como seus dados são usados no PTK Plays.',
+                                textos.privacidadeEmBreve,
                                 style: GoogleFonts.outfit(
                                   color: isDark ? AuthTheme.subDark : AuthTheme.subLight,
                                   height: 1.5,

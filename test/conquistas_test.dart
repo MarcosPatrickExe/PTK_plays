@@ -47,7 +47,7 @@ void main() {
     });
 
     test('conquista sem contador (novato) e 1.0 se ja esta em badges, senao 0.0', () {
-      const novato = Conquista(chave: 'novato', titulo: 'Novato', descricao: 'x');
+      const novato = Conquista(chave: 'novato');
       expect(progressoDaConquista(_usuarioCom(badges: const ['novato']), novato), 1.0);
       expect(progressoDaConquista(_usuarioCom(), novato), 0.0);
     });

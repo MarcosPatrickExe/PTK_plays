@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/components/FundoPTK.dart';
+import 'package:ptk_plays/components/SeletorAvatarPreset.dart';
+import 'package:ptk_plays/utils/ValidacaoCadastro.dart';
 import 'package:ptk_plays/view/CriarConta.dart';
 import 'package:ptk_plays/viewmodels/AuthViewModel.dart';
 import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
@@ -50,7 +52,15 @@ class FakeYoutubeViewModel implements YoutubeViewModel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _tela({bool contaSocial = false, String? nicknameSugerido}) {
+/// [emailDoProvedor] tem default de e-mail real de propósito: é o caso do
+/// Google e o do "Share My Email" da Apple, que é o fluxo social comum. O
+/// relay da Apple é o caso especial, e os testes que o exercitam passam o
+/// endereço explicitamente.
+Widget _tela({
+  bool contaSocial = false,
+  String? nicknameSugerido,
+  String? emailDoProvedor = 'pessoa@gmail.com',
+}) {
   return MaterialApp(
     home: CriarConta(
       viewmodelYT: FakeYoutubeViewModel(),
@@ -58,8 +68,21 @@ Widget _tela({bool contaSocial = false, String? nicknameSugerido}) {
       authViewModel: FakeAuthViewModel(),
       contaSocial: contaSocial,
       nicknameSugerido: nicknameSugerido,
+      emailDoProvedor: emailDoProvedor,
     ),
   );
+}
+
+/// Espera a animação do botão "Avançar" aparecer/sumir terminar.
+///
+/// Dois pumps, e não um: o `AnimatedSwitcher` só **remove** o filho que sai
+/// no frame seguinte ao fim da animação — com um `pump(duração)` sozinho o
+/// botão antigo ainda está na árvore, e um `findsNothing` falha por timing,
+/// não por comportamento.
+Future<void> _esperarBotao(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(milliseconds: 300));
 }
 
 /// A troca de etapa é animada; um pump com duração cobre a transição
@@ -83,14 +106,53 @@ void main() {
       ]);
     });
 
-    test('conta social pula e-mail e senha, que o provedor já resolveu', () {
-      final etapas = etapasDoCadastro(contaSocial: true);
+    test('conta social com e-mail real pula e-mail e senha', () {
+      final etapas = etapasDoCadastro(contaSocial: true, pedirEmail: false);
 
       expect(etapas, isNot(contains(EtapaCadastro.email)));
       expect(etapas, isNot(contains(EtapaCadastro.senha)));
       expect(etapas, contains(EtapaCadastro.nickname));
       expect(etapas, contains(EtapaCadastro.foto));
       expect(etapas, contains(EtapaCadastro.whatsapp));
+    });
+
+    test('conta social sem e-mail utilizável ganha a etapa de e-mail, mas não a de senha', () {
+      // É o "Hide My Email" da Apple. A senha continua fora — ela é do
+      // provedor —, mas o e-mail precisa ser perguntado.
+      final etapas = etapasDoCadastro(contaSocial: true, pedirEmail: true);
+
+      expect(etapas, contains(EtapaCadastro.email));
+      expect(etapas, isNot(contains(EtapaCadastro.senha)));
+    });
+  });
+
+  group('precisaPedirEmail', () {
+    test('relay da Apple (Hide My Email) obriga a perguntar', () {
+      // O que a Apple entrega quando a pessoa esconde o e-mail: um endereço
+      // que reencaminha, mas não serve pra contato nem pra reconhecer quem é.
+      expect(
+        precisaPedirEmail(contaSocial: true, emailDoProvedor: 'abc123xyz@privaterelay.appleid.com'),
+        isTrue,
+      );
+      // A Apple varia a caixa do endereço em alguns fluxos.
+      expect(
+        precisaPedirEmail(contaSocial: true, emailDoProvedor: 'ABC@PrivateRelay.AppleID.com'),
+        isTrue,
+      );
+    });
+
+    test('e-mail real do Google ou do "Share My Email" não pergunta nada', () {
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: 'pessoa@gmail.com'), isFalse);
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: 'pessoa@icloud.com'), isFalse);
+    });
+
+    test('provedor sem e-mail nenhum pergunta, em vez de deixar a conta sem', () {
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: null), isTrue);
+      expect(precisaPedirEmail(contaSocial: true, emailDoProvedor: '   '), isTrue);
+    });
+
+    test('cadastro comum sempre pergunta, independente do que venha', () {
+      expect(precisaPedirEmail(contaSocial: false, emailDoProvedor: 'pessoa@gmail.com'), isTrue);
     });
   });
 
@@ -119,7 +181,7 @@ void main() {
       expect(find.text('Sair'), findsOneWidget);
     });
 
-    testWidgets('avançar leva ao nick, e ali o botão trava enquanto o campo está vazio', (tester) async {
+    testWidgets('avançar leva ao nick, e ali o botão SOME enquanto o campo está vazio', (tester) async {
       await tester.pumpWidget(_tela());
       await tester.pump();
 
@@ -127,9 +189,31 @@ void main() {
       expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.text('Voltar'), findsOneWidget);
 
-      // Nick vazio: tocar em avançar não sai do lugar.
+      // Até 13/set o botão ficava aqui, cinza e travado. Agora ele não
+      // existe: o movimento de aparecer é o que sinaliza "é por aqui", e um
+      // botão cinza parado não sinaliza nada.
+      expect(find.text('Avançar'), findsNothing);
+    });
+
+    testWidgets('o botão aparece na 2ª letra do nick e some de novo se apagar', (tester) async {
+      await tester.pumpWidget(_tela());
+      await tester.pump();
       await _tocarEmAvancar(tester);
-      expect(find.text('Como a gente\nte chama?'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'a');
+      await _esperarBotao(tester);
+      expect(find.text('Avançar'), findsNothing);
+
+      // 2 letras: aparece — mas ainda desabilitado, porque validar exige 3.
+      // É de propósito: o botão surgindo diz "você está quase lá", e o aviso
+      // embaixo do campo diz o que falta.
+      await tester.enterText(find.byType(TextField), 'ab');
+      await _esperarBotao(tester);
+      expect(find.text('Avançar'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '');
+      await _esperarBotao(tester);
+      expect(find.text('Avançar'), findsNothing);
     });
 
     testWidgets('nick curto avisa embaixo do campo enquanto a pessoa digita', (tester) async {
@@ -163,10 +247,14 @@ void main() {
       final campos = find.byType(TextField);
       await tester.enterText(campos.at(0), 'fulano@teste.com');
       await tester.enterText(campos.at(1), 'outro@teste.com');
-      await tester.pump();
+      await _esperarBotao(tester);
 
       expect(find.text('Os e-mails não coincidem.'), findsOneWidget);
 
+      // O botão APARECE (o e-mail já tem "@") mas não avança: o limiar de
+      // aparecer é mais frouxo que o de validar, e é essa folga que deixa o
+      // aviso embaixo do campo explicar o que falta.
+      expect(find.text('Avançar'), findsOneWidget);
       await _tocarEmAvancar(tester);
       expect(find.text('Qual é o seu e-mail?'), findsOneWidget);
 
@@ -174,7 +262,37 @@ void main() {
       await tester.enterText(campos.at(1), 'fulano@teste.com');
       await tester.pump();
       await _tocarEmAvancar(tester);
-      expect(find.text('Agora crie\numa senha'), findsOneWidget);
+      expect(find.text('Agora crie uma senha'), findsOneWidget);
+    });
+
+    testWidgets('a etapa de senha tem UM campo — o "confirme a senha" saiu', (tester) async {
+      // O campo de confirmar saiu em 14/set. O motivo de ele ter existido
+      // era senha sempre mascarada: digitar errado só aparecia no próximo
+      // login. Com o olho no campo, dá pra conferir antes de seguir — e a
+      // segunda digitação passou a custar sem defender nada.
+      //
+      // O "Confirme o e-mail" continua, e a assimetria é o ponto: e-mail
+      // errado não tem conserto de dentro do app, senha errada tem (é só
+      // redefinir, justamente pelo e-mail).
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      // Etapa de e-mail: dois campos, e-mail e confirmação.
+      expect(find.byType(TextField), findsNWidgets(2));
+      final campos = find.byType(TextField);
+      await tester.enterText(campos.at(0), 'fulano@teste.com');
+      await tester.enterText(campos.at(1), 'fulano@teste.com');
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Agora crie uma senha'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Confirme a senha'), findsNothing);
     });
 
     testWidgets('voltar desfaz a etapa sem perder o que já foi digitado', (tester) async {
@@ -228,7 +346,7 @@ void main() {
       expect(find.text(subtitulo), findsNothing);
     });
 
-    testWidgets('conta social vai do nick direto pra foto', (tester) async {
+    testWidgets('conta social com e-mail real vai do nick direto pra foto', (tester) async {
       await tester.pumpWidget(_tela(contaSocial: true));
       await tester.pump();
 
@@ -238,6 +356,25 @@ void main() {
       await _tocarEmAvancar(tester);
 
       expect(find.text('Sua foto de perfil'), findsOneWidget);
+    });
+
+    testWidgets('conta Apple com e-mail escondido passa pela etapa de e-mail', (tester) async {
+      // O fluxo que o usuário pediu em 13/set: quem escolhe "Hide My Email"
+      // precisa poder informar um e-mail de verdade, senão a conta fica só
+      // com o relay. A etapa de SENHA continua fora — ela é do provedor.
+      await tester.pumpWidget(_tela(
+        contaSocial: true,
+        emailDoProvedor: 'abc123@privaterelay.appleid.com',
+      ));
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Qual é o seu e-mail?'), findsOneWidget);
+      expect(find.text('Sua foto de perfil'), findsNothing);
     });
 
     testWidgets('a etapa de boas-vindas centraliza o texto na faixa branca', (tester) async {
@@ -450,6 +587,132 @@ void main() {
 
       expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.textContaining('Bem-vindo'), findsNothing);
+    });
+  });
+
+  // Regra de UI definida em 13/set: o botão "Avançar" APARECE quando a etapa
+  // tem o mínimo preenchido, em vez de ficar visível e cinza. O olho nota
+  // mudança na tela antes de ler qualquer aviso.
+  group('avancarVisivel', () {
+    bool visivel(EtapaCadastro etapa, {
+      String nickname = '',
+      String email = '',
+      String senha = '',
+      bool temFoto = false,
+      String whatsapp = '+55 (  )      -    ',
+    }) =>
+        avancarVisivel(
+          etapa: etapa,
+          nickname: nickname,
+          email: email,
+          senha: senha,
+          temFoto: temFoto,
+          whatsapp: whatsapp,
+        );
+
+    test('boas-vindas sempre mostra: não há o que preencher', () {
+      expect(visivel(EtapaCadastro.boasVindas), isTrue);
+    });
+
+    test('nick aparece na 2ª letra, antes de ser válido na 3ª', () {
+      // A folga é de propósito: se os dois números fossem iguais, o botão
+      // apareceria já clicável e o movimento não diria "quase lá".
+      expect(visivel(EtapaCadastro.nickname, nickname: 'a'), isFalse);
+      expect(visivel(EtapaCadastro.nickname, nickname: 'ab'), isTrue);
+      expect(validarNickname('ab'), isNotNull, reason: 'visível, mas ainda inválido');
+      expect(validarNickname('abc'), isNull);
+    });
+
+    test('nick só de espaços não conta', () {
+      expect(visivel(EtapaCadastro.nickname, nickname: '   '), isFalse);
+    });
+
+    test('e-mail basta ter "@"', () {
+      expect(visivel(EtapaCadastro.email, email: 'fulano'), isFalse);
+      expect(visivel(EtapaCadastro.email, email: 'fulano@'), isTrue);
+    });
+
+    test('senha aparece exatamente no mínimo, e some abaixo dele', () {
+      expect(visivel(EtapaCadastro.senha, senha: '12345'), isFalse);
+      expect(visivel(EtapaCadastro.senha, senha: '123456'), isTrue);
+      // Nada de exigir maiúscula, número ou símbolo: complicar aqui custa
+      // usuário, e a decisão foi deixar a força da senha com a pessoa.
+      expect(visivel(EtapaCadastro.senha, senha: 'aaaaaa'), isTrue);
+    });
+
+    test('foto aceita tanto avatar quanto foto própria', () {
+      expect(visivel(EtapaCadastro.foto, temFoto: false), isFalse);
+      expect(visivel(EtapaCadastro.foto, temFoto: true), isTrue);
+    });
+
+    test('WhatsApp só mostra com o número inteiro — vazio é caso do Pular', () {
+      expect(visivel(EtapaCadastro.whatsapp), isFalse);
+      expect(visivel(EtapaCadastro.whatsapp, whatsapp: '+55 (11) 999'), isFalse);
+      expect(visivel(EtapaCadastro.whatsapp, whatsapp: '+55 (11) 99999-8888'), isTrue);
+    });
+  });
+
+  group('etapa do WhatsApp na tela', () {
+    // Viewport alta: a grade de 6 avatares não cabe em 800x600 e o tap na
+    // etapa da foto erraria o alvo. Largura abaixo de 900 pra continuar no
+    // layout de celular.
+    Future<void> ateOWhatsapp(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(420, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_tela(contaSocial: true));
+      await tester.pump();
+
+      await _tocarEmAvancar(tester); // -> nick
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester); // -> foto
+
+      // Pelo SeletorAvatarPreset, e não por byType(GestureDetector) solto:
+      // a etapa da foto tem outros GestureDetector antes dos avatares na
+      // árvore, e o primeiro deles não seleciona nada.
+      final avatares = find.descendant(
+        of: find.byType(SeletorAvatarPreset),
+        matching: find.byType(GestureDetector),
+      );
+      await tester.tap(avatares.first, warnIfMissed: false);
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester); // -> whatsapp
+    }
+
+    testWidgets('o texto diz os três usos do número', (tester) async {
+      // Enquanto era obrigatório, o texto não precisava convencer ninguém —
+      // não havia escolha. Opcional, precisa: quem não entende o que ganha
+      // ao preencher pula, e aí o aviso de live não chega em ninguém.
+      await ateOWhatsapp(tester);
+
+      expect(find.textContaining('Opcional'), findsOneWidget);
+      expect(find.textContaining('entrar'), findsOneWidget);
+      expect(find.textContaining('senha'), findsOneWidget);
+      expect(find.textContaining('ao vivo'), findsOneWidget);
+    });
+
+    testWidgets('mostra "Pular" e esconde "Criar conta" com o campo vazio', (tester) async {
+      await ateOWhatsapp(tester);
+
+      expect(find.text('Seu WhatsApp'), findsOneWidget);
+      // O revisor da Apple não vai querer informar telefone — e agora não
+      // precisa: o campo é opcional e a saída está visível.
+      expect(find.text('Pular'), findsOneWidget);
+      expect(find.text('Criar conta'), findsNothing);
+    });
+
+    testWidgets('preencher o número inteiro faz "Criar conta" aparecer', (tester) async {
+      await ateOWhatsapp(tester);
+
+      await tester.enterText(find.byType(TextField), '+55 (11) 99999-8888');
+      await _esperarBotao(tester);
+
+      expect(find.text('Criar conta'), findsOneWidget);
+      // "Pular" continua ali: quem se arrependeu precisa de saída que não
+      // seja apagar o campo dígito por dígito.
+      expect(find.text('Pular'), findsOneWidget);
     });
   });
 }

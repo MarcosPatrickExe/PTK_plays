@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:ptk_plays/i18n/Idioma.dart';
 import 'package:ptk_plays/components/ContaGate.dart';
 import 'package:ptk_plays/data/repositories/AuthRepository.dart';
 import 'package:ptk_plays/data/repositories/YouTubeRepository.dart';
@@ -16,11 +18,24 @@ import 'package:provider/provider.dart';
 
 Future<void> main () async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Antes do Firebase e antes de qualquer tela: a partir daqui toda frase
+  // do app ja sai na lingua certa, inclusive as mensagens de erro que o
+  // proprio `initializeApp` pode gerar.
+  //
+  // So aqui, e nunca dentro do catalogo: se a deteccao morasse no global,
+  // todo `flutter test` viraria ingles (o ambiente de teste responde en-US)
+  // e centenas de asserts de texto quebrariam sem nada ter mudado no app.
+  IdiomaApp.detectar();
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
-    ChangeNotifierProvider(
-      create: (BuildContext _) => ThemeController(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (BuildContext _) => ThemeController()),
+        ChangeNotifierProvider(create: (BuildContext _) => IdiomaController()),
+      ],
       child: const MyApp(),
     )
   );
@@ -46,9 +61,21 @@ class MyApp extends StatelessWidget {
     AuthRepository authRepo = AuthRepository();
     AuthViewModel authVM = AuthViewModel(authRepo);
 
+    // `watch`, e nao `read`: trocar o idioma nas configuracoes precisa
+    // redesenhar o app inteiro, e e esta linha que faz isso acontecer.
+    final idioma = context.watch<IdiomaController>().idioma;
+
     return MaterialApp(
+      // O nome do app nao e traduzido de proposito: e marca, nao texto.
       title: 'PTK plays',
       debugShowCheckedModeBanner: true,
+      locale: idioma.locale,
+      supportedLocales: Idioma.values.map((i) => i.locale),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: context.read<ThemeController>().getThemeMode,

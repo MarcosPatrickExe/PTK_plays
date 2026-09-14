@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -77,7 +78,7 @@ class _ModalCropFotoState extends State<ModalCropFoto> {
       debugPrint('recorte da foto falhou: $e\n$stack');
       if (!mounted) return;
       setState(() => _salvando = false);
-      mostrarToast(context, mensagem: comCodigo('Não foi possível recortar a foto.', e), erro: true);
+      mostrarToast(context, mensagem: comCodigo(textos.fotoRecorteFalhou, e), erro: true);
     }
   }
 
@@ -95,7 +96,7 @@ class _ModalCropFotoState extends State<ModalCropFoto> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Ajustar foto', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        title: Text(textos.fotoAjustar, style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: _salvando ? null : () => Navigator.of(context).pop(),
@@ -162,7 +163,7 @@ class _ModalCropFotoState extends State<ModalCropFoto> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-              child: BotaoPrimario(label: 'Usar essa foto', carregando: _salvando, onTap: _salvar),
+              child: BotaoPrimario(label: textos.fotoUsarEssa, carregando: _salvando, onTap: _salvar),
             ),
           ],
         ),

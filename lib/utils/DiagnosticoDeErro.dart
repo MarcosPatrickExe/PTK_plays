@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'AuthErrorTranslator.dart';
+import '../i18n/Idioma.dart';
 
 /// O padrao de mensagem de erro do app: texto em portugues pra pessoa, mais
 /// um codigo curto que diz A CAUSA pra quem vai investigar.
@@ -57,7 +58,7 @@ String comCodigo(String mensagem, Object erro) =>
 /// pior: o codigo diria o tipo da excecao falsa, e nao a condicao real.
 /// Aqui o codigo e escrito a mao — mas o formato na tela e o mesmo, que e o
 /// que importa pra quem le o print.
-String comCodigoManual(String mensagem, String codigo) => '$mensagem\n\n(código: $codigo)';
+String comCodigoManual(String mensagem, String codigo) => textos.codigoDoErro(mensagem, codigo);
 
 /// A melhor frase em portugues que se consegue dizer sobre [erro], sem o
 /// codigo (use [comCodigo] pra juntar os dois).
@@ -69,7 +70,7 @@ String comCodigoManual(String mensagem, String codigo) => '$mensagem\n\n(código
 String mensagemDeErro(Object erro) {
   if (erro is FirebaseAuthException) return traduzirErroDeAuth(erro.code);
   if (erro is FirebaseException) return traduzirErroDeServico(erro.code);
-  return 'Algo deu errado. Tente novamente.';
+  return textos.erroGenerico;
 }
 
 /// [mensagemDeErro] + [comCodigo] numa chamada so — o caminho normal.

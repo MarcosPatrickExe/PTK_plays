@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 
 void mostrarErroCustom(BuildContext context, {required final title, required final String msg }) {
   
@@ -26,7 +27,7 @@ void mostrarErroCustom(BuildContext context, {required final title, required fin
                   SizedBox(height: 10),
                   Text( msg , textAlign: TextAlign.center),
                   SizedBox(height: 20),
-                  ElevatedButton(onPressed: () => Navigator.pop(context), child: Text('Fechar')),
+                  ElevatedButton(onPressed: () => Navigator.pop(context), child: Text(textos.fechar)),
                 ],
               ),
             ),

@@ -60,6 +60,30 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opcoes', 'votantes', 'votosPorUsuario']);
     }
 
+    // Quem apaga a propria conta tira o proprio uid das enquetes em que
+    // votou — inclusive das dos outros, que ele nao pode apagar. E o unico
+    // jeito de o rastro dele sumir sem o Admin SDK.
+    //
+    // **A contagem em 'opcoes' fica travada de proposito.** O que
+    // identifica a pessoa e o uid; o total de votos e numero agregado, que
+    // nao aponta pra ninguem. Tirar o nome e deixar o numero e o que
+    // anonimizar significa — e liberar 'opcoes' nesta regra daria ao
+    // cliente uma porta pra reescrever placar de enquete alheia, que e
+    // justamente o que 'podeVotar' passa o tempo todo impedindo.
+    //
+    // As tres condicoes sobre 'votantes' juntas dizem "saiu exatamente um,
+    // e fui eu": o meu uid nao esta mais la, nada novo entrou, e a lista
+    // encolheu em um. Rules nao tem subtracao de lista; e assim que se
+    // descreve a remocao de um item so.
+    function podeTirarOProprioVoto() {
+      return estaLogado()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votantes', 'votosPorUsuario'])
+        && !(request.auth.uid in request.resource.data.get('votantes', []))
+        && resource.data.get('votantes', []).hasAll(request.resource.data.get('votantes', []))
+        && request.resource.data.get('votantes', []).size() == resource.data.get('votantes', []).size() - 1
+        && !(request.auth.uid in request.resource.data.get('votosPorUsuario', {}));
+    }
+
     function categoriasValidas(categorias) {
       return categorias is list &&
         categorias.hasOnly(['otaku', 'gamer', 'streamer', 'geek', 'outro']);
@@ -133,10 +157,14 @@ service cloud.firestore {
       allow update: if estaLogado()
         && request.auth.uid == resource.data.uid
         && request.auth.uid == request.resource.data.uid;
-      // So o admin, e so pela remocao em cascata de uma conta: sem isso o
-      // nickname ficaria reservado pra sempre a uma conta que nao existe
-      // mais, e ninguem poderia usa-lo de novo.
-      allow delete: if ehAdmin();
+      // Sem apagar, o nickname ficaria reservado pra sempre a uma conta que
+      // nao existe mais, e ninguem poderia usa-lo de novo.
+      //
+      // O DONO entrou aqui em 14/set, junto com a exclusao da propria conta
+      // (AuthRepository.excluirConta). Ate entao so o admin apagava, pela
+      // remocao em cascata do Painel ADM — e o resultado era que quem
+      // apagasse a propria conta deixava o nick travado.
+      allow delete: if ehAdmin() || (estaLogado() && request.auth.uid == resource.data.uid);
     }
 
     // Feed (Home) e aba "Posts" do Painel ADM. Qualquer usuario logado
@@ -174,6 +202,7 @@ service cloud.firestore {
 
       allow update: if ehAdmin() && tipoDePostagemValido(request.resource.data.tipo);
       allow update: if podeVotar();
+      allow update: if podeTirarOProprioVoto();
 
       // Autor apaga o proprio post; admin apaga o de qualquer um.
       allow delete: if ehAdmin() || (estaLogado() && resource.data.autorUid == request.auth.uid);

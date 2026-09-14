@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../data/repositories/AuthRepository.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
@@ -31,46 +33,48 @@ const Color _corExcluir = Color(0xFFE0264F);
 String _labelCargo(String cargo) {
   switch (cargo) {
     case 'admin':
-      return 'Admin';
+      return textos.cargoAdmin;
     case 'vip':
       return 'VIP';
     default:
-      return 'Inscrito';
+      return textos.cargoInscrito;
   }
 }
 
 String _labelStatus(String status) {
   switch (status) {
     case 'invisivel':
-      return 'Invisível';
+      return textos.perfilInvisivel;
     case 'naoPerturbe':
-      return 'Não perturbe';
+      return textos.perfilNaoPerturbe;
     case 'offline':
-      return 'Offline';
+      return textos.perfilOffline;
     default:
-      return 'Online';
+      return textos.perfilOnline;
   }
 }
 
 String _labelCategoria(String categoria) {
   switch (categoria) {
     case 'otaku':
-      return 'Otaku';
+      return textos.categoriaOtaku;
     case 'gamer':
-      return 'Gamer';
+      return textos.categoriaGamer;
     case 'streamer':
-      return 'Streamer';
+      return textos.categoriaStreamer;
     case 'geek':
-      return 'Geek';
+      return textos.categoriaGeek;
     default:
-      return 'Outro';
+      return textos.categoriaOutro;
   }
 }
 
 String _formatarData(DateTime data) {
-  final dia = data.day.toString().padLeft(2, '0');
-  final mes = data.month.toString().padLeft(2, '0');
-  return '$dia/$mes/${data.year}';
+  return textos.dataDiaMesAno(
+    data.day.toString().padLeft(2, '0'),
+    data.month.toString().padLeft(2, '0'),
+    data.year.toString(),
+  );
 }
 
 class Profile extends StatefulWidget {
@@ -130,12 +134,16 @@ class _ProfileState extends State<Profile> {
     showDialog(
       context: context,
       builder: (dialogContext) => _DialogoExcluirConta(
+        // Conta de Google/Apple nao tem senha do PTK Plays pra digitar. Ate
+        // 14/set o dialogo pedia senha pra todo mundo, e quem entrou pelo
+        // social simplesmente nao tinha como apagar a propria conta.
+        pedeSenha: widget.authViewModel.formaDeReautenticar == FormaDeReautenticar.senha,
         onConfirmar: (senha) async {
           final erro = await widget.authViewModel.excluirConta(senha: senha);
           if (!context.mounted) return;
 
           if (erro != null) {
-            mostrarErroCustom(context, title: "Ops!", msg: erro);
+            mostrarErroCustom(context, title: textos.ops, msg: erro);
             return;
           }
 
@@ -205,12 +213,12 @@ class _ProfileState extends State<Profile> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _LinhaInfo(isDark: isDark, label: 'Cargo', valor: _labelCargo(usuario.cargo)),
-                                _LinhaInfo(isDark: isDark, label: 'Status', valor: _labelStatus(usuario.status)),
-                                _LinhaInfo(isDark: isDark, label: 'Membro desde', valor: _formatarData(usuario.criadoEm)),
+                                _LinhaInfo(isDark: isDark, label: textos.cargo, valor: _labelCargo(usuario.cargo)),
+                                _LinhaInfo(isDark: isDark, label: textos.status, valor: _labelStatus(usuario.status)),
+                                _LinhaInfo(isDark: isDark, label: textos.perfilMembroDesde, valor: _formatarData(usuario.criadoEm)),
                                 _LinhaInfo(
                                   isDark: isDark,
-                                  label: 'Último acesso',
+                                  label: textos.perfilUltimoAcesso,
                                   valor: usuario.ultimoAcesso != null ? _formatarData(usuario.ultimoAcesso!) : '—',
                                   ultima: true,
                                 ),
@@ -224,7 +232,7 @@ class _ProfileState extends State<Profile> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Categorias',
+                                  textos.perfilCategorias,
                                   style: GoogleFonts.outfit(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
@@ -235,7 +243,7 @@ class _ProfileState extends State<Profile> {
                                 const SizedBox(height: 10),
                                 usuario.categorias.isEmpty
                                     ? Text(
-                                        'Nenhuma categoria escolhida ainda',
+                                        textos.perfilNenhumaCategoria,
                                         style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
                                       )
                                     : Wrap(
@@ -253,7 +261,7 @@ class _ProfileState extends State<Profile> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Badges',
+                                  textos.badges,
                                   style: GoogleFonts.outfit(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
@@ -273,7 +281,7 @@ class _ProfileState extends State<Profile> {
                                   ),
                                   child: usuario.badges.isEmpty
                                       ? Text(
-                                          'Nenhuma badge conquistada ainda',
+                                          textos.perfilNenhumaBadge,
                                           style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
                                         )
                                       : Wrap(
@@ -294,7 +302,7 @@ class _ProfileState extends State<Profile> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                             ),
                             child: Text(
-                              'Sair',
+                              textos.sair,
                               style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w700,
                                 color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight,
@@ -310,7 +318,7 @@ class _ProfileState extends State<Profile> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                             ),
                             child: Text(
-                              'Excluir conta',
+                              textos.perfilExcluirConta,
                               style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: Colors.white),
                             ),
                           ),
@@ -330,7 +338,7 @@ class _ProfileState extends State<Profile> {
             child: Align(
               alignment: Alignment.topCenter,
               child: buildHeader(
-                title: "Perfil",
+                title: textos.perfil,
                 widgetContext: context,
                 menu: BotaoMenuLateral(isDark: isDark),
                 onEditar: _usuarioAtual == null
@@ -450,8 +458,14 @@ class _Chip extends StatelessWidget {
 }
 
 class _DialogoExcluirConta extends StatefulWidget {
-  final Future<void> Function(String senha) onConfirmar;
-  const _DialogoExcluirConta({required this.onConfirmar});
+  final Future<void> Function(String? senha) onConfirmar;
+
+  /// false pra conta de Google/Apple: nao ha senha do PTK Plays pra pedir,
+  /// e a prova de identidade vem da folha do proprio provedor, aberta
+  /// depois do toque em Excluir.
+  final bool pedeSenha;
+
+  const _DialogoExcluirConta({required this.onConfirmar, required this.pedeSenha});
 
   @override
   State<_DialogoExcluirConta> createState() => _DialogoExcluirContaState();
@@ -481,32 +495,40 @@ class _DialogoExcluirContaState extends State<_DialogoExcluirConta> {
             const Icon(Icons.warning_amber_rounded, color: _corExcluir, size: 48),
             const SizedBox(height: 12),
             Text(
-              'Excluir conta',
+              textos.perfilExcluirConta,
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              'Essa ação é irreversível: seus dados serão apagados permanentemente. Digite sua senha pra confirmar.',
+              textos.perfilExcluirContaOQueSai,
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(color: Colors.black54),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _senhaController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Senha',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            const SizedBox(height: 8),
+            Text(
+              widget.pedeSenha ? textos.perfilExcluirContaDigiteSenha : textos.perfilExcluirContaSocial,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(color: Colors.black54),
             ),
+            if (widget.pedeSenha) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _senhaController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: textos.senha,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: TextButton(
                     onPressed: _carregando ? null : () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar'),
+                    child: Text(textos.cancelar),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -516,9 +538,9 @@ class _DialogoExcluirContaState extends State<_DialogoExcluirConta> {
                     onPressed: _carregando
                         ? null
                         : () async {
-                            if (_senhaController.text.isEmpty) return;
+                            if (widget.pedeSenha && _senhaController.text.isEmpty) return;
                             setState(() => _carregando = true);
-                            await widget.onConfirmar(_senhaController.text);
+                            await widget.onConfirmar(widget.pedeSenha ? _senhaController.text : null);
                             if (mounted) setState(() => _carregando = false);
                           },
                     child: _carregando
@@ -527,7 +549,7 @@ class _DialogoExcluirContaState extends State<_DialogoExcluirConta> {
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Excluir', style: TextStyle(color: Colors.white)),
+                        : Text(textos.excluir, style: const TextStyle(color: Colors.white)),
                   ),
                 ),
               ],

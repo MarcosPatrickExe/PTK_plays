@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
@@ -117,7 +118,7 @@ class HomePage extends StatelessWidget {
                       if (snapshot.hasError) {
                         return Center(
                           child: Text(
-                            'Não foi possível carregar os avisos.',
+                            textos.feedNaoCarregouAvisos,
                             style: GoogleFonts.outfit(color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
                           ),
                         );
@@ -133,7 +134,7 @@ class HomePage extends StatelessWidget {
                       if (postagens.isEmpty) {
                         return Center(
                           child: Text(
-                            'Nenhum aviso por aqui ainda :)',
+                            textos.feedNenhumAviso,
                             style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
                           ),
                         );
@@ -160,7 +161,7 @@ class HomePage extends StatelessWidget {
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
-              child: buildHeader(title: "Feed", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
+              child: buildHeader(title: textos.feed, widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
             ),
           ),
           // Scrim do rodape: escurece o conteudo que passa por baixo da
@@ -311,7 +312,7 @@ class _ListaDoFeedState extends State<ListaDoFeed> {
             foregroundColor: widget.isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
           ),
           child: Text(
-            'Ver publicações mais antigas',
+            textos.feedVerAntigos,
             style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
         ),
@@ -326,13 +327,13 @@ Future<void> _excluirPost(BuildContext context, PostViewModel postViewModel, Str
   final confirmou = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Excluir post?'),
-      content: const Text('Ele some do feed pra todo mundo. Não dá pra desfazer.'),
+      title: Text(textos.feedExcluirPostTitulo),
+      content: Text(textos.feedExcluirPostTexto),
       actions: [
-        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(textos.cancelar)),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Excluir', style: TextStyle(color: Color(0xFFE0264F))),
+          child: Text(textos.excluir, style: const TextStyle(color: Color(0xFFE0264F))),
         ),
       ],
     ),
@@ -342,7 +343,7 @@ Future<void> _excluirPost(BuildContext context, PostViewModel postViewModel, Str
 
   final erro = await postViewModel.excluirPost(postId);
   if (!context.mounted) return;
-  mostrarToast(context, mensagem: erro ?? 'Post excluído.', erro: erro != null);
+  mostrarToast(context, mensagem: erro ?? textos.feedPostExcluido, erro: erro != null);
 }
 
 /// Botao flutuante de publicar no feed (Home). Fica acima da barra de
@@ -361,7 +362,7 @@ class BotaoNovoPost extends StatelessWidget {
       onTap: () async {
         final publicou = await mostrarNovoPost(context, autor: autor, postViewModel: postViewModel);
         if (publicou && context.mounted) {
-          mostrarToast(context, mensagem: 'Publicado no feed!', erro: false);
+          mostrarToast(context, mensagem: textos.feedPublicado, erro: false);
         }
       },
       child: Container(
@@ -455,7 +456,7 @@ class PostCard extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   icon: Icon(Icons.more_vert, size: 18, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
                   onSelected: (_) => onExcluir!(),
-                  itemBuilder: (context) => const [PopupMenuItem(value: 'excluir', child: Text('Excluir post'))],
+                  itemBuilder: (context) => [PopupMenuItem(value: 'excluir', child: Text(textos.feedExcluirPost))],
                 ),
             ],
           ),
@@ -523,7 +524,7 @@ class PostCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                aindaAoVivo ? 'AO VIVO' : 'ENCERRADA',
+                aindaAoVivo ? textos.feedAoVivo : textos.feedEncerrada,
                 style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
@@ -542,7 +543,7 @@ class PostCard extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             Text(
-              tituloLive ?? post.texto ?? 'Corre pra assistir agora!',
+              tituloLive ?? post.texto ?? textos.feedCorrePraAssistir,
               style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? AuthTheme.titleDark : AuthTheme.titleLight),
             ),
             if (jogo != null) ...[
@@ -551,14 +552,14 @@ class PostCard extends StatelessWidget {
             ],
             if (duracaoSegundos != null) ...[
               const SizedBox(height: 4),
-              _linhaDetalhe(Icons.schedule, 'Durou ${_formatarDuracao(duracaoSegundos)}'),
+              _linhaDetalhe(Icons.schedule, textos.feedDurou(_formatarDuracao(duracaoSegundos))),
             ],
             if (!aindaAoVivo && encerradaEm != null) ...[
               const SizedBox(height: 4),
-              _linhaDetalhe(Icons.event_available, 'Encerrada em ${_formatarDataHora(encerradaEm)}'),
+              _linhaDetalhe(Icons.event_available, textos.feedEncerradaEm(_formatarDataHora(encerradaEm))),
             ] else if (aindaAoVivo && iniciadaEm != null) ...[
               const SizedBox(height: 4),
-              _linhaDetalhe(Icons.play_circle_outline, 'Começou às ${_formatarDataHora(iniciadaEm)}'),
+              _linhaDetalhe(Icons.play_circle_outline, textos.feedComecouAs(_formatarDataHora(iniciadaEm))),
             ],
             if (ativas.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -624,7 +625,7 @@ class PostCard extends StatelessWidget {
             if (jaVotou) ...[
               const SizedBox(height: 4),
               Text(
-                'Você já votou',
+                textos.feedJaVotou,
                 style: GoogleFonts.outfit(fontSize: 12, color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
               ),
             ],
@@ -749,19 +750,20 @@ class PostCard extends StatelessWidget {
 
   String _tempoRelativo(DateTime data) {
     final diff = DateTime.now().difference(data);
-    if (diff.inMinutes < 1) return 'agora';
-    if (diff.inMinutes < 60) return 'há ${diff.inMinutes}min';
-    if (diff.inHours < 24) return 'há ${diff.inHours}h';
-    return 'há ${diff.inDays}d';
+    if (diff.inMinutes < 1) return textos.dataAgora;
+    if (diff.inMinutes < 60) return textos.dataHaMinutos(diff.inMinutes);
+    if (diff.inHours < 24) return textos.dataHaHoras(diff.inHours);
+    return textos.dataHaDias(diff.inDays);
   }
 
   String _formatarDataHora(DateTime data) {
     final local = data.toLocal();
-    final dia = local.day.toString().padLeft(2, '0');
-    final mes = local.month.toString().padLeft(2, '0');
-    final hora = local.hour.toString().padLeft(2, '0');
-    final minuto = local.minute.toString().padLeft(2, '0');
-    return '$dia/$mes às $hora:$minuto';
+    return textos.dataDiaMesHora(
+      local.day.toString().padLeft(2, '0'),
+      local.month.toString().padLeft(2, '0'),
+      local.hour.toString().padLeft(2, '0'),
+      local.minute.toString().padLeft(2, '0'),
+    );
   }
 
   /// "2h 35min", "45min" ou "38s" - sem zeros a esquerda inuteis, pra ficar
@@ -769,9 +771,11 @@ class PostCard extends StatelessWidget {
   String _formatarDuracao(int totalSegundos) {
     final horas = totalSegundos ~/ 3600;
     final minutos = (totalSegundos % 3600) ~/ 60;
-    if (horas > 0) return minutos > 0 ? '${horas}h ${minutos}min' : '${horas}h';
-    if (minutos > 0) return '${minutos}min';
-    return '${totalSegundos}s';
+    if (horas > 0) {
+      return minutos > 0 ? textos.duracaoHorasMinutos(horas, minutos) : textos.duracaoSoHoras(horas);
+    }
+    if (minutos > 0) return textos.duracaoMinutos(minutos);
+    return textos.duracaoSegundos(totalSegundos);
   }
 
   Widget _linhaDetalhe(IconData icone, String texto) {
@@ -845,12 +849,12 @@ class PostCard extends StatelessWidget {
       // abre esse link" de uma falha real do launcher, logo abaixo.
       mostrarErroCustom(
         context,
-        title: "Ops!",
-        msg: comCodigoManual('Não foi possível abrir a live :/', 'link/sem-app-que-abra'),
+        title: textos.ops,
+        msg: comCodigoManual(textos.feedLiveNaoAbriu, 'link/sem-app-que-abra'),
       );
     } catch (e) {
       if (!context.mounted) return;
-      mostrarErroCustom(context, title: "Ops!", msg: comCodigo('Não foi possível abrir a live :/', e));
+      mostrarErroCustom(context, title: textos.ops, msg: comCodigo(textos.feedLiveNaoAbriu, e));
     }
   }
 }
