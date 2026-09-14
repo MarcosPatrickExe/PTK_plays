@@ -504,9 +504,13 @@ class TextosEnUs extends Textos {
   @override
   String get bloqueioSuspensa => 'Your account is suspended';
   @override
-  String get bloqueioBanidaTexto => 'You can no longer use PTK Plays.';
+  String get bloqueioBanidaTexto => 'This account was banned for breaking the PTK Plays rules of use and can no longer sign in.';
   @override
-  String bloqueioSuspensaTexto(String ate) => 'You can\'t use PTK Plays until $ate.';
+  String bloqueioSuspensaTexto(String ate) => 'This account was suspended for breaking the PTK Plays rules of use. You can sign in again from $ate.';
+  @override
+  String get bloqueioEntendi => 'Got it';
+  @override
+  String get bloqueioLeiaAsRegras => 'The community rules apply to everyone, no exceptions.';
   @override
   String bloqueioMotivo(String motivo) => 'Reason: $motivo';
   @override
