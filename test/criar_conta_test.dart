@@ -265,6 +265,36 @@ void main() {
       expect(find.text('Agora crie uma senha'), findsOneWidget);
     });
 
+    testWidgets('a etapa de senha tem UM campo — o "confirme a senha" saiu', (tester) async {
+      // O campo de confirmar saiu em 14/set. O motivo de ele ter existido
+      // era senha sempre mascarada: digitar errado só aparecia no próximo
+      // login. Com o olho no campo, dá pra conferir antes de seguir — e a
+      // segunda digitação passou a custar sem defender nada.
+      //
+      // O "Confirme o e-mail" continua, e a assimetria é o ponto: e-mail
+      // errado não tem conserto de dentro do app, senha errada tem (é só
+      // redefinir, justamente pelo e-mail).
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      // Etapa de e-mail: dois campos, e-mail e confirmação.
+      expect(find.byType(TextField), findsNWidgets(2));
+      final campos = find.byType(TextField);
+      await tester.enterText(campos.at(0), 'fulano@teste.com');
+      await tester.enterText(campos.at(1), 'fulano@teste.com');
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester);
+
+      expect(find.text('Agora crie uma senha'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Confirme a senha'), findsNothing);
+    });
+
     testWidgets('voltar desfaz a etapa sem perder o que já foi digitado', (tester) async {
       await tester.pumpWidget(_tela());
       await tester.pump();
@@ -650,6 +680,18 @@ void main() {
       await _esperarBotao(tester);
       await _tocarEmAvancar(tester); // -> whatsapp
     }
+
+    testWidgets('o texto diz os três usos do número', (tester) async {
+      // Enquanto era obrigatório, o texto não precisava convencer ninguém —
+      // não havia escolha. Opcional, precisa: quem não entende o que ganha
+      // ao preencher pula, e aí o aviso de live não chega em ninguém.
+      await ateOWhatsapp(tester);
+
+      expect(find.textContaining('Opcional'), findsOneWidget);
+      expect(find.textContaining('entrar'), findsOneWidget);
+      expect(find.textContaining('senha'), findsOneWidget);
+      expect(find.textContaining('ao vivo'), findsOneWidget);
+    });
 
     testWidgets('mostra "Pular" e esconde "Criar conta" com o campo vazio', (tester) async {
       await ateOWhatsapp(tester);
