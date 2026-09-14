@@ -7,11 +7,38 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/UserModel.dart';
 import '../../i18n/Idioma.dart';
+
+/// Como a conta prova que e ela mesma antes de uma operacao sensivel.
+///
+/// Existe porque o Firebase exige reautenticacao recente pra apagar a
+/// conta, e cada provedor reautentica de um jeito. Ver
+/// [AuthRepository.formaDeReautenticar].
+enum FormaDeReautenticar { senha, google, apple }
+
+/// A decisao em si, separada do Firebase pra poder ser testada.
+///
+/// [AuthRepository] cria `FirebaseAuth.instance` no proprio campo, entao
+/// nada dentro dele roda em `flutter test`. Esta funcao recebe so a lista
+/// de `providerId` que o Firebase devolveria, e e ela que carrega a regra
+/// que importa.
+///
+/// **Senha ganha de todas**, quando existe: quem tem senha E login social
+/// prova quem e sem abrir a folha do provedor, que e o caminho mais curto
+/// e o que nao depende de rede externa na hora de apagar a conta.
+FormaDeReautenticar formaParaProvedores(Iterable<String> provedores) {
+  final ids = provedores.toSet();
+  if (ids.contains('password')) return FormaDeReautenticar.senha;
+  if (ids.contains('apple.com')) return FormaDeReautenticar.apple;
+  if (ids.contains('google.com')) return FormaDeReautenticar.google;
+  // Sem provedor reconhecido, cai na senha: e o unico caminho que o app
+  // sabe percorrer sozinho, e o erro que vier dali diz o que houve.
+  return FormaDeReautenticar.senha;
+}
 
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -348,15 +375,173 @@ class AuthRepository {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
-  Future<void> excluirConta({required String senha}) async {
+  /// Como esta conta prova que e ela mesma antes de uma operacao sensivel.
+  ///
+  /// O Firebase exige reautenticacao recente pra apagar a conta, e o jeito
+  /// de reautenticar depende de como a pessoa entrou. Ate 14/set isso era
+  /// sempre `EmailAuthProvider.credential`, e por isso **quem entrou pelo
+  /// Google ou pela Apple simplesmente nao conseguia apagar a propria
+  /// conta**: o `user.email!` podia nem existir, e a senha pedida na tela
+  /// nao existia em lugar nenhum.
+  FormaDeReautenticar formaDeReautenticar() => formaParaProvedores(
+        _auth.currentUser?.providerData.map((p) => p.providerId) ?? const <String>[],
+      );
+
+  /// Apaga a conta e tudo que esta preso a ela.
+  ///
+  /// **A ordem nao e arbitraria.** A conta do Auth e a ULTIMA a cair: as
+  /// regras do Firestore e do Storage so autorizam apagar o que e "meu"
+  /// enquanto `request.auth` existe. Apagando o login primeiro, todo o
+  /// resto viraria lixo impossivel de remover por qualquer caminho que nao
+  /// seja o Admin SDK.
+  ///
+  /// Pelo mesmo motivo, `users/{uid}` e o ultimo documento do Firestore a
+  /// sair: as regras de post fazem `get()` nele pra descobrir o cargo de
+  /// quem chama. Sem o documento, a regra nao avalia e a exclusao dos
+  /// proprios posts seria negada.
+  ///
+  /// Falhar no meio deixa a conta existindo, e nao meio apagada — de
+  /// proposito: da pra tentar de novo. O contrario (login apagado, dados
+  /// de pe) nao teria conserto.
+  Future<void> excluirConta({String? senha}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final credential = EmailAuthProvider.credential(email: user.email!, password: senha);
-    await user.reauthenticateWithCredential(credential);
+    final forma = formaDeReautenticar();
+    AuthorizationCredentialAppleID? credencialApple;
 
-    await _firestore.collection('users').doc(user.uid).delete();
+    switch (forma) {
+      case FormaDeReautenticar.senha:
+        final credential = EmailAuthProvider.credential(email: user.email!, password: senha ?? '');
+        await user.reauthenticateWithCredential(credential);
+      case FormaDeReautenticar.google:
+        await user.reauthenticateWithCredential(await _credencialDoGoogle());
+      case FormaDeReautenticar.apple:
+        credencialApple = await _credencialDaApple();
+        await user.reauthenticateWithCredential(
+          OAuthProvider('apple.com').credential(
+            idToken: credencialApple.identityToken,
+            rawNonce: _nonceDaUltimaApple,
+          ),
+        );
+    }
+
+    await _apagarDadosDoUsuario(user.uid);
+
+    // A Apple exige (desde jun/2022) que apagar a conta no app revogue o
+    // token dela tambem — senao o "Sign in with Apple" continua listando o
+    // PTK Plays nos ajustes do aparelho. Depende da configuracao de fluxo
+    // OAuth no Console (Team ID, Key ID e a chave .p8); sem ela isto
+    // lanca, e ai a exclusao segue mesmo assim. Travar a exclusao da conta
+    // por causa da revogacao seria trocar um problema por um pior.
+    if (credencialApple?.authorizationCode != null) {
+      try {
+        await _auth.revokeTokenWithAuthorizationCode(credencialApple!.authorizationCode);
+      } catch (e, stack) {
+        debugPrint('revogacao do token da Apple falhou (a conta foi apagada assim mesmo): $e\n$stack');
+      }
+    }
+
     await user.delete();
+  }
+
+  /// Tudo que esta preso ao uid e que o cliente tem permissao de remover.
+  ///
+  /// **O que NAO esta aqui, e por que.** As mensagens em
+  /// `mensagensWhatsapp` sao indexadas por telefone e so o webhook escreve
+  /// nelas (`write: if false` vale pra todo mundo, admin incluido) —
+  /// limpa-las precisa do Admin SDK, numa Cloud Function que ainda nao
+  /// existe. Comentarios e curtidas tambem nao aparecem porque nao existem
+  /// como documento: hoje sao so contadores dentro do post.
+  Future<void> _apagarDadosDoUsuario(String uid) async {
+    final posts = await _firestore.collection('posts').where('autorUid', isEqualTo: uid).get();
+    await _apagarEmLote(posts.docs.map((doc) => doc.reference));
+
+    await _removerVotosEmEnquetes(uid);
+
+    // Indexada pelo nickname, nao pelo uid — por isso vem por consulta. Sem
+    // apagar, o nick fica preso pra sempre a uma conta que nao existe mais.
+    final nicknames = await _firestore.collection('nicknamesParaEmail').where('uid', isEqualTo: uid).get();
+    await _apagarEmLote(nicknames.docs.map((doc) => doc.reference));
+
+    await _apagarPasta('fotos_perfil/$uid');
+    await _apagarPasta('posts_midia/$uid');
+
+    // Por ultimo: as regras dos passos acima consultam este documento.
+    await _firestore.collection('users').doc(uid).delete();
+  }
+
+  /// Tira o uid das enquetes em que a pessoa votou — inclusive nas dos
+  /// outros, que ela nao pode apagar.
+  ///
+  /// **A contagem nao e mexida, e isso e deliberado.** O que identifica a
+  /// pessoa e o uid guardado em `votantes`/`votosPorUsuario`; o total de
+  /// votos de cada opcao e numero agregado, que nao aponta pra ninguem.
+  /// Tirar o nome e deixar o numero e exatamente o que anonimizar
+  /// significa — e mexer no total abriria, na regra, uma porta pro cliente
+  /// reescrever placar de enquete alheia.
+  Future<void> _removerVotosEmEnquetes(String uid) async {
+    final votadas = await _firestore.collection('posts').where('votantes', arrayContains: uid).get();
+
+    for (final doc in votadas.docs) {
+      await doc.reference.update({
+        'votantes': FieldValue.arrayRemove([uid]),
+        'votosPorUsuario.$uid': FieldValue.delete(),
+      });
+    }
+  }
+
+  /// O Storage nao apaga pasta: apaga arquivo. `listAll` devolve o que tem
+  /// dentro, e cada um sai individualmente.
+  Future<void> _apagarPasta(String caminho) async {
+    try {
+      final conteudo = await _storage.ref(caminho).listAll();
+      await Future.wait(conteudo.items.map((item) => item.delete()));
+    } catch (e, stack) {
+      // Pasta que nunca existiu (conta sem foto propria, ou sem post com
+      // midia) e o caso comum, nao um erro. Parar a exclusao aqui seria
+      // impedir de apagar a conta justamente quem menos publicou.
+      debugPrint('limpeza de $caminho falhou ou nao havia nada: $e\n$stack');
+    }
+  }
+
+  /// Um lote do Firestore aceita ate 500 operacoes.
+  Future<void> _apagarEmLote(Iterable<DocumentReference> referencias) async {
+    const tamanhoDoLote = 500;
+    final todas = referencias.toList();
+
+    for (var inicio = 0; inicio < todas.length; inicio += tamanhoDoLote) {
+      final fim = (inicio + tamanhoDoLote).clamp(0, todas.length);
+      final lote = _firestore.batch();
+      for (final referencia in todas.sublist(inicio, fim)) {
+        lote.delete(referencia);
+      }
+      await lote.commit();
+    }
+  }
+
+  Future<AuthCredential> _credencialDoGoogle() async {
+    if (kIsWeb) {
+      // Na web nao ha `authenticate()`: o popup devolve a credencial junto
+      // com o login, e e ele que serve pra reautenticar.
+      final resultado = await _auth.signInWithPopup(GoogleAuthProvider());
+      return resultado.credential!;
+    }
+
+    await _garantirGoogleSignInInicializado();
+    final conta = await GoogleSignIn.instance.authenticate();
+    return GoogleAuthProvider.credential(idToken: conta.authentication.idToken);
+  }
+
+  String _nonceDaUltimaApple = '';
+
+  Future<AuthorizationCredentialAppleID> _credencialDaApple() async {
+    _nonceDaUltimaApple = _gerarNonce();
+
+    return SignInWithApple.getAppleIDCredential(
+      scopes: [AppleIDAuthorizationScopes.email],
+      nonce: _sha256DoNonce(_nonceDaUltimaApple),
+    );
   }
 
   /// Envia os bytes (ja recortados/redimensionados por ModalCropFoto) pro
