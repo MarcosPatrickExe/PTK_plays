@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../data/models/AvatarPreset.dart';
+import '../data/models/BloqueioDaConta.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/AuthRepository.dart';
 import '../i18n/Idioma.dart';
@@ -64,24 +65,24 @@ class AuthViewModel {
   /// ou com a mensagem traduzida. [contaNova] diz se a conta acabou de ser
   /// criada — nesse caso o Login manda a pessoa completar o cadastro (nick,
   /// foto e WhatsApp) em vez de ir direto pro feed.
-  Future<({String? erro, bool contaNova})> loginComGoogle() async {
+  Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComGoogle() async {
     try {
-      final contaNova = await _repository.loginComGoogle();
-      return (erro: null, contaNova: contaNova);
+      final resultado = await _repository.loginComGoogle();
+      return (erro: null, contaNova: resultado.contaNova, bloqueio: resultado.bloqueio);
     } catch (e, stack) {
       debugPrint('loginComGoogle falhou: $e\n$stack');
-      return (erro: mapearErroLoginGoogle(e), contaNova: false);
+      return (erro: mapearErroLoginGoogle(e), contaNova: false, bloqueio: null);
     }
   }
 
   /// Ver [loginComGoogle] sobre o retorno.
-  Future<({String? erro, bool contaNova})> loginComApple() async {
+  Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComApple() async {
     try {
-      final contaNova = await _repository.loginComApple();
-      return (erro: null, contaNova: contaNova);
+      final resultado = await _repository.loginComApple();
+      return (erro: null, contaNova: resultado.contaNova, bloqueio: resultado.bloqueio);
     } catch (e, stack) {
       debugPrint('loginComApple falhou: $e\n$stack');
-      return (erro: mapearErroLoginApple(e), contaNova: false);
+      return (erro: mapearErroLoginApple(e), contaNova: false, bloqueio: null);
     }
   }
 
@@ -225,12 +226,19 @@ class AuthViewModel {
 
   /// Aceita email ou nickname no campo de login.
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
-  Future<String?> login({required String loginOuEmail, required String senha}) async {
+  /// `bloqueio` preenchido significa que a senha estava certa e a conta
+  /// existe, mas ela está banida/suspensa — e a sessão **já foi encerrada**
+  /// pelo repositório. Não é erro: é uma recusa com explicação, e a tela
+  /// mostra o modal em vez do modal de erro.
+  Future<({String? erro, BloqueioDaConta? bloqueio})> login({
+    required String loginOuEmail,
+    required String senha,
+  }) async {
     try {
-      await _repository.login(loginOuEmail: loginOuEmail, senha: senha);
-      return null;
+      final bloqueio = await _repository.login(loginOuEmail: loginOuEmail, senha: senha);
+      return (erro: null, bloqueio: bloqueio);
     } catch (e, stack) {
-      return _falha(e, stack);
+      return (erro: _falha(e, stack), bloqueio: null);
     }
   }
 }
