@@ -350,4 +350,24 @@ abstract class Textos {
   String get whatsappDocumento;
   String get whatsappFigurinha;
   String get whatsappContato;
+
+  // ----- O que faltou na primeira varredura -----
+  String get feedEncerrada;
+  String get dataAgora;
+  String duracaoSoHoras(int horas);
+  String duracaoSegundos(int segundos);
+  String get cadastroAntigoTitulo;
+  String get cadastroEscolhaAvatar;
+  String get cadastroJaTemConta;
+  String get cadastroFazerLogin;
+  String get cadastroDigiteEmail;
+  String get validaNickComArrobaAntigo;
+  String apenasOCodigo(String codigo);
+
+  // ----- Selos de tipo de post, no painel -----
+  String get seloAviso;
+  String get seloFoto;
+  String get seloEnquete;
+  String get seloLive;
+  String get adminVocePrefixo;
 }
