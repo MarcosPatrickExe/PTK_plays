@@ -281,6 +281,8 @@ abstract class Textos {
   String get bloqueioSuspensa;
   String get bloqueioBanidaTexto;
   String bloqueioSuspensaTexto(String ate);
+  String get bloqueioEntendi;
+  String get bloqueioLeiaAsRegras;
   String bloqueioMotivo(String motivo);
   String get bloqueioDataFutura;
 
