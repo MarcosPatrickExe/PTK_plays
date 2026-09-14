@@ -621,4 +621,14 @@ class TextosPtBr extends Textos {
   String dataDiaMesHora(String dia, String mes, String hora, String minuto) => '$dia/$mes às $hora:$minuto';
   @override
   String dataDiaMesAnoHora(String dia, String mes, String ano, String hora, String minuto) => '$dia/$mes/$ano às $hora:$minuto';
+
+  // ----- Resumo de midia do WhatsApp -----
+  @override
+  String get whatsappImagem => '[imagem]';
+  @override
+  String get whatsappDocumento => '[documento]';
+  @override
+  String get whatsappFigurinha => '[figurinha]';
+  @override
+  String get whatsappContato => '[contato]';
 }
