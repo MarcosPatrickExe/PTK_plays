@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/AuthWidgets.dart';
@@ -40,15 +41,15 @@ class ContaBloqueadaView extends StatelessWidget {
                     Icon(_banido ? Icons.block : Icons.pause_circle_outline, size: 64, color: const Color(0xFFE0264F)),
                     const SizedBox(height: 20),
                     Text(
-                      _banido ? 'Sua conta foi banida' : 'Sua conta está suspensa',
+                      _banido ? textos.bloqueioBanida : textos.bloqueioSuspensa,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: corTitulo),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       _banido
-                          ? 'Você não pode mais usar o PTK Plays.'
-                          : 'Você não pode usar o PTK Plays até ${_formatarData(usuario.suspensoAte)}.',
+                          ? textos.bloqueioBanidaTexto
+                          : textos.bloqueioSuspensaTexto(_formatarData(usuario.suspensoAte)),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.outfit(fontSize: 14, color: corSub),
                     ),
@@ -61,7 +62,7 @@ class ContaBloqueadaView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Text(
-                          'Motivo: $motivo',
+                          textos.bloqueioMotivo(motivo),
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(fontSize: 13, color: corSub),
                         ),
@@ -70,7 +71,7 @@ class ContaBloqueadaView extends StatelessWidget {
                     const SizedBox(height: 28),
                     SizedBox(
                       width: 220,
-                      child: BotaoPrimario(label: 'Sair', carregando: false, onTap: onSair),
+                      child: BotaoPrimario(label: textos.sair, carregando: false, onTap: onSair),
                     ),
                   ],
                 ),
@@ -84,8 +85,12 @@ class ContaBloqueadaView extends StatelessWidget {
 }
 
 String _formatarData(DateTime? data) {
-  if (data == null) return 'uma data futura';
-  final dia = data.day.toString().padLeft(2, '0');
-  final mes = data.month.toString().padLeft(2, '0');
-  return '$dia/$mes/${data.year} às ${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
+  if (data == null) return textos.bloqueioDataFutura;
+  return textos.dataDiaMesAnoHora(
+    data.day.toString().padLeft(2, '0'),
+    data.month.toString().padLeft(2, '0'),
+    data.year.toString(),
+    data.hour.toString().padLeft(2, '0'),
+    data.minute.toString().padLeft(2, '0'),
+  );
 }
