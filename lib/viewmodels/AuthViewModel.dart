@@ -6,6 +6,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../data/models/AvatarPreset.dart';
 import '../data/models/UserModel.dart';
 import '../data/repositories/AuthRepository.dart';
+import '../i18n/Idioma.dart';
 import '../utils/AuthErrorTranslator.dart';
 import '../utils/DiagnosticoDeErro.dart';
 
@@ -128,7 +129,7 @@ class AuthViewModel {
   }) async {
     final uid = uidAtual;
     final email = _repository.usuarioAtual?.email;
-    if (uid == null || email == null) return 'Você precisa estar logado.';
+    if (uid == null || email == null) return textos.erroPrecisaEstarLogado;
 
     try {
       await _repository.atualizarPerfil(
@@ -160,7 +161,7 @@ class AuthViewModel {
   /// sucesso, ou uma mensagem de erro traduzida.
   Future<({String? erro, String? url})> atualizarFotoPerfil({required Uint8List bytes}) async {
     final uid = uidAtual;
-    if (uid == null) return (erro: 'Você precisa estar logado.', url: null);
+    if (uid == null) return (erro: textos.erroPrecisaEstarLogado, url: null);
 
     try {
       final url = await _repository.atualizarFotoPerfil(uid: uid, bytes: bytes);
@@ -237,7 +238,7 @@ class AuthViewModel {
 String? mapearErroLoginGoogle(Object erro) {
   if (erro is GoogleSignInException) {
     if (erro.code == GoogleSignInExceptionCode.canceled) return null;
-    return comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
+    return comCodigo(textos.erroGoogleFalhou, erro);
   }
   if (erro is FirebaseAuthException) {
     // Usuario fechou o popup ou abriu outro antes de terminar: nao e erro,
@@ -246,7 +247,7 @@ String? mapearErroLoginGoogle(Object erro) {
     return comCodigo(traduzirErroDeAuth(erro.code), erro);
   }
   if (erro is FirebaseException) return comCodigo(_falhaAoSalvarPerfil, erro);
-  return comCodigo('Não foi possível entrar com o Google. Tente novamente.', erro);
+  return comCodigo(textos.erroGoogleFalhou, erro);
 }
 
 /// O login social nao termina no provedor: [AuthRepository.loginComGoogle] e
@@ -256,8 +257,10 @@ String? mapearErroLoginGoogle(Object erro) {
 /// cloud_firestore — nao do Auth. Ate 11/set/2026 esse caso caia no texto
 /// generico "nao foi possivel entrar", que fazia parecer problema do
 /// provedor quando a autenticacao ja tinha dado certo.
-const String _falhaAoSalvarPerfil =
-    'Sua conta foi reconhecida, mas não deu pra salvar o seu perfil. Tente novamente.';
+/// Deixou de ser `const` quando a frase passou a vir do catalogo: o texto
+/// depende do idioma da vez, e `const` congelaria um dos dois na
+/// compilacao.
+String get _falhaAoSalvarPerfil => textos.erroPerfilNaoSalvo;
 
 /// Valida o numero de WhatsApp opcional informado no cadastro, ja formatado
 /// pela mascara "+55 (DD) NNNNN-NNNN" (ver MascaraTelefoneWhatsapp).
@@ -270,7 +273,7 @@ String? validarTelefoneWhatsapp(String telefone) {
   final digitos = todosDigitos.length > 2 ? todosDigitos.substring(2) : '';
   if (digitos.isEmpty) return null;
   if (digitos.length < 10 || digitos.length > 11) {
-    return 'Número de WhatsApp incompleto. Preencha o DDD e o número, ou deixe em branco.';
+    return textos.validaWhatsappIncompletoPerfil;
   }
   return null;
 }
@@ -287,9 +290,9 @@ String? validarTrocaSenha({
   final algumPreenchido = senhaAtual.isNotEmpty || novaSenha.isNotEmpty || confirmarNovaSenha.isNotEmpty;
   if (!algumPreenchido) return null;
 
-  if (senhaAtual.isEmpty) return 'Informe sua senha atual pra trocar de senha.';
-  if (novaSenha.length < 6) return 'A nova senha precisa ter pelo menos 6 caracteres.';
-  if (novaSenha != confirmarNovaSenha) return 'As senhas não coincidem.';
+  if (senhaAtual.isEmpty) return textos.validaSenhaAtualFaltando;
+  if (novaSenha.length < 6) return textos.validaNovaSenhaCurta;
+  if (novaSenha != confirmarNovaSenha) return textos.validaSenhasDiferentes;
   return null;
 }
 
@@ -297,8 +300,8 @@ String? validarTrocaSenha({
 /// usuario precisa escolher um dos 6 personas). Retorna null se valido, ou
 /// uma mensagem de erro.
 String? validarAvatarPreset(String? chave) {
-  if (chave == null || chave.isEmpty) return 'Escolha uma foto de perfil.';
-  if (!avatarPresetValido(chave)) return 'Foto de perfil inválida.';
+  if (chave == null || chave.isEmpty) return textos.validaEscolhaFoto;
+  if (!avatarPresetValido(chave)) return textos.validaFotoInvalida;
   return null;
 }
 
@@ -319,14 +322,11 @@ String? mapearErroLoginApple(Object erro) {
     // teste aparece como hipotese, e quem decide e o codigo anexado.
     if (erro.code == AuthorizationErrorCode.unknown) {
       return comCodigo(
-        'Não foi possível concluir o login com a Apple. Se este for um '
-        'simulador ou um aparelho de teste, confira se ele está conectado a '
-        'uma conta Apple (iCloud) com autenticação de dois fatores — sem '
-        'isso o sistema recusa esse login antes mesmo de chamar o app.',
+        textos.erroAppleSemConta,
         erro,
       );
     }
-    return comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
+    return comCodigo(textos.erroAppleFalhou, erro);
   }
   if (erro is FirebaseAuthException) {
     return comCodigo(traduzirErroDeAuth(erro.code), erro);
@@ -334,5 +334,5 @@ String? mapearErroLoginApple(Object erro) {
   // Ver [_falhaAoSalvarPerfil]: a gravacao em `users/{uid}` faz parte deste
   // fluxo, e falhar ali nao e falhar "com a Apple".
   if (erro is FirebaseException) return comCodigo(_falhaAoSalvarPerfil, erro);
-  return comCodigo('Não foi possível entrar com a Apple. Tente novamente.', erro);
+  return comCodigo(textos.erroAppleFalhou, erro);
 }
