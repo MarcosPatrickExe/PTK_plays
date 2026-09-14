@@ -1,3 +1,4 @@
+import '../../i18n/Idioma.dart';
 import 'UserModel.dart';
 
 /// Definicao de uma conquista (badge) do sistema de gamificacao.
@@ -10,49 +11,54 @@ import 'UserModel.dart';
 /// existe (ver ROADMAP.md). Por enquanto essa tela so exibe o progresso.
 class Conquista {
   final String chave;
-  final String titulo;
-  final String descricao;
   final String? contadorChave;
   final int meta;
 
   const Conquista({
     required this.chave,
-    required this.titulo,
-    required this.descricao,
     this.contadorChave,
     this.meta = 0,
   });
+
+  /// Titulo e descricao sao getters, e nao campos guardados, porque o
+  /// catalogo abaixo e `const`: um `const` congela a frase na compilacao, e
+  /// a badge ficaria em portugues dentro de um app em ingles. A chave —
+  /// que e o que vai salvo no Firestore — continua a mesma nas duas
+  /// linguas, que e o que importa pra nao invalidar conta nenhuma.
+  String get titulo => switch (chave) {
+        'admin' => textos.badgeAdministrador,
+        'novato' => textos.badgeNovato,
+        'comentarista' => textos.badgeComentarista,
+        'popular' => textos.badgePopular,
+        'presencaVip' => textos.badgePresencaVip,
+        _ => chave,
+      };
+
+  String get descricao => switch (chave) {
+        'admin' => textos.badgeAdministradorTexto,
+        'novato' => textos.badgeNovatoTexto,
+        'comentarista' => textos.badgeComentaristaTexto,
+        'popular' => textos.badgePopularTexto,
+        'presencaVip' => textos.badgePresencaVipTexto,
+        _ => '',
+      };
 }
 
 const List<Conquista> catalogoConquistas = [
-  Conquista(
-    chave: 'admin',
-    titulo: 'Administrador',
-    descricao: 'Cuida do PTK Plays por dentro: modera a comunidade e publica os avisos do canal.',
-  ),
-  Conquista(
-    chave: 'novato',
-    titulo: 'Novato',
-    descricao: 'Toda conta criada no PTK Plays já começa com essa conquista.',
-  ),
+  Conquista(chave: 'admin'),
+  Conquista(chave: 'novato'),
   Conquista(
     chave: 'comentarista',
-    titulo: 'Comentarista',
-    descricao: 'Comente em 10 posts ou vídeos.',
     contadorChave: 'comentarios',
     meta: 10,
   ),
   Conquista(
     chave: 'popular',
-    titulo: 'Popular',
-    descricao: 'Receba 50 curtidas nos seus comentários.',
     contadorChave: 'curtidas',
     meta: 50,
   ),
   Conquista(
     chave: 'presencaVip',
-    titulo: 'Presença VIP',
-    descricao: 'Clique pra assistir 5 lives.',
     contadorChave: 'cliquesLive',
     meta: 5,
   ),
