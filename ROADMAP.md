@@ -2271,3 +2271,86 @@ de pedir o número.
 O usuário deu os três usos: **outra forma de entrar, confirmação de troca
 de senha, e o aviso quando o canal abre ao vivo**. O subtítulo da etapa
 passou a dizer os três.
+
+### Banimento: expulsar, não cobrir (14/set/2026, correção do mesmo dia)
+
+Eu tinha registrado no `CHECKPOINT.md` que "conta banida não consegue apagar
+a própria conta" era pendência de 5.1.1(v) — como se apagar o login fosse o
+certo a fazer. O usuário corrigiu, e a correção é estrutural:
+
+> "conta banida não deve ter seu login apagado, pois é justamente isso que o
+> app usará pra saber se uma pessoa foi banida e barrar o acesso à conta
+> dela"
+
+Está certo, e é o tipo de coisa que só se enxerga olhando de onde o dado
+mora. O `uid` do Firebase Auth é a chave do `users/{uid}`, e é lá que vive o
+`estadoModeracao`. **Apagar o login apagaria a memória do banimento**: a
+pessoa criaria outra conta com o mesmo e-mail e entraria limpa. O banimento
+depende da conta continuar existindo.
+
+**O que estava errado de verdade era o oposto**: o app deixava a pessoa
+banida **dentro**, com sessão válida, e desenhava uma tela de bloqueio por
+cima. Aquilo comprava uma coisa boa — uma suspensão vencendo com o app
+aberto devolvia a pessoa exatamente pro lugar onde estava, sem perder
+navegação, porque o `Stack` só parava de desenhar a cortina. Mas o preço era
+uma sessão autenticada na mão de quem acabou de ser banido, protegida por
+nada além de um widget desenhado em cima.
+
+### Três caminhos, e o que mais fácil se esquece
+
+| Situação | Onde é barrado |
+|---|---|
+| Banido com o app aberto | `ContaGate` → `logout()` → `Login` com o modal |
+| Tenta entrar com senha | `AuthRepository.login` |
+| Tenta entrar pelo Google/Apple | `_sincronizarUsuarioNoFirestore` |
+
+O terceiro é o que se esquece, e é a **porta dos fundos mais óbvia do
+banimento**: bastaria voltar pelo Google. Antes desta mudança, nenhum dos
+três barrava na entrada — todos dependiam do gate reagir depois, ou seja,
+com a pessoa já dentro.
+
+### A ordem dentro do repositório não é livre
+
+A regra do Firestore só libera ler `users/{uid}` pra quem está logado. Então
+a leitura do estado de moderação **acontece com a sessão ainda de pé**, e o
+`signOut()` vem logo depois. Inverter isso faria a leitura ser negada e o
+banimento nunca ser detectado.
+
+### A corrida que exigiu guarda dupla no gate
+
+O repositório desloga sozinho ao ver a conta bloqueada. Mas o
+`streamUsuarioReativo` do gate pode entregar o documento antigo **depois**
+disso — e aí o gate empilharia um segundo `Login` por cima do primeiro, com
+dois modais. Duas guardas resolvem: um `_expulsando` que impede reentrada, e
+uma checagem de `usuarioLogado` que ignora bloqueio de quem já saiu.
+
+O gate também deixou de ser `StreamBuilder` e virou `listen()`. Expulsar é
+efeito colateral, e efeito colateral no `build` roda a cada reconstrução —
+navegar dali é exatamente o que produz "setState during build".
+
+### Por que o modal não é `mostrarErroCustom`
+
+Não houve erro nenhum: a senha estava certa, a conta existe, e a entrada foi
+**recusada**. Chamar isso de "Ops!" faria parecer falha do app e convidaria
+a pessoa a tentar de novo — o contrário do que a mensagem precisa
+comunicar. Ele também não fecha ao tocar fora: a pessoa tem que ler por que
+não entrou.
+
+### O texto mudou junto, e precisava mudar
+
+O antigo era *"Você não pode mais usar o PTK Plays."* — diz o **quê**, não o
+**porquê**. Quem é expulso sem saber o motivo acha que é bug e tenta de
+novo. O novo cita as regras de uso, mostra o motivo que o admin escreveu (se
+escreveu) e, na suspensão, até quando.
+
+E é bilíngue como todo o resto. O usuário fez questão de registrar isso como
+regra geral: *"tudo que envolver texto no app deve ser tratado como
+variável"*. **Vale inclusive pro texto que a pessoa lê quando o app a está
+recusando** — é onde é mais fácil esquecer, porque é fora do fluxo feliz, e
+é onde a língua errada machuca mais.
+
+### O que se perdeu, de propósito
+
+A navegação preservada. Hoje uma suspensão que vence com o app aberto não
+devolve a pessoa pro lugar onde ela estava — ela cai no login. Quem for
+"consertar" isso no futuro precisa saber o que aquilo custava.
