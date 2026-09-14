@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:ptk_plays/view/Profile.dart';
@@ -41,10 +42,12 @@ Widget buildBottonNavBar({
     type: BottomNavigationBarType.fixed,
     currentIndex: currentIndex,
     onTap: navegar,
-    items: const [
-      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
-      BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'Videos'),
-      BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+    // Deixou de ser `const`: os rotulos mudam com o idioma, e um `const`
+    // congelaria os tres na compilacao.
+    items: [
+      BottomNavigationBarItem(icon: const Icon(Icons.home), label: textos.feed),
+      BottomNavigationBarItem(icon: const Icon(Icons.video_library), label: textos.videos),
+      BottomNavigationBarItem(icon: const Icon(Icons.person), label: textos.perfil),
     ],
   );
 
