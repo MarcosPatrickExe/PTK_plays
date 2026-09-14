@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -319,7 +320,7 @@ class _CriarContaState extends State<CriarConta> {
       // Falha de camera/galeria vem do lado nativo (`plataforma/...`), e o
       // codigo distingue "o usuario negou a permissao" de "o aparelho nao
       // tem camera" — que pedem respostas opostas de quem for ajudar.
-      mostrarToast(context, mensagem: comCodigo('Não foi possível abrir a câmera.', e), erro: true);
+      mostrarToast(context, mensagem: comCodigo(textos.cadastroCameraFalhou, e), erro: true);
     } finally {
       if (mounted) setState(() => _escolhendoFoto = false);
     }
@@ -367,7 +368,7 @@ class _CriarContaState extends State<CriarConta> {
         // disso — a pessoa troca a foto depois na edição de perfil.
         mostrarToast(
           context,
-          mensagem: 'Conta criada! Só a foto não subiu, tente de novo no perfil.',
+          mensagem: textos.cadastroFotoNaoSubiu,
           erro: true,
         );
       }
@@ -653,13 +654,13 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.nickname:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Como a gente\nte chama?',
-          subtitulo: 'Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.',
-          subtituloCurto: 'É o nick que aparece nos seus posts e comentários.',
+          titulo: textos.cadastroNickTitulo,
+          subtitulo: textos.cadastroNickTexto,
+          subtituloCurto: textos.cadastroNickCurto,
           campos: [
             CampoFlutuante(
               controller: _nickname,
-              rotulo: 'Seu nick',
+              rotulo: textos.cadastroNickCampo,
               icone: Icons.person_outline,
               capitalizacao: TextCapitalization.words,
               validador: validarNickname,
@@ -671,13 +672,13 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.email:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Qual é o\nseu e-mail?',
-          subtitulo: 'É por ele que você entra na conta e recupera a senha se esquecer.',
-          subtituloCurto: 'Serve pra entrar e recuperar a senha.',
+          titulo: textos.cadastroEmailTitulo,
+          subtitulo: textos.cadastroEmailTexto,
+          subtituloCurto: textos.cadastroEmailCurto,
           campos: [
             CampoFlutuante(
               controller: _email,
-              rotulo: 'E-mail',
+              rotulo: textos.email,
               icone: Icons.mail_outline,
               tipoDeTeclado: TextInputType.emailAddress,
               validador: validarEmail,
@@ -685,7 +686,7 @@ class _CriarContaState extends State<CriarConta> {
             ),
             CampoFlutuante(
               controller: _confirmarEmail,
-              rotulo: 'Confirme o e-mail',
+              rotulo: textos.cadastroConfirmeEmail,
               icone: Icons.mark_email_read_outlined,
               tipoDeTeclado: TextInputType.emailAddress,
               validador: (valor) => validarConfirmacaoEmail(email: _email.text, confirmacao: valor),
@@ -697,13 +698,13 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.senha:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Agora crie uma senha',
-          subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Toque no olho pra conferir o que digitou.',
-          subtituloCurto: 'Pelo menos $minimoCaracteresSenha caracteres.',
+          titulo: textos.cadastroSenhaTitulo,
+          subtitulo: textos.cadastroSenhaTexto(minimoCaracteresSenha),
+          subtituloCurto: textos.cadastroSenhaCurto(minimoCaracteresSenha),
           campos: [
             CampoFlutuante(
               controller: _senha,
-              rotulo: 'Senha',
+              rotulo: textos.senha,
               icone: Icons.lock_outline,
               ehSenha: true,
               validador: validarSenha,
@@ -729,13 +730,13 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.whatsapp:
         return _Etapa(
           estilo: estilo,
-          titulo: 'Seu WhatsApp',
-          subtitulo: 'Opcional. Com ele você ganha outra forma de entrar, confirma a troca de senha e recebe o aviso quando eu entrar ao vivo.',
-          subtituloCurto: 'Opcional: outro login, troca de senha e aviso de live.',
+          titulo: textos.cadastroWhatsappTitulo,
+          subtitulo: textos.cadastroWhatsappTexto,
+          subtituloCurto: textos.cadastroWhatsappCurto,
           campos: [
             CampoFlutuante(
               controller: _whatsapp,
-              rotulo: 'Número com DDD',
+              rotulo: textos.cadastroWhatsappCampo,
               icone: Icons.phone_outlined,
               tipoDeTeclado: TextInputType.phone,
               formatadores: [MascaraTelefoneWhatsapp()],
@@ -764,7 +765,7 @@ class _CriarContaState extends State<CriarConta> {
               onPressed: _criando ? null : _voltar,
               icon: const Icon(Icons.arrow_back, size: 18),
               label: Text(
-                _indice == 0 ? 'Sair' : 'Voltar',
+                _indice == 0 ? textos.sair : textos.voltar,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               ),
@@ -787,7 +788,7 @@ class _CriarContaState extends State<CriarConta> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
-                'Pular',
+                textos.pular,
                 style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
               ),
             ),
@@ -804,7 +805,7 @@ class _CriarContaState extends State<CriarConta> {
             child: _avancarVisivel
                 ? _BotaoAvancar(
                     key: const ValueKey('avancar'),
-                    label: _ehUltimaEtapa ? 'Criar conta' : 'Avançar',
+                    label: _ehUltimaEtapa ? textos.criarConta : textos.avancar,
                     habilitado: _podeAvancar,
                     carregando: _criando,
                     onTap: _avancar,
@@ -918,13 +919,9 @@ class _EtapaBoasVindas extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Etapa(
       estilo: estilo,
-      titulo: 'Bem-vindo(a) à\ncomunidade PTK Plays!',
-      subtitulo:
-          'Aqui você acompanha de perto tudo o que rola no canal: avisos de live, '
-          'os vídeos novos e as enquetes do PTK — e ainda fala com a galera no feed.\n\n'
-          'São só alguns passos pra criar sua conta. Bora?',
-      subtituloCurto: 'Avisos de live, vídeos novos, enquetes e o feed da galera. '
-          'Bora criar sua conta?',
+      titulo: textos.cadastroBoasVindasTitulo,
+      subtitulo: textos.cadastroBoasVindasTexto,
+      subtituloCurto: textos.cadastroBoasVindasCurto,
       campos: const [],
     );
   }
@@ -1055,7 +1052,7 @@ class _SeloDeEtapa extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            'PASSO $numero DE $total',
+            textos.cadastroPasso(numero, total),
             style: GoogleFonts.outfit(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
@@ -1202,9 +1199,9 @@ class _EtapaFoto extends StatelessWidget {
         children: [
           _CabecalhoDaEtapa(
             estilo: estilo,
-            titulo: 'Sua foto\nde perfil',
-            subtitulo: 'Escolha um dos avatares da comunidade ou tire uma selfie agora.',
-            subtituloCurto: 'Escolha um avatar ou tire uma selfie.',
+            titulo: textos.cadastroFotoTitulo,
+            subtitulo: textos.cadastroFotoTexto,
+            subtituloCurto: textos.cadastroFotoCurto,
           ),
           const SizedBox(height: 16),
 
@@ -1225,7 +1222,7 @@ class _EtapaFoto extends StatelessWidget {
               Expanded(
                 child: _BotaoDeFoto(
                   icone: Icons.photo_camera_outlined,
-                  label: fotoPropria == null ? 'Tirar foto' : 'Tirar outra',
+                  label: fotoPropria == null ? textos.cadastroTirarFoto : textos.cadastroTirarOutra,
                   carregando: escolhendo,
                   onTap: onTirarFoto,
                 ),
@@ -1234,7 +1231,7 @@ class _EtapaFoto extends StatelessWidget {
               Expanded(
                 child: _BotaoDeFoto(
                   icone: Icons.photo_library_outlined,
-                  label: 'Da galeria',
+                  label: textos.cadastroDaGaleria,
                   carregando: false,
                   onTap: onEscolherDaGaleria,
                 ),
@@ -1244,7 +1241,7 @@ class _EtapaFoto extends StatelessWidget {
 
           const SizedBox(height: 24),
           Text(
-            'Ou escolha um avatar:',
+            textos.cadastroOuEscolhaAvatar,
             style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: corDeApoioDoCadastro),
           ),
           const SizedBox(height: 12),
