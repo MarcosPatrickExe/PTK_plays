@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../data/repositories/AuthRepository.dart';
 import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -133,6 +134,10 @@ class _ProfileState extends State<Profile> {
     showDialog(
       context: context,
       builder: (dialogContext) => _DialogoExcluirConta(
+        // Conta de Google/Apple nao tem senha do PTK Plays pra digitar. Ate
+        // 14/set o dialogo pedia senha pra todo mundo, e quem entrou pelo
+        // social simplesmente nao tinha como apagar a propria conta.
+        pedeSenha: widget.authViewModel.formaDeReautenticar == FormaDeReautenticar.senha,
         onConfirmar: (senha) async {
           final erro = await widget.authViewModel.excluirConta(senha: senha);
           if (!context.mounted) return;
@@ -453,8 +458,14 @@ class _Chip extends StatelessWidget {
 }
 
 class _DialogoExcluirConta extends StatefulWidget {
-  final Future<void> Function(String senha) onConfirmar;
-  const _DialogoExcluirConta({required this.onConfirmar});
+  final Future<void> Function(String? senha) onConfirmar;
+
+  /// false pra conta de Google/Apple: nao ha senha do PTK Plays pra pedir,
+  /// e a prova de identidade vem da folha do proprio provedor, aberta
+  /// depois do toque em Excluir.
+  final bool pedeSenha;
+
+  const _DialogoExcluirConta({required this.onConfirmar, required this.pedeSenha});
 
   @override
   State<_DialogoExcluirConta> createState() => _DialogoExcluirContaState();
@@ -490,19 +501,27 @@ class _DialogoExcluirContaState extends State<_DialogoExcluirConta> {
             ),
             const SizedBox(height: 8),
             Text(
-              textos.perfilExcluirContaTexto,
+              textos.perfilExcluirContaOQueSai,
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(color: Colors.black54),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _senhaController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: textos.senha,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            const SizedBox(height: 8),
+            Text(
+              widget.pedeSenha ? textos.perfilExcluirContaDigiteSenha : textos.perfilExcluirContaSocial,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(color: Colors.black54),
             ),
+            if (widget.pedeSenha) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _senhaController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: textos.senha,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Row(
               children: [
@@ -519,9 +538,9 @@ class _DialogoExcluirContaState extends State<_DialogoExcluirConta> {
                     onPressed: _carregando
                         ? null
                         : () async {
-                            if (_senhaController.text.isEmpty) return;
+                            if (widget.pedeSenha && _senhaController.text.isEmpty) return;
                             setState(() => _carregando = true);
-                            await widget.onConfirmar(_senhaController.text);
+                            await widget.onConfirmar(widget.pedeSenha ? _senhaController.text : null);
                             if (mounted) setState(() => _carregando = false);
                           },
                     child: _carregando
