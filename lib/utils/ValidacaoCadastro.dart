@@ -69,11 +69,18 @@ String? validarSenha(String senha) {
   return null;
 }
 
-String? validarConfirmacaoSenha({required String senha, required String confirmacao}) {
-  if (confirmacao.isEmpty) return 'Repita a senha pra confirmar.';
-  if (senha != confirmacao) return 'As senhas não coincidem.';
-  return null;
-}
+// Nao existe `validarConfirmacaoSenha`, e isso e deliberado (14/set/2026).
+//
+// O campo "Confirme a senha" saiu do cadastro. Ele nasceu numa epoca em que
+// senha era sempre mascarada e digitar errado so aparecia no proximo login —
+// repetir era a unica defesa. Aqui o campo tem o olho: da pra ler o que foi
+// digitado antes de seguir, e a defesa ja esta no lugar sem custar uma
+// segunda digitacao.
+//
+// **O "Confirme o e-mail" continua** (`validarConfirmacaoEmail`), e a
+// assimetria e o ponto: e-mail errado nao tem conserto de dentro do app —
+// a recuperacao de senha vai pro endereco errado e a conta fica orfa. Senha
+// errada tem: e so pedir pra redefinir, justamente pelo e-mail.
 
 /// WhatsApp e **opcional** desde 13/set: campo vazio passa.
 ///
