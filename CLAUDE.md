@@ -126,6 +126,73 @@ frame **seguinte** ao fim da animação. Um `pump(duração)` sozinho ainda
 encontra o widget antigo, e o teste falha por timing, não por
 comportamento. Usar `pump()` antes, depois `pump(duração)`.
 
+## Regra permanente: tudo que a pessoa lê tem que existir em duas línguas
+
+Definida em 14/set/2026. O app fala **português do Brasil e inglês dos
+EUA**, e escolhe sozinho pela preferência do aparelho (`IdiomaApp.detectar`,
+chamado no `main()`).
+
+**A regra**: nenhuma frase que chega na tela nasce como literal no código.
+Toda tela nova e toda feature nova entra com o texto no catálogo —
+`lib/i18n/Textos.dart` (o contrato), `TextosPtBr.dart` e `TextosEnUs.dart`
+(as duas línguas). No código, sempre `textos.algumaCoisa`.
+
+**Por que uma classe abstrata e não um mapa de String pra String.** Com
+mapa, a chave que falta numa língua só aparece quando alguém abre aquela
+tela naquela língua — e o que chega na tela é `null` ou a própria chave.
+Aqui, esquecer uma frase em `TextosEnUs` **não compila**.
+
+**Por que não o `gen_l10n` com arquivos ARB.** O gerado exige
+`AppLocalizations.of(context)`, e boa parte do texto deste app nasce longe
+de um `BuildContext`: `ValidacaoCadastro`, `AuthErrorTranslator`,
+`AuthViewModel` e os repositórios devolvem frase pronta. Passar contexto até
+lá seria arrastar UI pra dentro da regra de negócio; a saída usual (guardar
+o `AppLocalizations` num global) perde exatamente a checagem que o ARB dava.
+
+**Onde o texto NÃO é traduzido, e por quê** — são poucos casos, e cada um
+tem motivo:
+
+- **o nome do app** (`'PTK plays'`): é marca, não texto;
+- **os nomes das línguas** na tela de configurações ("Português (Brasil)",
+  "English (US)"): aparecem sempre na própria língua que nomeiam. Traduzir
+  o nome de uma língua é o jeito exato de esconder a opção de quem precisa
+  dela — quem abriu aquela tela porque não entende o que está escrito tem
+  que conseguir achar a própria língua na lista;
+- **as chaves salvas no Firestore** (`'admin'`, `'novato'`, `'gamer'`): o
+  rótulo traduz, a chave não. Se o título traduzido fosse o que vai pro
+  banco, uma conta criada com o app em inglês teria badges que o app em
+  português não reconheceria;
+- **`debugPrint`**: é texto pra quem programa.
+
+**Data não é só palavra.** `09/03` é setembro no Brasil e março nos EUA.
+Toda data passa por `textos.dataDiaMes...`, que inverte a ordem junto com a
+língua. Deixar a ordem fixa faz a data mentir pra metade de quem lê, sem
+nenhum sinal de que mentiu.
+
+**Três armadilhas que já custaram tempo:**
+
+- **`const` congela a frase na compilação.** Lista de `BottomNavigationBarItem`,
+  catálogo de avatares, catálogo de badges, mapa de selos do painel: todos
+  tiveram que deixar de ser `const` (ou virar getter) pra mudar de língua.
+  O compilador avisa quando é `const` direto; **não avisa** quando a frase
+  está dentro de um `const` maior.
+- **A detecção mora no `main()`, nunca no catálogo.** Se o global
+  consultasse a plataforma sozinho, todo `flutter test` viraria inglês — o
+  ambiente de teste responde en-US — e centenas de asserts de texto
+  quebrariam de uma vez sem nada ter mudado no app. O padrão é português; é
+  o `main()` que troca.
+- **Uma tela que só lê `textos.` não redesenha sozinha** quando o idioma
+  muda. Quem precisa reagir na hora tem que observar o `IdiomaController`
+  (`context.watch<IdiomaController>()`), do mesmo jeito que já observa o
+  `ThemeController`.
+
+**O que impede a regra de virar boa intenção** é o último teste de
+`test/i18n_test.dart`: ele varre `lib/` atrás de literal com acento fora do
+catálogo. Sem ele, a tela nova entra em português, ninguém repara, e o app
+volta a ser meio bilíngue. A lista de exceções ali é nominal e cada linha
+tem o motivo escrito ao lado — **acrescentar arquivo naquela lista precisa
+de justificativa**, não é o jeito normal de fazer o teste passar.
+
 ## Regra permanente: um commit por arquivo alterado
 
 Pedido explícito do usuário: **cada arquivo que eu mexer vira um commit
