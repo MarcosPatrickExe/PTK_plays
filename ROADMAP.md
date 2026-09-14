@@ -1900,3 +1900,165 @@ de revisão por tentativa**. Vale a feiura de um código de erro na tela.
 o estado do provedor Apple no Firebase Console, a chave/Services ID no Apple
 Developer Portal, qual frase exata apareceu no print do revisor, e qual
 binário a Apple realmente revisou (ver a divergência 1.2.0 × 1.2.1 no topo).
+
+# Cadastro reativo, WhatsApp opcional e Hide My Email (13/set/2026)
+
+Sessão que começou como ajuste visual no iPad e terminou desenterrando o bug
+mais grave do fluxo de cadastro.
+
+## O cadastro social nunca teve como ser concluído
+
+`CriarConta._criarConta` chamava `cadastrar` nos **dois** fluxos. Na conta
+social isso vira `createUserWithEmailAndPassword('', '')`: as etapas de
+e-mail e senha não são exibidas ali, então os dois campos vão vazios — e a
+conta **já existia**, criada pelo provedor no momento do login.
+
+O que torna isso pior que um bug comum é quem ia encontrá-lo. Quem entra
+pela Apple ou pelo Google percorre boas-vindas, nick, foto e WhatsApp, e
+**trava na última tela**, sem forma nenhuma de concluir. É exatamente o
+caminho de um revisor da App Store assim que o login com Apple voltasse a
+funcionar — ou seja, seria a terceira reprovação, logo depois de
+resolvermos a segunda. O usuário estava a uma tela de bater nisso no teste
+de iPad.
+
+A correção é `AuthRepository.completarCadastroSocial`, que preenche o perfil
+em vez de criar conta. Três detalhes que o diff não explica:
+
+- **`merge`, e não `set` inteiro.** O documento nasceu no login social
+  (`_sincronizarUsuarioNoFirestore`) já com `cargo`, `badges` e
+  `contadores`, e as regras do Firestore recusam um update que mexa em
+  qualquer um dos três.
+- **A colisão de nickname compara o `uid`.** Sem isso, alguém que voltasse
+  pra completar o cadastro com o mesmo nick que já reservou seria barrado
+  pelo próprio registro.
+- **A reserva em `nicknamesParaEmail` não é opcional.** É ela que resolve o
+  e-mail no login por nickname; sem a escrita, a pessoa nunca conseguiria
+  entrar pelo nick que escolheu.
+
+**Não validado de ponta a ponta** — exige Firebase real. O que existe é
+teste de widget do fluxo de etapas.
+
+## Hide My Email: por que a etapa de e-mail voltou
+
+A etapa de e-mail sumia pra toda conta social, e isso estava certo pro
+Google e pro "Share My Email" da Apple — o endereço real já chega pelo
+provedor e vai pro Firestore junto.
+
+O caso que quebrava é o **"Hide My Email"**: o que chega é um relay
+`@privaterelay.appleid.com`. Ele **encaminha de verdade** (a pessoa continua
+alcançável por e-mail, e isso importa pra decisão do WhatsApp mais abaixo),
+mas não serve pra contato direto nem pra reconhecer quem é. Sem perguntar, a
+conta ficaria pra sempre sem um e-mail utilizável.
+
+`precisaPedirEmail` decide isso. A etapa de **senha** continua fora nos dois
+casos — ela é do provedor; só a de e-mail volta.
+
+**O que NÃO foi feito, de propósito**: o e-mail informado vai pro Firestore,
+e o Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
+verificação por e-mail e mexeria no vínculo com a Apple, que é a identidade
+da conta. Risco alto pra ganho baixo, já que o app lê o e-mail do Firestore
+pra tudo.
+
+O `default` de `pedirEmail` é `true`: na dúvida, perguntar é melhor que
+deixar a conta sem e-mail nenhum.
+
+## O botão que aparece em vez de ficar cinza
+
+Veio de uma observação de UX do usuário: **o olho registra mudança na tela
+antes de ler qualquer texto**. Um botão cinza parado não comunica que falta
+algo — a pessoa nem percebe que ele mudou de estado.
+
+Virou regra permanente no `CLAUDE.md`, valendo pro app inteiro. A parte que
+não se deduz do código, e que é o mecanismo todo: **o limiar de aparecer é
+de propósito mais frouxo que o de validar**. O nick mostra o botão na 2ª
+letra mas só libera na 3ª; o e-mail basta ter `@`. Quando o botão aparece
+sem estar válido, ele aparece **desabilitado**, e o aviso embaixo do campo
+diz o que falta — o botão chama atenção, o aviso explica.
+
+Se os dois limiares fossem iguais, o surgimento significaria só "pode
+clicar", e não "você está quase lá". Quem for "consertar" a inconsistência
+entre `minimoParaMostrarAvancar` (2) e `minimoCaracteresNickname` (3) vai
+piorar a tela sem entender por quê.
+
+Senha ficou em 6 caracteres sem exigir maiúscula, número ou símbolo —
+decisão explícita do usuário: exigência complicada cansa e custa cadastro,
+e a comunidade vale mais que a entropia da senha.
+
+## WhatsApp obrigatório era risco de reprovação
+
+A Apple recusa app que **exige** dado pessoal não essencial à funcionalidade
+central (guideline 5.1.1(ii)), e ver feed, vídeos e avisos de live não
+precisa de telefone. O agravante era o contexto: exigíamos o número logo
+depois de a pessoa escolher "Hide My Email" — logo depois de ela usar um
+recurso que existe justamente pra não entregar dado pessoal.
+
+Virou opcional, com um **"Pular"** discreto colado no avançar (é onde o
+polegar já está, e onde a pessoa procura a saída da etapa). Ele continua
+visível mesmo com o número digitado: quem se arrependeu precisa de saída que
+não seja apagar o campo dígito por dígito. E limpa o campo antes de
+concluir, porque ele pode estar preenchido pela metade.
+
+**O que continua barrado é o número pela metade.** Melhor nenhum número do
+que um que não chama ninguém — um número quebrado parece contato e não é.
+
+A objeção natural do usuário foi "mas preciso avisar quando estou ao vivo".
+Duas coisas desfazem isso, e valem registrar porque a leitura fácil é a
+contrária: o **relay da Apple encaminha**, então mesmo quem esconde o e-mail
+continua alcançável; e **push** é melhor que WhatsApp pra esse fim
+específico — chega na hora, não pede dado pessoal, a Apple não questiona, e
+é o único canal que traz a pessoa **de volta pro app** em vez de mantê-la no
+WhatsApp.
+
+## Correções visuais, e por que elas não eram valores errados
+
+**O degradê sobre a logo** tinha duas camadas escurecendo, ambas abrindo em
+45% da faixa — somadas, cobriam o rosto. O problema real que elas existem
+pra resolver é bem menor: a borda reta embaixo da logo. E ela já era
+resolvida no próprio arquivo, pelo alfa que dissolve nos últimos 30% (feito
+em 07/set). As camadas ficaram na intensidade de quando o alfa ainda não
+existia — cinto e suspensório.
+
+**Os avatares** não estavam com um valor errado de tamanho; estavam com a
+**ausência** de um. A grade é de 3 colunas e divide a largura disponível,
+então na coluna larga do cartão desktop cada avatar esticava junto. Um teto
+de 84px resolve sem afetar o celular, onde a célula já é menor.
+
+E o círculo precisa de `Center` + `AspectRatio(1)`, não só de
+`BoxShape.circle`: a célula da grade não é quadrada (`childAspectRatio`
+0.82, menos o rótulo), e um `BoxShape.circle` solto ali viraria uma
+**elipse** — que é o resultado provável da tentativa óbvia.
+
+## Duas armadilhas de harness
+
+**A barra de botões estourava 42px** num aparelho de 420 de largura quando
+os três controles apareciam juntos ("Voltar" + "Pular" + "Criar conta", o
+rótulo mais largo do fluxo). Isso é faixa de celular comum, não caso
+extremo, e só apareceu porque o teste novo do "Pular" precisou de um
+viewport estreito pra ficar no layout de celular. Vale como argumento pra
+testar em largura de aparelho real, não só na padrão de 800x600.
+
+**`AnimatedSwitcher` só remove o filho que sai no frame seguinte** ao fim da
+animação. Um `pump(duração)` sozinho ainda encontra o widget antigo, e o
+teste falha por timing — não por comportamento. O helper `_esperarBotao`
+faz `pump()` antes do `pump(duração)`. Custou uma rodada de depuração
+inteira procurando bug em código que estava certo.
+
+E o tap num avatar tem que sair do `SeletorAvatarPreset`, não de
+`find.byType(GestureDetector)` solto: a etapa da foto tem outros
+`GestureDetector` antes dos avatares na árvore, e o primeiro deles não
+seleciona nada.
+
+## O campo "confirmar senha": pergunta em aberto
+
+O usuário questionou por que ele existe. **A resposta honesta é que não há
+um bom motivo.** O argumento clássico é erro de digitação em campo
+mascarado, mas o campo de senha do app **já tem o olhinho de
+mostrar/ocultar** — que resolve melhor e cobra um campo a menos. É o
+consenso de UX moderna (NN/g, GOV.UK) que o toggle substitui o confirmar.
+
+Recomendei **remover**. O "confirmar e-mail" é caso diferente e recomendei
+**manter**: e-mail errado deixa a conta irrecuperável, e ninguém relê o que
+digitou.
+
+Não foi removido porque é mudança de produto que o usuário não pediu — está
+aguardando decisão dele.
