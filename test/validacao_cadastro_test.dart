@@ -68,20 +68,11 @@ void main() {
     });
   });
 
-  group('validarConfirmacaoSenha', () {
-    test('recusa vazia e diferente', () {
-      expect(validarConfirmacaoSenha(senha: '123456', confirmacao: ''), isNotNull);
-      expect(validarConfirmacaoSenha(senha: '123456', confirmacao: '123457'), isNotNull);
-    });
-
-    test('senha diferencia maiúscula de minúscula, ao contrário do e-mail', () {
-      expect(validarConfirmacaoSenha(senha: 'Senha123', confirmacao: 'senha123'), isNotNull);
-    });
-
-    test('aceita iguais', () {
-      expect(validarConfirmacaoSenha(senha: '123456', confirmacao: '123456'), isNull);
-    });
-  });
+  // Nao ha group de 'validarConfirmacaoSenha': a funcao deixou de existir
+  // junto com o campo "Confirme a senha" (14/set). O que substitui esse
+  // teste e o widget test que garante UM campo na etapa de senha, em
+  // test/criar_conta_test.dart — se o campo voltar por engano, e la que
+  // quebra.
 
   group('validarWhatsappOpcional', () {
     test('campo vazio passa: o WhatsApp deixou de ser obrigatório em 13/set', () {
