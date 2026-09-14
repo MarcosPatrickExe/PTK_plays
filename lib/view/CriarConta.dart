@@ -191,7 +191,6 @@ class _CriarContaState extends State<CriarConta> {
   final _email = TextEditingController();
   final _confirmarEmail = TextEditingController();
   final _senha = TextEditingController();
-  final _confirmarSenha = TextEditingController();
   final _whatsapp = TextEditingController();
 
   String? _avatarPreset;
@@ -211,7 +210,7 @@ class _CriarContaState extends State<CriarConta> {
   @override
   void dispose() {
     _paginas.dispose();
-    for (final campo in [_nickname, _email, _confirmarEmail, _senha, _confirmarSenha, _whatsapp]) {
+    for (final campo in [_nickname, _email, _confirmarEmail, _senha, _whatsapp]) {
       campo.dispose();
     }
     super.dispose();
@@ -230,8 +229,7 @@ class _CriarContaState extends State<CriarConta> {
         return validarEmail(_email.text) ??
             validarConfirmacaoEmail(email: _email.text, confirmacao: _confirmarEmail.text);
       case EtapaCadastro.senha:
-        return validarSenha(_senha.text) ??
-            validarConfirmacaoSenha(senha: _senha.text, confirmacao: _confirmarSenha.text);
+        return validarSenha(_senha.text);
       case EtapaCadastro.foto:
         return validarFotoEscolhida(avatarPreset: _avatarPreset, temFotoPropria: _fotoPropria != null);
       case EtapaCadastro.whatsapp:
@@ -700,7 +698,7 @@ class _CriarContaState extends State<CriarConta> {
         return _Etapa(
           estilo: estilo,
           titulo: 'Agora crie uma senha',
-          subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Guarde bem — ela é sua chave de entrada.',
+          subtitulo: 'Pelo menos $minimoCaracteresSenha caracteres. Toque no olho pra conferir o que digitou.',
           subtituloCurto: 'Pelo menos $minimoCaracteresSenha caracteres.',
           campos: [
             CampoFlutuante(
@@ -709,14 +707,6 @@ class _CriarContaState extends State<CriarConta> {
               icone: Icons.lock_outline,
               ehSenha: true,
               validador: validarSenha,
-              onMudou: () => setState(() {}),
-            ),
-            CampoFlutuante(
-              controller: _confirmarSenha,
-              rotulo: 'Confirme a senha',
-              icone: Icons.lock_reset_outlined,
-              ehSenha: true,
-              validador: (valor) => validarConfirmacaoSenha(senha: _senha.text, confirmacao: valor),
               onMudou: () => setState(() {}),
             ),
           ],
@@ -740,8 +730,8 @@ class _CriarContaState extends State<CriarConta> {
         return _Etapa(
           estilo: estilo,
           titulo: 'Seu WhatsApp',
-          subtitulo: 'Serve pra avisos do canal e pra recuperar sua conta. Aceita celular ou fixo.',
-          subtituloCurto: 'Pra avisos do canal. Aceita celular ou fixo.',
+          subtitulo: 'Opcional. Com ele você ganha outra forma de entrar, confirma a troca de senha e recebe o aviso quando eu entrar ao vivo.',
+          subtituloCurto: 'Opcional: outro login, troca de senha e aviso de live.',
           campos: [
             CampoFlutuante(
               controller: _whatsapp,
