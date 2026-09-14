@@ -10,6 +10,7 @@
 /// aparecer embaixo do campo.
 library;
 
+import '../i18n/Idioma.dart';
 import 'MascaraTelefoneWhatsapp.dart';
 
 const int minimoCaracteresNickname = 3;
@@ -27,17 +28,17 @@ const int minimoParaMostrarAvancar = 2;
 
 String? validarNickname(String nickname) {
   final valor = nickname.trim();
-  if (valor.isEmpty) return 'Escolha um nick pra gente te chamar.';
+  if (valor.isEmpty) return textos.validaNickVazio;
   if (valor.length < minimoCaracteresNickname) {
-    return 'O nick precisa de pelo menos $minimoCaracteresNickname letras.';
+    return textos.validaNickCurto(minimoCaracteresNickname);
   }
   if (valor.length > maximoCaracteresNickname) {
-    return 'O nick passou de $maximoCaracteresNickname caracteres.';
+    return textos.validaNickLongo(maximoCaracteresNickname);
   }
   // O login aceita nick OU e-mail no mesmo campo, e o "@" e o que separa os
   // dois (ver AuthRepository._resolverEmailParaLogin). Um nick com "@" seria
   // lido como e-mail e nunca acharia a conta.
-  if (valor.contains('@')) return 'O nick não pode ter @.';
+  if (valor.contains('@')) return textos.validaNickComArroba;
   return null;
 }
 
@@ -46,25 +47,25 @@ String? validarNickname(String nickname) {
 /// se o endereco existe e o e-mail de confirmacao.
 String? validarEmail(String email) {
   final valor = email.trim();
-  if (valor.isEmpty) return 'Preencha seu e-mail.';
+  if (valor.isEmpty) return textos.validaEmailVazio;
   if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(valor)) {
-    return 'Esse e-mail não parece válido.';
+    return textos.validaEmailInvalido;
   }
   return null;
 }
 
 String? validarConfirmacaoEmail({required String email, required String confirmacao}) {
-  if (confirmacao.trim().isEmpty) return 'Repita o e-mail pra confirmar.';
+  if (confirmacao.trim().isEmpty) return textos.validaConfirmeEmailVazio;
   if (email.trim().toLowerCase() != confirmacao.trim().toLowerCase()) {
-    return 'Os e-mails não coincidem.';
+    return textos.validaEmailsDiferentes;
   }
   return null;
 }
 
 String? validarSenha(String senha) {
-  if (senha.isEmpty) return 'Crie uma senha.';
+  if (senha.isEmpty) return textos.validaSenhaVazia;
   if (senha.length < minimoCaracteresSenha) {
-    return 'A senha precisa de pelo menos $minimoCaracteresSenha caracteres.';
+    return textos.validaSenhaCurta(minimoCaracteresSenha);
   }
   return null;
 }
@@ -95,7 +96,7 @@ String? validarWhatsappOpcional(String telefoneComMascara) {
   final digitos = MascaraTelefoneWhatsapp.digitosDe(telefoneComMascara);
   if (digitos.isEmpty) return null;
   if (digitos.length < MascaraTelefoneWhatsapp.digitosDeFixo) {
-    return 'Número incompleto. Preencha o DDD e o número, ou pule esta etapa.';
+    return textos.validaWhatsappIncompleto;
   }
   return null;
 }
@@ -111,5 +112,5 @@ bool whatsappCompleto(String telefoneComMascara) {
 String? validarFotoEscolhida({required String? avatarPreset, required bool temFotoPropria}) {
   if (temFotoPropria) return null;
   if (avatarPreset != null && avatarPreset.isNotEmpty) return null;
-  return 'Escolha um avatar ou tire uma foto.';
+  return textos.validaFotoFaltando;
 }
