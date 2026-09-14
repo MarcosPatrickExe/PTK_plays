@@ -4,6 +4,8 @@
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:ptk_plays/i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -260,9 +262,20 @@ void main() {
     themeController.toggleTheme();
   }
 
+  // Mesma ideia do tema, pelo mesmo motivo: a ficha da loja e POR IDIOMA,
+  // e a listagem em ingles precisa de screenshots em ingles. Sem isso, o
+  // jeito de gerar os dois conjuntos seria trocar o idioma do aparelho
+  // entre uma captura e outra.
+  final idiomaController = IdiomaController(
+    inicial: Uri.base.queryParameters['lang'] == 'en' ? Idioma.enUS : Idioma.ptBR,
+  );
+
   runApp(
-    ChangeNotifierProvider.value(
-      value: themeController,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeController),
+        ChangeNotifierProvider.value(value: idiomaController),
+      ],
       child: const ScreenshotApp(),
     ),
   );
@@ -277,9 +290,18 @@ class ScreenshotApp extends StatelessWidget {
     final ytVM = FakeYoutubeViewModel();
     const apiKey = '';
 
+    final idioma = context.watch<IdiomaController>().idioma;
+
     return MaterialApp(
       title: 'PTK plays - screenshots',
       debugShowCheckedModeBanner: false,
+      locale: idioma.locale,
+      supportedLocales: Idioma.values.map((i) => i.locale),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: context.watch<ThemeController>().getThemeMode,
