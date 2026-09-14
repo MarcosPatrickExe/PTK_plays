@@ -5,6 +5,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:ptk_plays/data/repositories/AuthRepository.dart';
 import 'package:ptk_plays/i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -88,7 +89,10 @@ class FakeAuthViewModel implements AuthViewModel {
   Future<({String? erro, bool contaNova})> loginComApple() async => (erro: null, contaNova: false);
 
   @override
-  Future<String?> excluirConta({required String senha}) async => null;
+  FormaDeReautenticar get formaDeReautenticar => FormaDeReautenticar.senha;
+
+  @override
+  Future<String?> excluirConta({String? senha}) async => null;
 
   @override
   Future<String?> alterarSenha({required String senhaAtual, required String novaSenha}) async => null;
