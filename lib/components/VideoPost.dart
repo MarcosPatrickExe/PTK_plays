@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ptk_plays/utils/AuthTheme.dart';
 import 'package:video_player/video_player.dart';
@@ -130,13 +131,13 @@ class _VideoPostState extends State<VideoPost> {
         const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 32),
         const SizedBox(height: 6),
         Text(
-          'Não foi possível carregar o vídeo.',
+          textos.videosNaoCarregou,
           style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70),
         ),
         if (_codigoDaFalha != null) ...[
           const SizedBox(height: 2),
           Text(
-            '(código: $_codigoDaFalha)',
+            textos.apenasOCodigo(_codigoDaFalha!),
             style: GoogleFonts.outfit(fontSize: 10, color: Colors.white38),
           ),
         ],
