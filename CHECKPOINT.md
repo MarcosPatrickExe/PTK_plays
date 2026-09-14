@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **13/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **14/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -22,7 +22,64 @@ Só entra aqui o que **bloqueia trabalho** ou o que faria a próxima sessão
 quebrar algo por não saber. Cada item diz o que fazer, não só o que está
 pendente.
 
-1. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
+1. **Seis decisões estão paradas esperando resposta do usuário.**
+
+   *O que é*: a sessão de 13/set terminou com perguntas feitas e não
+   respondidas. Elas foram registradas aqui porque o `/clear` apaga a
+   conversa, mas não apaga o fato de que o trabalho está bloqueado nelas.
+
+   *Por que é atenção*: **não decidir nada disso sozinho.** Cada item
+   abaixo tem uma recomendação minha registrada — recomendação não é
+   decisão tomada.
+
+   1. **Campo "confirmar senha": remover?** O usuário perguntou que motivo
+      plausível ele tem pra existir. **Minha resposta foi: não tem um bom.**
+      O argumento clássico é erro de digitação em campo mascarado, mas o
+      campo de senha do app **já tem o olhinho de mostrar/ocultar**, que
+      resolve melhor e cobra um campo a menos. **Recomendei remover.** O
+      "confirmar e-mail" é caso diferente e recomendei **manter**: e-mail
+      errado deixa a conta irrecuperável, e ninguém relê o que digitou.
+   2. **Ordem entre push e i18n.** Recomendei **push primeiro** — mais
+      valor imediato, e é ele que destrava o aviso de live que motivou toda
+      a discussão do WhatsApp.
+   3. **Chave APNs.** É o **único bloqueio real** do push: sem a chave gerada
+      no Apple Developer Portal e carregada no Firebase Console,
+      notificação no iOS não sai de jeito nenhum. Essa parte **só o usuário
+      pode fazer**. O resto (dependência, token no perfil, Cloud Function
+      disparada pelos webhooks de live que já existem) é comigo.
+   4. **Exclusão de conta para login social** (a "Etapa 2" que propus em
+      13/set e ficou sem resposta). Ver atenção 8 — é risco de reprovação
+      5.1.1(v).
+   5. **Tornar o WhatsApp opcional no código foi feito**; falta decidir se o
+      texto da etapa muda pra explicar por que o número é pedido. Sem isso,
+      a taxa de preenchimento tende a cair junto com a obrigatoriedade.
+   6. **i18n: qual o corte da primeira leva?** Recomendei começar por
+      login + cadastro, que é o que um revisor vê primeiro, e deixar o
+      resto pra segunda leva.
+
+2. **A arte nova do PTK chegou e ainda não foi preparada.**
+
+   *O que é*: em 13/set o usuário subiu `assets/ptk/selfie do PTK.png`
+   (1,5 MB) pela interface web do GitHub — commit `9378987`, direto na
+   `main`. É a substituição pedida pra arte da **etapa da foto**
+   (`ptk_foto.webp`).
+
+   *Por que é atenção*: o arquivo está **cru**. Do jeito que está, ele não
+   pode ser usado: tem fundo, é PNG de 1,5 MB (as outras artes têm 62–80 KB)
+   e o nome tem espaços. Trocar `assetDaEtapa` pra apontar pra ele agora
+   deixaria a tela pior do que está.
+
+   *O preparo que falta*, na ordem — está documentado em "Artes do
+   cadastro" mais abaixo, com as três armadilhas do recorte:
+   1. Recortar o fundo com o script em **PIL puro** (não há numpy aqui).
+   2. Recortar pela silhueta (`getbbox()` no canal alfa).
+   3. Colar no **quadro comum às cinco** (755×1159), ancorado embaixo e
+      **sem reescalar** — é isso que impede o PTK de mudar de tamanho entre
+      as etapas.
+   4. Salvar como WebP, renomear sem espaços, apontar `assetDaEtapa`
+      (`lib/view/CriarConta.dart`) e **apagar o PNG cru**.
+
+3. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
    verdade.**
 
    *O que é*: em 07/set o `whatsappWebhook` passou a gravar tudo que a
@@ -67,21 +124,21 @@ pendente.
      problema é leitura: confira se a conta que você abriu tem `cargo ==
      'admin'`, porque a regra só libera leitura pra admin.
 
-2. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
+4. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
    arte própria do PTK — hoje ela mostra a **logo do canal**
    (`assets/ptk/ptk_logo.webp`) centralizada na área roxa, o que ficou
    bom, mas não é uma arte do personagem. Pra trocar: soltar o arquivo em
    `assets/ptk/` e apontar em `assetDaEtapa` (`lib/view/CriarConta.dart`).
    Se vier no mesmo estilo quadrado das outras cinco, passar pelo mesmo
    preparo (ver "Artes do cadastro" mais abaixo).
-3. **Custom claim de admin no Auth** — a pendência que o usuário pediu
+5. **Custom claim de admin no Auth** — a pendência que o usuário pediu
    explicitamente pra fazer "na próxima". É uma Cloud Function que marca o
    admin com um custom claim, e resolve **duas** limitações de uma vez:
    - fechar a escrita no Storage (hoje qualquer logado pode subir arquivo
      na própria pasta `posts_midia/{uid}/`, mesmo sem conseguir publicar);
    - permitir que a remoção em cascata de usuário apague também a conta do
      Firebase Auth e os arquivos órfãos do Storage.
-4. **App Store — o build foi REPROVADO. Não reenviar como está.**
+6. **App Store — o build foi REPROVADO. Não reenviar como está.**
 
    *O que é*: o build submetido em 25/ago/2026 foi reprovado na revisão de
    **27/ago** (Submission `6db9576f-1f55-4ba0-aa62-6d06009a9495`), em dois
@@ -141,7 +198,7 @@ pendente.
    *Conferir também*: a Apple chama o binário de **"1.2.0 (17)"**, mas o
    `pubspec.yaml` diz `1.2.1+17`. Olhar a página do build no App Store
    Connect antes de concluir o que foi revisado.
-5. **Cadastro social estava quebrado — corrigido em 13/set, falta validar.**
+7. **Cadastro social estava quebrado — corrigido em 13/set, falta validar.**
 
    *O que era*: `CriarConta._criarConta` chamava `cadastrar` nos **dois**
    fluxos. Na conta social isso virava
@@ -160,7 +217,7 @@ pendente.
    Firebase real. O que dá pra fazer aqui é teste de widget do fluxo de
    etapas, que existe.
 
-6. **Conta só-social não consegue se excluir — risco de reprovação 5.1.1(v).**
+8. **Conta só-social não consegue se excluir — risco de reprovação 5.1.1(v).**
 
    *O que é*: `AuthRepository.excluirConta` (linha 290) reautentica com
    `EmailAuthProvider.credential(email: ..., password: senha)`. Quem entrou
@@ -174,7 +231,7 @@ pendente.
    com Sign in with Apple e tente excluir a conta bate num beco sem saída.
    Isso é uma reprovação nova, independente das duas atuais — e ela **não
    foi levantada ainda** porque os revisores nunca conseguiram passar do
-   login (ver atenção 4).
+   login (ver atenção 6).
 
    *O que falta*: reautenticar pelo provedor social (`reauthenticateWith
    Credential` com credencial do Google/Apple) em vez de por senha, e
@@ -188,35 +245,72 @@ pendente.
    provedor Apple. **Não confirmado**: se algum revisor chegou a tentar
    excluir conta — provavelmente não, já que o login falhava antes.
 
-7. **WhatsApp obrigatório no cadastro é risco de reprovação 5.1.1(ii).**
-
-   *O que é*: a etapa de WhatsApp usa `validarWhatsappObrigatorio`
-   (`lib/utils/ValidacaoCadastro.dart:72`) — sem número, o "Avançar" não
-   libera e a conta não se cria.
-
-   *Por que é risco*: a Apple recusa apps que **exigem** dado pessoal não
-   essencial à funcionalidade central (guideline 5.1.1(ii)). O núcleo do PTK
-   Plays é ver feed, vídeos e avisos de live — nada disso precisa de
-   telefone. E há um agravante de contexto: exigir telefone logo depois de a
-   pessoa escolher "Hide My Email" é o oposto exato do que o Sign in with
-   Apple existe pra permitir. Um revisor que passe por esse fluxo tende a
-   reparar.
-
-   *Ainda não aconteceu* porque nenhum revisor passou do login (ver atenção
-   4) — não é sinal de que está seguro.
-
-   *Recomendação, não decidida ainda*: tornar o campo opcional e resolver o
-   aviso de live por **push** (Etapa 6 das pendências), que é gratuito,
-   instantâneo, não pede dado pessoal nenhum e a Apple não questiona. O
-   e-mail cobre o resto: desde 13/set ele é sempre capturado, inclusive no
-   "Hide My Email", e **o relay da Apple encaminha de verdade** — quem usa
-   relay continua alcançável por e-mail.
-
-8. **Google Play — aviso de nível de API.** O código está certo
+9. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
    build feito a partir dessa versão for promovido. Ver `CLAUDE.md`.
+
+## Cadastro reativo e WhatsApp opcional (13/set)
+
+Três mudanças no cadastro, sem PR aberto ainda.
+
+**O botão "Avançar" aparece e some** conforme a etapa passa a ter o mínimo
+preenchido, em vez de ficar visível e cinza. Virou **regra permanente** no
+`CLAUDE.md` ("a interface reage enquanto a pessoa digita"), valendo pro app
+inteiro a pedido do usuário. A parte que não se deduz do código: o limiar de
+**aparecer** é de propósito mais frouxo que o de **validar** (nick aparece
+na 2ª letra, libera na 3ª), e é essa folga que faz o mecanismo funcionar.
+
+**WhatsApp virou opcional**, com botão **"Pular"** discreto ao lado do
+avançar. Era risco de reprovação 5.1.1(ii). Duas coisas que desfazem o medo
+de perder contato com o usuário, e que precisam estar escritas porque a
+leitura fácil é a contrária:
+- **o relay `@privaterelay.appleid.com` encaminha de verdade** — quem
+  esconde o e-mail na Apple continua alcançável;
+- **push** (pendência 4) resolve o aviso de live sem pedir dado nenhum.
+
+**Bug real achado pelo teste novo**: a barra de botões **estourava 42px**
+num aparelho de **420 de largura** quando os três controles apareciam juntos
+("Voltar" + "Pular" + "Criar conta", o rótulo mais largo do fluxo). Isso é
+faixa de celular comum, não caso extremo. O "Voltar" passou a ceder espaço.
+
+**Armadilha de teste que custou uma rodada**: `AnimatedSwitcher` só **remove**
+o filho que sai no frame **seguinte** ao fim da animação. Um `pump(duração)`
+sozinho ainda encontra o widget antigo — o teste falha por timing, não por
+comportamento. O helper `_esperarBotao` em `test/criar_conta_test.dart` faz
+`pump()` antes do `pump(duração)`. E o tap num avatar tem que sair do
+`SeletorAvatarPreset`, não de `find.byType(GestureDetector)` solto: a etapa
+da foto tem outros `GestureDetector` antes dos avatares na árvore.
+
+### Correções visuais da mesma leva
+
+- **Degradê sobre a logo** (`FundoPTK`): duas camadas escureciam a logo e as
+  duas abriam em 45% da faixa — somadas cobriam o rosto. O problema real que
+  elas resolvem é só a borda reta de baixo, que **o alfa do próprio arquivo
+  já dissolve** desde 07/set; eram cinto e suspensório de quando o alfa não
+  existia. Agora abrem perto da onda (78% e 70%), com opacidade máxima
+  `0x66` em vez de `0x8C`.
+- **Avatares do seletor** viraram círculos de verdade e ganharam teto de
+  **84px**. Duas notas: `BoxShape.circle` sozinho vira **elipse**, porque a
+  célula da grade não é quadrada (`childAspectRatio` 0.82 menos o rótulo) —
+  precisa de `Center` + `AspectRatio(1)`; e o tamanho não era um valor
+  errado, era a **ausência** de um: a grade divide a largura disponível,
+  então na coluna larga do iPad cada avatar esticava junto.
+- **"Agora crie uma senha"** numa linha só, pro campo de confirmar caber.
+
+### Hide My Email da Apple
+
+A etapa de e-mail sumia pra toda conta social. Certo pro Google e pro
+"Share My Email", errado pro **"Hide My Email"**: o que chega é um relay que
+encaminha mas não serve pra contato nem pra reconhecer a pessoa.
+`precisaPedirEmail` (`lib/view/CriarConta.dart`) decide — a etapa de
+**senha** continua fora nos dois casos, só a de e-mail volta.
+
+**Decisão registrada**: o e-mail informado vai pro **Firestore**, e o
+Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
+verificação e mexeria no vínculo com a Apple, que é a identidade da conta —
+risco alto pra ganho baixo.
 
 ## Revisão geral das mensagens de erro (12/set)
 
@@ -354,7 +448,7 @@ gastar esforço:
   17/ago. Um `apple/unknown` no Appetize é **inconclusivo**, não é
   diagnóstico.
 
-Por isso as duas checagens gratuitas do Firebase Console (atenção 4) vêm
+Por isso as duas checagens gratuitas do Firebase Console (atenção 6) vêm
 antes: elas não precisam de simulador nenhum.
 
 ### O iPad cai dos dois lados do corte de layout
@@ -373,11 +467,16 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Estado do git
 
-- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**. Último merge em
-  `main`: **`ceaff9e`** (PR #72). Depois dele a branch acumulou **4
-  commits do layout desktop do cadastro** (ver seção própria mais
-  abaixo), ainda **sem PR aberto** — o usuário não pediu pra abrir/
-  mesclar nesta sessão.
+- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**. Últimos merges em
+  `main`: **PR #74** (`eac8212`, instrumentação de erro + workflow do
+  Appetize) e **PR #75** (`131c2f8`, varredura geral das mensagens de erro
+  + correções do iPad). Depois deles veio `9378987` — **o usuário subiu a
+  arte nova direto na `main` pela interface web do GitHub** (ver atenção 2).
+- A branch tem **20 commits além da `main`**, já rebaseados em cima dela e
+  **sem PR aberto**: é o trabalho de 13/set (WhatsApp opcional + botão
+  "Avançar" reativo + as duas correções visuais). **Falta abrir o PR** —
+  a sessão acabou antes.
+- **Nenhum PR aberto no momento.**
 - **`main` → deploy automático no Vercel em `https://ptk-plays.vercel.app`**
   (atenção: `plays.vercel.app`, que consta em versões antigas deste
   arquivo, **dá 404** — não é o endereço certo).
@@ -400,12 +499,12 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **341 testes** passando (`flutter test`), mais **46** no backend
+- **352 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
   deprecated) — não são regressão, não mexer sem pedir.
-- O warning é em **`lib/view/Videos.dart:120`**
+- O warning é em **`lib/view/Videos.dart:131`**
   (`body_might_complete_normally_nullable`: o `itemBuilder` tem um `if` sem
   `else`, então retorna `null` implicitamente). Versões anteriores deste
   arquivo o chamavam de "fantasma que some na segunda execução" — **isso
@@ -741,26 +840,41 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
 
 ## Pendências, em ordem de esforço
 
-1. **Confirmar que o webhook está gravando** de verdade (ver atenção 1) —
+1. **Confirmar que o webhook está gravando** de verdade (ver atenção 3) —
    é mandar uma mensagem pro número de teste e olhar a aba.
 2. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
-3. **Destravar a reprovação da Apple** (ver atenção 4). A parte de código
-   saiu em 11/set; o que resta — provedor Apple no Firebase Console,
-   reproduzir num iPad e escrever as App Review Notes — depende do usuário
-   e de aparelho físico.
-4. **Custom claim de admin** no Auth (ver atenção 3).
-5. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
+3. **Destravar a reprovação da Apple** (ver atenção 6). A parte de código
+   saiu em 11/set; o que resta — reproduzir num iPad e escrever as App
+   Review Notes — depende do usuário e de aparelho físico. O provedor Apple
+   no Firebase Console **já foi ligado** pelo usuário em 13/set.
+4. **Notificações push** — pedido explícito do usuário em 13/set, e
+   recomendei fazer **antes** do i18n. Bloqueado na **chave APNs** (ver
+   atenção 1, item 3), que só ele pode gerar. O lado do código é:
+   `firebase_messaging` no `pubspec.yaml`, token salvo no perfil do usuário,
+   e uma Cloud Function disparada pelos webhooks de live **que já existem**
+   (`twitchWebhook`, `kickWebhook`, `verificarYoutubeAoVivo`) — o gatilho
+   está pronto, falta o disparo. Depois disso, o **envio por cargo pelo
+   Painel ADM** (a aba Notificações já existe e explica que não está
+   pronta) sai de graça em cima da mesma infra.
+5. **Internacionalização (pt-BR + en-US)** com detecção automática do idioma
+   do aparelho. Pedido em 13/set, com um motivo concreto: **os revisores da
+   Apple e do Google falam inglês**. São centenas de strings em ~20 telas —
+   a infraestrutura (`flutter_localizations` + ARB) é rápida, a varredura é
+   longa. Recomendei fazer em duas levas, começando por **login + cadastro**,
+   que é o que um revisor vê primeiro. **Meio traduzido é pior que nada**:
+   é exatamente a impressão ruim que se quer evitar.
+6. **Custom claim de admin** no Auth (ver atenção 5).
+7. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
    tela de chat. A opção já existe no menu e avisa que não está pronta.
    Quando existir, entra também na remoção em cascata (o lugar já está
    marcado no código).
-6. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
+8. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
    vez, com detector de visibilidade).
-7. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
+9. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
    cliente de propósito, então precisa de Cloud Function.
-8. **Etapa 6 — notificações push por cargo.**
-9. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
+10. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
    reescreve boa parte do `firestore.rules`.
-10. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
+11. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
    existe e está no ar; falta o **envio**, que depende do número de
    produção e dos modelos de mensagem aprovados na Meta.
 
