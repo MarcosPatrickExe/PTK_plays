@@ -635,4 +635,40 @@ class TextosEnUs extends Textos {
   String get whatsappFigurinha => '[sticker]';
   @override
   String get whatsappContato => '[contact]';
+
+  // ----- O que faltou na primeira varredura -----
+  @override
+  String get feedEncerrada => 'ENDED';
+  @override
+  String get dataAgora => 'now';
+  @override
+  String duracaoSoHoras(int horas) => '${horas}h';
+  @override
+  String duracaoSegundos(int segundos) => '${segundos}s';
+  @override
+  String get cadastroAntigoTitulo => 'CREATE YOUR ACCOUNT';
+  @override
+  String get cadastroEscolhaAvatar => 'Pick your avatar';
+  @override
+  String get cadastroJaTemConta => 'Already have an account? ';
+  @override
+  String get cadastroFazerLogin => 'Sign in';
+  @override
+  String get cadastroDigiteEmail => 'Type your email';
+  @override
+  String get validaNickComArrobaAntigo => 'The nickname can\'t contain @.';
+  @override
+  String apenasOCodigo(String codigo) => '(code: $codigo)';
+
+  // ----- Selos de tipo de post, no painel -----
+  @override
+  String get seloAviso => 'NOTICE';
+  @override
+  String get seloFoto => 'PHOTO';
+  @override
+  String get seloEnquete => 'POLL';
+  @override
+  String get seloLive => 'LIVE';
+  @override
+  String get adminVocePrefixo => 'You: ';
 }
