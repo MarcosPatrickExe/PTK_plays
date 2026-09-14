@@ -5,6 +5,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:ptk_plays/data/models/BloqueioDaConta.dart';
 import 'package:ptk_plays/data/repositories/AuthRepository.dart';
 import 'package:ptk_plays/i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -83,10 +84,12 @@ class FakeAuthViewModel implements AuthViewModel {
   Future<void> logout() async {}
 
   @override
-  Future<({String? erro, bool contaNova})> loginComGoogle() async => (erro: null, contaNova: false);
+  Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComGoogle() async =>
+      (erro: null, contaNova: false, bloqueio: null);
 
   @override
-  Future<({String? erro, bool contaNova})> loginComApple() async => (erro: null, contaNova: false);
+  Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComApple() async =>
+      (erro: null, contaNova: false, bloqueio: null);
 
   @override
   FormaDeReautenticar get formaDeReautenticar => FormaDeReautenticar.senha;
@@ -124,7 +127,11 @@ class FakeAuthViewModel implements AuthViewModel {
       null;
 
   @override
-  Future<String?> login({required String loginOuEmail, required String senha}) async => null;
+  Future<({String? erro, BloqueioDaConta? bloqueio})> login({
+    required String loginOuEmail,
+    required String senha,
+  }) async =>
+      (erro: null, bloqueio: null);
 }
 
 class FakePostRepository implements PostRepository {
