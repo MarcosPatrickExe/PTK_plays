@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
@@ -71,24 +72,20 @@ class PainelAdmin extends StatelessWidget {
                       children: [
                         _SecaoUsuarios(isDark: isDark, repository: repo),
                         _SecaoPosts(isDark: isDark, admin: admin, postViewModel: postViewModel),
-                        const _SecaoPendente(
-                          titulo: 'Cargos',
-                          descricao:
-                              'Cadastrar cargos novos além de inscrito/vip/admin e definir as permissões de cada um.',
-                          oQueFalta:
-                              'Depende de uma coleção "cargos" no Firestore e de reescrever o firestore.rules pra ler as permissões de lá, em vez do cargo fixo que ele checa hoje.',
+                        _SecaoPendente(
+                          titulo: textos.cargos,
+                          descricao: textos.adminCargosTexto,
+                          oQueFalta: textos.adminCargosPendencia,
                         ),
-                        const _SecaoPendente(
-                          titulo: 'Badges',
-                          descricao: 'Conceder badges do catálogo a usuários escolhidos na lista.',
-                          oQueFalta:
-                              'O campo "badges" é travado contra escrita do cliente no firestore.rules — conceder badge precisa de uma Cloud Function com o Admin SDK.',
+                        _SecaoPendente(
+                          titulo: textos.badges,
+                          descricao: textos.adminBadgesTexto,
+                          oQueFalta: textos.adminBadgesPendencia,
                         ),
-                        const _SecaoPendente(
-                          titulo: 'Notificações',
-                          descricao: 'Enviar push com título e descrição pra todos ou só pra um cargo específico.',
-                          oQueFalta:
-                              'Precisa de uma Cloud Function que dispare via FCM. O envio por cargo exige inscrever cada usuário num tópico por cargo no login.',
+                        _SecaoPendente(
+                          titulo: textos.notificacoes,
+                          descricao: textos.adminNotificacoesTexto,
+                          oQueFalta: textos.adminNotificacoesPendencia,
                         ),
                         _SecaoWhatsapp(
                           isDark: isDark,
@@ -115,7 +112,7 @@ class PainelAdmin extends StatelessWidget {
           BotaoVoltar(isDark: isDark, onTap: () => Navigator.of(context).pop()),
           const SizedBox(width: 14),
           Text(
-            'Painel ADM',
+            textos.adminTitulo,
             style: GoogleFonts.outfit(
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -136,13 +133,13 @@ class PainelAdmin extends StatelessWidget {
       unselectedLabelColor: isDark ? AuthTheme.subDark : AuthTheme.subLight,
       indicatorColor: isDark ? AuthTheme.linkDark : AuthTheme.linkLight,
       labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14),
-      tabs: const [
-        Tab(text: 'Usuários'),
-        Tab(text: 'Posts'),
-        Tab(text: 'Cargos'),
-        Tab(text: 'Badges'),
-        Tab(text: 'Notificações'),
-        Tab(text: 'WhatsApp'),
+      tabs: [
+        Tab(text: textos.adminUsuarios),
+        Tab(text: textos.posts),
+        Tab(text: textos.cargos),
+        Tab(text: textos.badges),
+        Tab(text: textos.notificacoes),
+        Tab(text: textos.whatsapp),
       ],
     );
   }
@@ -163,11 +160,11 @@ class _SecaoUsuarios extends StatelessWidget {
           return Center(child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight));
         }
         if (snapshot.hasError) {
-          return _mensagem(context, 'Não foi possível carregar os usuários.');
+          return _mensagem(context, textos.adminNaoCarregouUsuarios);
         }
 
         final usuarios = snapshot.data ?? [];
-        if (usuarios.isEmpty) return _mensagem(context, 'Nenhum usuário cadastrado ainda.');
+        if (usuarios.isEmpty) return _mensagem(context, textos.adminNenhumUsuario);
 
         return ResponsiveCenter(
           child: ListView.separated(
@@ -255,17 +252,17 @@ class _LinhaUsuario extends StatelessWidget {
             color: isDark ? const Color(0xFF2C0F55) : Colors.white,
             onSelected: (opcao) => _executar(context, opcao),
             itemBuilder: (context) => [
-              _itemDoMenu(valor: 'perfil', icone: Icons.person_outline, label: 'Ver perfil'),
+              _itemDoMenu(valor: 'perfil', icone: Icons.person_outline, label: textos.adminVerPerfil),
               if (usuario.estadoModeracao == 'ativo') ...[
-                _itemDoMenu(valor: 'suspender', icone: Icons.pause_circle_outline, label: 'Suspender por 7 dias'),
-                _itemDoMenu(valor: 'banir', icone: Icons.block, label: 'Banir', cor: const Color(0xFFE0264F)),
+                _itemDoMenu(valor: 'suspender', icone: Icons.pause_circle_outline, label: textos.adminSuspender),
+                _itemDoMenu(valor: 'banir', icone: Icons.block, label: textos.adminBanir, cor: const Color(0xFFE0264F)),
               ] else
-                _itemDoMenu(valor: 'reativar', icone: Icons.check_circle_outline, label: 'Reativar conta'),
-              _itemDoMenu(valor: 'mensagem', icone: Icons.chat_bubble_outline, label: 'Mensagem privada'),
+                _itemDoMenu(valor: 'reativar', icone: Icons.check_circle_outline, label: textos.adminReativar),
+              _itemDoMenu(valor: 'mensagem', icone: Icons.chat_bubble_outline, label: textos.adminMensagemPrivada),
               _itemDoMenu(
                 valor: 'remover',
                 icone: Icons.person_remove_outlined,
-                label: 'Remover usuário',
+                label: textos.adminRemoverUsuario,
                 cor: const Color(0xFFE0264F),
               ),
             ],
@@ -326,7 +323,7 @@ class _LinhaUsuario extends StatelessWidget {
     if (opcao == 'mensagem') {
       // Mensagem privada depende de uma coleção de conversas + regras +
       // tela de chat, que ainda não existem (ver ROADMAP.md).
-      mostrarToast(context, mensagem: 'Mensagem privada ainda não está pronta.', erro: true);
+      mostrarToast(context, mensagem: textos.adminMensagemPrivadaEmBreve, erro: true);
       return;
     }
     if (opcao == 'remover') {
@@ -346,9 +343,9 @@ class _LinhaUsuario extends StatelessWidget {
           await repository.reativarUsuario(usuario.uid);
           break;
       }
-      if (context.mounted) mostrarToast(context, mensagem: 'Usuário atualizado.', erro: false);
+      if (context.mounted) mostrarToast(context, mensagem: textos.adminUsuarioAtualizado, erro: false);
     } catch (e) {
-      if (context.mounted) mostrarToast(context, mensagem: comCodigo('Não foi possível atualizar.', e), erro: true);
+      if (context.mounted) mostrarToast(context, mensagem: comCodigo(textos.adminNaoAtualizou, e), erro: true);
     }
   }
 
@@ -359,18 +356,13 @@ class _LinhaUsuario extends StatelessWidget {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Remover ${usuario.nickname}?'),
-        content: const Text(
-          'Some a conta e, junto com ela, todos os posts, mensagens e conversas '
-          'dessa pessoa. Não dá pra desfazer.\n\n'
-          'O login dela no Firebase continua existindo: se entrar de novo pelo '
-          'Google/Apple, uma conta nova e vazia é criada.',
-        ),
+        title: Text(textos.adminRemoverTitulo(usuario.nickname)),
+        content: Text(textos.adminRemoverTexto),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(textos.cancelar)),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Remover', style: TextStyle(color: Color(0xFFE0264F))),
+            child: Text(textos.remover, style: const TextStyle(color: Color(0xFFE0264F))),
           ),
         ],
       ),
@@ -383,12 +375,12 @@ class _LinhaUsuario extends StatelessWidget {
       if (!context.mounted) return;
       mostrarToast(
         context,
-        mensagem: 'Usuário removido, com $postsApagados post(s).',
+        mensagem: textos.adminUsuarioRemovido(postsApagados),
         erro: false,
       );
     } catch (e) {
       if (!context.mounted) return;
-      mostrarToast(context, mensagem: comCodigo('Não foi possível remover.', e), erro: true);
+      mostrarToast(context, mensagem: comCodigo(textos.adminNaoRemoveu, e), erro: true);
     }
   }
 
@@ -421,12 +413,12 @@ class _LinhaUsuario extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _linha('E-mail', usuario.email),
-            _linha('Cargo', usuario.cargo),
-            _linha('Status', usuario.status),
-            _linha('Moderação', usuario.estadoModeracao),
-            _linha('Badges', usuario.badges.isEmpty ? '—' : usuario.badges.join(', ')),
-            _linha('WhatsApp', usuario.telefoneWhatsapp.isEmpty ? '—' : usuario.telefoneWhatsapp),
+            _linha(textos.email, usuario.email),
+            _linha(textos.cargo, usuario.cargo),
+            _linha(textos.status, usuario.status),
+            _linha(textos.adminModeracao, usuario.estadoModeracao),
+            _linha(textos.badges, usuario.badges.isEmpty ? '—' : usuario.badges.join(', ')),
+            _linha(textos.whatsapp, usuario.telefoneWhatsapp.isEmpty ? '—' : usuario.telefoneWhatsapp),
           ],
         ),
       ),
@@ -509,12 +501,12 @@ class _SecaoPosts extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BotaoPrimario(
-          label: 'Nova publicação',
+          label: textos.feedNovaPublicacao,
           carregando: false,
           onTap: () async {
             final publicou = await mostrarNovoPost(context, autor: admin, postViewModel: postViewModel);
             if (publicou && context.mounted) {
-              mostrarToast(context, mensagem: 'Publicado no feed!', erro: false);
+              mostrarToast(context, mensagem: textos.feedPublicado, erro: false);
             }
           },
         ),
@@ -523,12 +515,12 @@ class _SecaoPosts extends StatelessWidget {
         const SizedBox(height: 14),
         if (deuErro)
           Text(
-            'Não foi possível carregar os posts.',
+            textos.feedNaoCarregouPosts,
             style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
           )
         else if (vazio)
           Text(
-            'Nenhum post no feed ainda.',
+            textos.feedNenhumPost,
             style: GoogleFonts.outfit(color: isDark ? AuthTheme.subDark : AuthTheme.subLight),
           ),
       ],
@@ -557,16 +549,13 @@ class _BotaoLimparAntigosState extends State<_BotaoLimparAntigos> {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Limpar avisos antigos?'),
-        content: const Text(
-          'Apaga de vez os avisos de live que ficaram sem miniatura e sem '
-          'plataforma. Eles já não aparecem no feed. Não dá pra desfazer.',
-        ),
+        title: Text(textos.adminLimparAvisosTitulo),
+        content: Text(textos.adminLimparAvisosTexto),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(textos.cancelar)),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Limpar', style: TextStyle(color: Color(0xFFE0264F))),
+            child: Text(textos.limpar, style: const TextStyle(color: Color(0xFFE0264F))),
           ),
         ],
       ),
@@ -583,8 +572,8 @@ class _BotaoLimparAntigosState extends State<_BotaoLimparAntigos> {
       context,
       mensagem: resultado.erro ??
           (resultado.apagados == 0
-              ? 'Nenhum aviso antigo pra limpar.'
-              : '${resultado.apagados} aviso(s) antigo(s) apagado(s).'),
+              ? textos.adminNenhumAvisoAntigo
+              : textos.adminAvisosApagados(resultado.apagados)),
       erro: resultado.erro != null,
     );
   }
@@ -602,7 +591,7 @@ class _BotaoLimparAntigosState extends State<_BotaoLimparAntigos> {
               child: CircularProgressIndicator(strokeWidth: 2, color: cor),
             )
           : const Icon(Icons.cleaning_services_outlined, size: 18),
-      label: const Text('Limpar avisos de live antigos'),
+      label: Text(textos.adminLimparAvisos),
       style: TextButton.styleFrom(foregroundColor: cor),
     );
   }
@@ -615,19 +604,21 @@ class _LinhaPost extends StatelessWidget {
 
   const _LinhaPost({required this.post, required this.isDark, required this.postViewModel});
 
-  static const Map<String, String> _rotuloDoTipo = {
-    PostModel.tipoAvisoTexto: 'AVISO',
-    PostModel.tipoAvisoFoto: 'FOTO',
-    PostModel.tipoAvisoMidia: 'MÍDIA',
-    PostModel.tipoEnquete: 'ENQUETE',
-    PostModel.tipoAoVivo: 'LIVE',
-  };
+  // Deixou de ser `const`: os selos mudam com o idioma, e `const`
+  // congelaria os cinco na compilacao.
+  static Map<String, String> get _rotuloDoTipo => {
+        PostModel.tipoAvisoTexto: textos.seloAviso,
+        PostModel.tipoAvisoFoto: textos.seloFoto,
+        PostModel.tipoAvisoMidia: textos.feedMidia,
+        PostModel.tipoEnquete: textos.seloEnquete,
+        PostModel.tipoAoVivo: textos.seloLive,
+      };
 
   @override
   Widget build(BuildContext context) {
     final resumo = post.texto?.trim().isNotEmpty == true
         ? post.texto!.trim()
-        : (post.titulo?.trim().isNotEmpty == true ? post.titulo!.trim() : '(sem texto)');
+        : (post.titulo?.trim().isNotEmpty == true ? post.titulo!.trim() : textos.feedSemTexto);
 
     // Avisos de live são do sistema: quem os encerra são as Cloud Functions.
     final podeApagar = post.tipo != PostModel.tipoAoVivo;
@@ -674,7 +665,7 @@ class _LinhaPost extends StatelessWidget {
           ),
           if (podeApagar)
             IconButton(
-              tooltip: 'Excluir post',
+              tooltip: textos.feedExcluirPost,
               // No escuro o vermelho de acao destrutiva se perde no fundo
               // roxo; o branco le melhor. No claro o vermelho continua,
               // porque ali ele contrasta e sinaliza o risco.
@@ -690,13 +681,13 @@ class _LinhaPost extends StatelessWidget {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Excluir post?'),
-        content: const Text('Ele some do feed pra todo mundo. Não dá pra desfazer.'),
+        title: Text(textos.feedExcluirPostTitulo),
+        content: Text(textos.feedExcluirPostTexto),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(textos.cancelar)),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Excluir', style: TextStyle(color: Color(0xFFE0264F))),
+            child: Text(textos.excluir, style: const TextStyle(color: Color(0xFFE0264F))),
           ),
         ],
       ),
@@ -706,7 +697,7 @@ class _LinhaPost extends StatelessWidget {
 
     final erro = await postViewModel.excluirPost(post.id);
     if (!context.mounted) return;
-    mostrarToast(context, mensagem: erro ?? 'Post excluído.', erro: erro != null);
+    mostrarToast(context, mensagem: erro ?? textos.feedPostExcluido, erro: erro != null);
   }
 
   Widget _selo(String texto, Color cor) {
@@ -831,20 +822,18 @@ class _SecaoWhatsapp extends StatelessWidget {
     if (deuErro) {
       return _aviso(
         icone: Icons.error_outline,
-        texto: 'Não foi possível carregar as conversas.',
+        texto: textos.adminNaoCarregouConversas,
       );
     }
     if (vazio) {
       return _aviso(
         icone: Icons.forum_outlined,
-        texto: 'Nenhuma mensagem ainda. O que chegar no número do canal aparece aqui — '
-            'inclusive a confirmação de entrega dos avisos que o app enviar.',
+        texto: textos.adminNenhumaMensagem,
       );
     }
     return _aviso(
       icone: Icons.outgoing_mail,
-      texto: 'Envio pelo painel ainda não disponível: depende do número de produção e dos '
-          'modelos de mensagem aprovados na Meta.',
+      texto: textos.adminEnvioIndisponivel,
     );
   }
 
@@ -916,7 +905,7 @@ class _LinhaConversa extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '${ultima.recebida ? '' : 'Você: '}${ultima.resumo}',
+              '${ultima.recebida ? '' : textos.adminVocePrefixo}${ultima.resumo}',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(fontSize: 13.5, color: corApoio, height: 1.4),
@@ -925,13 +914,13 @@ class _LinhaConversa extends StatelessWidget {
             Row(
               children: [
                 _Etiqueta(
-                  texto: aberta ? 'Resposta livre liberada' : 'Fora da janela: só template',
+                  texto: aberta ? textos.adminRespostaLivre : textos.adminForaDaJanela,
                   cor: aberta ? const Color(0xFF1EA95A) : corApoio,
                   icone: aberta ? Icons.lock_open_outlined : Icons.lock_outline,
                 ),
                 if (ultima.falhou) ...[
                   const SizedBox(width: 8),
-                  const _Etiqueta(texto: 'Falhou', cor: Color(0xFFE0264F), icone: Icons.error_outline),
+                  _Etiqueta(texto: textos.whatsappFalhou, cor: const Color(0xFFE0264F), icone: Icons.error_outline),
                 ],
               ],
             ),
@@ -1030,8 +1019,8 @@ class _ConversaWhatsappPage extends StatelessWidget {
                         Expanded(
                           child: Text(
                             aberta
-                                ? 'Janela de 24h aberta: quando o envio existir, dá pra responder com texto livre.'
-                                : 'Fora da janela de 24h: só dá pra enviar modelo de mensagem aprovado pela Meta.',
+                                ? textos.adminJanelaAberta
+                                : textos.adminJanelaFechada,
                             style: GoogleFonts.outfit(
                               fontSize: 12.5,
                               height: 1.45,
@@ -1165,7 +1154,10 @@ String formatarDataHoraCurta(DateTime data) {
   final local = data.toLocal();
   final dia = local.day.toString().padLeft(2, '0');
   final mes = local.month.toString().padLeft(2, '0');
-  final hora = local.hour.toString().padLeft(2, '0');
-  final minuto = local.minute.toString().padLeft(2, '0');
-  return '$dia/$mes às $hora:$minuto';
+  return textos.dataDiaMesHora(
+    dia,
+    mes,
+    local.hour.toString().padLeft(2, '0'),
+    local.minute.toString().padLeft(2, '0'),
+  );
 }
