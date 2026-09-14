@@ -1,7 +1,9 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../data/models/BloqueioDaConta.dart';
 import '../i18n/Idioma.dart';
+import 'ContaBloqueada.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -30,11 +32,17 @@ class Login extends StatefulWidget {
   final String apiKey;
   final AuthViewModel authViewModel;
 
+  /// Preenchido quando a pessoa chegou aqui **expulsa** — o `ContaGate`
+  /// detectou um banimento/suspensão com o app aberto, deslogou e mandou
+  /// pra cá. O aviso aparece assim que a tela monta.
+  final BloqueioDaConta? bloqueioParaAvisar;
+
   const Login({
     super.key,
     required this.viewmodelYT,
     required this.apiKey,
     required this.authViewModel,
+    this.bloqueioParaAvisar,
   });
 
   @override
@@ -47,6 +55,28 @@ class _LoginState extends State<Login> {
   bool _senhaVisivel = false;
   bool _carregando = false;
 
+  @override
+  void initState() {
+    super.initState();
+
+    final bloqueio = widget.bloqueioParaAvisar;
+    if (bloqueio == null) return;
+
+    // `addPostFrameCallback` porque `showDialog` precisa de um Navigator
+    // montado, e no `initState` ele ainda não está.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _avisarBloqueio(bloqueio);
+    });
+  }
+
+  /// O aviso de conta banida/suspensa. Não é `mostrarErroCustom` de
+  /// propósito: não houve erro nenhum — a senha estava certa, a conta
+  /// existe, e a entrada foi **recusada**. Chamar isso de "Ops!" faria
+  /// parecer falha do app e convidaria a pessoa a tentar de novo.
+  void _avisarBloqueio(BloqueioDaConta bloqueio) {
+    mostrarModalContaBloqueada(context, bloqueio);
+  }
+
   Future<void> _entrar() async {
     final login = _emailController.text.trim();
     final senha = _senhaController.text;
@@ -58,13 +88,19 @@ class _LoginState extends State<Login> {
 
     setState(() => _carregando = true);
 
-    final erro = await widget.authViewModel.login(loginOuEmail: login, senha: senha);
+    final resultado = await widget.authViewModel.login(loginOuEmail: login, senha: senha);
 
     if (!mounted) return;
     setState(() => _carregando = false);
 
-    if (erro != null) {
-      mostrarErroCustom(context, title: textos.ops, msg: erro);
+    if (resultado.erro != null) {
+      mostrarErroCustom(context, title: textos.ops, msg: resultado.erro!);
+      return;
+    }
+
+    // Conta bloqueada: o repositório já desfez a sessão. Nada de navegar.
+    if (resultado.bloqueio != null) {
+      _avisarBloqueio(resultado.bloqueio!);
       return;
     }
 
@@ -103,12 +139,19 @@ class _LoginState extends State<Login> {
   /// escolhido, foto nem WhatsApp — o provedor só resolveu e-mail e senha.
   /// Por isso ela vai pro cadastro em etapas (sem as telas de e-mail e
   /// senha, que já estão resolvidas), e não direto pro feed.
-  void _depoisDoLoginSocial(({String? erro, bool contaNova}) resultado) {
+  void _depoisDoLoginSocial(({String? erro, bool contaNova, BloqueioDaConta? bloqueio}) resultado) {
     if (!mounted) return;
     setState(() => _carregando = false);
 
     if (resultado.erro != null) {
       mostrarErroCustom(context, title: textos.ops, msg: resultado.erro!);
+      return;
+    }
+
+    // O caminho social é a porta dos fundos mais óbvia do banimento: sem
+    // esta checagem, quem foi banido voltaria pelo Google e entraria.
+    if (resultado.bloqueio != null) {
+      _avisarBloqueio(resultado.bloqueio!);
       return;
     }
 
