@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../i18n/Idioma.dart';
 import 'package:provider/provider.dart';
 import 'package:ptk_plays/components/AuthBackground.dart';
 import 'package:ptk_plays/components/BottomNavBar.dart';
@@ -64,12 +65,12 @@ class _VideoScreenState extends State<Videos> {
       if (!mounted) return;
       mostrarErroCustom(
         context,
-        title: "Ops!",
-        msg: comCodigoManual('Não foi possível abrir o vídeo :/', 'link/sem-app-que-abra'),
+        title: textos.ops,
+        msg: comCodigoManual(textos.videosNaoAbriu, 'link/sem-app-que-abra'),
       );
     } catch (e) {
       if (!mounted) return;
-      mostrarErroCustom(context, title: "Ops!", msg: comCodigo('Não foi possível abrir o vídeo :/', e));
+      mostrarErroCustom(context, title: textos.ops, msg: comCodigo(textos.videosNaoAbriu, e));
     }
   }
 
@@ -152,7 +153,7 @@ class _VideoScreenState extends State<Videos> {
                               return Center( child: CircularProgressIndicator(color: isDark ? AuthTheme.linkDark : AuthTheme.linkLight) );
 
                             } else if (snapshot.hasError) {
-                              return Center(child: Text('Error: ${snapshot.error}'));
+                              return Center(child: Text(textos.videosErroCru('${snapshot.error}')));
                             } else if (snapshot.hasData) {
                               _VideoScreenState._loadedVideoCards = snapshot.data;
 
@@ -175,7 +176,7 @@ class _VideoScreenState extends State<Videos> {
                                 ),
                               );
                             } else {
-                              return Center(child: Text('Nenhuma postagem encontrada :/'));
+                              return Center(child: Text(textos.videosNenhum));
                             }
                           },
                         ),
@@ -189,7 +190,7 @@ class _VideoScreenState extends State<Videos> {
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
-              child: buildHeader(title: "Vídeos", widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
+              child: buildHeader(title: textos.videosTitulo, widgetContext: context, menu: BotaoMenuLateral(isDark: isDark)),
             ),
           ),
           // Scrim do rodape: escurece o conteudo que passa por baixo da
