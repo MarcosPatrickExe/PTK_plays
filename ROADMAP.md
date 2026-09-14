@@ -2062,3 +2062,212 @@ digitou.
 
 Não foi removido porque é mudança de produto que o usuário não pediu — está
 aguardando decisão dele.
+
+---
+
+## Duas línguas, exclusão de conta e o fim do "confirmar senha" (14/set/2026)
+
+Dia em que o usuário respondeu as seis decisões que estavam paradas desde
+13/set, e mandou fazer o que saiu delas. Este registro guarda o **porquê**;
+o estado de hoje está no `CHECKPOINT.md`.
+
+### Por que o i18n veio antes do push
+
+A recomendação registrada em 13/set era o contrário: push primeiro, porque
+é ele que destrava o aviso de live que motivou toda a discussão do
+WhatsApp. O usuário decidiu ao contrário, e a decisão dele tem uma razão
+que a minha não tinha: o push depende de uma **chave APNs** que só ele pode
+gerar, e ele preferiu não parar o trabalho numa dependência externa.
+
+Ele também recusou o corte que eu havia proposto ("primeira leva: login +
+cadastro"). Pediu o app inteiro de uma vez. Em retrospecto ele estava
+certo pelo motivo que eu mesmo tinha escrito na recomendação: **meio
+traduzido é pior que nada** — é exatamente a impressão ruim que se queria
+evitar. Um corte teria deixado o app metade em cada língua por tempo
+indeterminado.
+
+### Por que não o `gen_l10n` com ARB
+
+É a escolha padrão do Flutter, e foi descartada por um motivo de formato,
+não de gosto. O gerado exige `AppLocalizations.of(context)`, e boa parte do
+texto deste app **nasce longe de um `BuildContext`**: `ValidacaoCadastro`,
+`AuthErrorTranslator`, `AuthViewModel` e os repositórios todos devolvem
+frase pronta pra tela.
+
+Passar um contexto até lá seria arrastar UI pra dentro da regra de negócio.
+A saída que todo mundo usa nesse caso — guardar o `AppLocalizations` num
+global — perde exatamente a garantia que o ARB dava, que é a checagem de
+chave faltante.
+
+Uma classe abstrata com um getter por frase dá as duas coisas de uma vez: o
+mesmo `textos.x` serve dentro e fora da árvore de widgets, e **esquecer uma
+frase em `TextosEnUs` não compila**. Com mapa de `String` pra `String`, a
+chave faltante só apareceria quando alguém abrisse aquela tela naquela
+língua — e o que chegaria na tela seria `null` ou a própria chave.
+
+O `flutter_localizations` entrou mesmo assim, mas pra outra coisa: o
+"OK"/"Cancelar" de um diálogo de data e os textos de acessibilidade vêm de
+dentro do framework. Sem ele o `MaterialApp` só falaria inglês nessas
+peças.
+
+### O detalhe que quase derrubou 350 testes
+
+A detecção do idioma mora no `main()`, e **nunca** dentro do catálogo. Não
+é organização: o ambiente de `flutter test` responde **en-US**. Se o global
+consultasse a plataforma sozinho, todo `flutter test` viraria inglês e
+centenas de asserts de texto quebrariam de uma vez, sem nada no app ter
+mudado. O padrão do global é português; é o `main()` que troca.
+
+### A regressão que o analyze não pega
+
+O catálogo foi gerado a partir de uma tabela única, pra garantir que as
+duas línguas ficassem na mesma ordem e nada faltasse. O gerador deixou
+`\$mensagem` escapado, e em Dart isso é um **cifrão literal**: a mensagem de
+erro chegava na tela como `$mensagem (código: $codigo)`, com o nome da
+variável no lugar do valor.
+
+Isso não é erro de compilação — é `String` válida, e o `analyze` fica
+quieto. Foram 49 frases em cada língua. Só um teste que **lê o resultado**
+pega esse tipo de coisa, e é por isso que `test/i18n_test.dart` tem um
+grupo só pra frases com variável.
+
+### Data não é só palavra
+
+`09/03` é setembro no Brasil e março nos EUA. Deixar a ordem fixa e traduzir
+só o "às" faria a data **mentir** pra metade de quem lê, sem nenhum sinal
+de que mentiu. Por isso `dataDiaMes`, `dataDiaMesAno`, `dataDiaMesHora` e
+`dataDiaMesAnoHora` invertem a ordem junto com a língua.
+
+O relógio ficou em 24h nas duas: AM/PM traria uma segunda dimensão de
+formatação (e uma segunda chance de errar) por um ganho pequeno.
+
+### O que NÃO se traduz, e por quê
+
+Três casos, e nenhum é esquecimento:
+
+- **o nome do app** é marca, não texto;
+- **as chaves salvas no Firestore** (`'admin'`, `'novato'`, `'gamer'`): o
+  rótulo traduz, a chave não. Se o título traduzido fosse o que vai pro
+  banco, uma conta criada com o app em inglês teria badges que o app em
+  português não reconheceria. Foi por isso que `Conquista` e `AvatarPreset`
+  trocaram o campo guardado por um getter que resolve pela chave — a lista
+  continua `const`, porque o desenho e a chave não mudam de língua;
+- **os nomes das línguas** na tela de configurações. Este é o mais fácil de
+  errar por excesso de zelo: "Inglês (EUA)" parece o certo a fazer num app
+  em português. Só que **quem abre aquela tela é justamente quem não está
+  entendendo o que está escrito** — traduzir o nome de uma língua é o jeito
+  exato de esconder a opção de quem precisa dela.
+
+### A política de privacidade seguia a região, e isso era bug
+
+A regra antiga era `locale.countryCode == 'BR'`, e ela errava dos dois
+lados. Quem configurava só `pt`, sem região, lia a política em inglês com o
+app inteiro em português. E, com o seletor manual de idioma, alguém que
+trocasse pra inglês continuaria preso à região do aparelho, que não muda
+junto.
+
+Passou a seguir o idioma que o app está falando. Efeito colateral aceito de
+propósito: **português de Portugal passou a ler em português**, o que antes
+não acontecia. Quem configurou o aparelho em português lê melhor em
+português, mesmo que a tradução automática seja pro pt-BR.
+
+### Sobre a dúvida do idioma na web
+
+O usuário perguntou se, na web, a detecção exigiria pedir **permissão de
+localização**. Não exige, e não tem relação nenhuma: o Flutter web preenche
+`locales` a partir do `navigator.languages`, que é a lista configurada no
+próprio navegador. **Idioma é uma preferência declarada; onde a pessoa está
+é outro assunto**, e o app não precisa saber.
+
+---
+
+### Exclusão de conta: o que estava quebrado era pior do que parecia
+
+`excluirConta` reautenticava sempre com
+`EmailAuthProvider.credential(email: user.email!, password: senha)`. Quem
+entrou pelo Google ou pela Apple não tem senha do PTK Plays em lugar
+nenhum — e, no caso do "Hide My Email", o `user.email` podia nem ser um
+endereço real. O diálogo ainda exigia preencher o campo de senha pra
+habilitar o botão. Beco sem saída completo, e reprovação na 5.1.1(v).
+
+E apagava **só** `users/{uid}`. Sobravam os posts, a reserva do nickname,
+as fotos no Storage e o uid nas enquetes votadas.
+
+**A ordem da exclusão é a parte que mais fácil se quebra numa refatoração
+futura**, então vale escrever o porquê de cada posição:
+
+- a conta do **Auth cai por último**. As regras do Firestore e do Storage só
+  autorizam apagar o que é "meu" enquanto `request.auth` existe — apagando
+  o login primeiro, todo o resto viraria lixo que só o Admin SDK alcança;
+- `users/{uid}` é o **último documento** do Firestore a sair. A regra de
+  apagar post faz `get()` nele pra descobrir o cargo de quem chama; sem o
+  documento, a regra não avalia e a exclusão dos próprios posts é negada.
+
+**Falhar no meio deixa a conta existindo**, e não meio apagada. É
+deliberado: dá pra tentar de novo. O contrário — login apagado, dados de pé
+— não teria conserto por nenhum caminho que o app alcance.
+
+### Os votos em enquete: o caso que exigiu regra nova
+
+Os votos estão em posts de **outras pessoas**, que o dono não pode apagar.
+Sem regra nova, o uid dele ficaria pra sempre em `votantes` e
+`votosPorUsuario` de cada enquete que votou.
+
+A regra nova deixa ele tirar o próprio uid — e **trava `opcoes`**. Essa
+parte é a que mais parece incompleta e é a mais pensada: o que identifica a
+pessoa é o uid; o total de votos de cada opção é número agregado que não
+aponta pra ninguém. **Tirar o nome e deixar o número é exatamente o que
+anonimizar significa.** E liberar `opcoes` nessa regra daria ao cliente uma
+porta pra reescrever placar de enquete alheia — justamente o que `podeVotar`
+passa o tempo todo impedindo.
+
+Rules não tem subtração de lista. A remoção de um item só se descreve por
+três condições juntas: meu uid não está mais lá, nada novo entrou, e a
+lista encolheu em exatamente um.
+
+### O `delete` do Storage precisava de regra própria
+
+Esta é sutil e vale registrar: numa exclusão o `request.resource` é **nulo**.
+A regra de `write` do `fotos_perfil/` checava `request.resource.size < 5MB`,
+então estourava e negava. O dono nunca conseguiu apagar a própria foto — e
+ninguém tinha percebido, porque até agora ninguém precisava.
+
+### O que continua fora do alcance do app
+
+As mensagens em `mensagensWhatsapp` são indexadas por telefone e só o
+webhook escreve nelas (`write: if false` vale pra todo mundo, admin
+incluído). São **dado pessoal** — telefone e nome de perfil — que sobrevive
+à exclusão da conta. Limpá-las precisa de uma Cloud Function com o Admin
+SDK.
+
+Comentários e curtidas não aparecem na cascata por outro motivo: **não
+existem como documento**. Hoje são só contadores dentro do post.
+
+---
+
+### Por que o "confirmar senha" não tinha defesa
+
+O campo nasceu num mundo onde senha era sempre mascarada: digitar errado só
+aparecia no próximo login, e repetir era a única defesa possível. Aqui o
+campo tem o olho de mostrar/ocultar — dá pra ler o que foi digitado antes
+de seguir, e a defesa já está no lugar sem custar uma segunda digitação.
+
+**O "Confirme o e-mail" fica, e a assimetria é o ponto**: e-mail errado não
+tem conserto de dentro do app — a recuperação de senha vai pro endereço
+errado e a conta fica órfã. Senha errada tem conserto: é só pedir pra
+redefinir, justamente pelo e-mail.
+
+`validarConfirmacaoSenha` saiu junto, e no lugar dela ficou um comentário
+explicando a assimetria — senão a próxima sessão a recria por simetria com
+o `validarConfirmacaoEmail`, que continua ali do lado.
+
+### O texto do WhatsApp precisou mudar porque o campo virou opcional
+
+Enquanto o número era obrigatório, o texto não tinha que convencer ninguém:
+não havia escolha. Agora que dá pra pular, quem não entende o que ganha ao
+preencher pula — e o aviso de live não chega em ninguém, que era o motivo
+de pedir o número.
+
+O usuário deu os três usos: **outra forma de entrar, confirmação de troca
+de senha, e o aviso quando o canal abre ao vivo**. O subtítulo da etapa
+passou a dizer os três.
