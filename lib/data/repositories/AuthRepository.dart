@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/UserModel.dart';
+import '../../i18n/Idioma.dart';
 
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -38,7 +39,7 @@ class AuthRepository {
 
     final mapeamentoExistente = await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).get();
     if (mapeamentoExistente.exists) {
-      throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+      throw FirebaseAuthException(code: 'nickname-em-uso', message: textos.erroNicknameEmUsoCurto);
     }
 
     final credential = await _auth.createUserWithEmailAndPassword(email: email, password: senha);
@@ -83,7 +84,7 @@ class AuthRepository {
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw FirebaseAuthException(code: 'user-not-found', message: 'Sessão expirada.');
+      throw FirebaseAuthException(code: 'user-not-found', message: textos.erroSessaoExpiradaCurta);
     }
 
     final chave = nickname.trim().toLowerCase();
@@ -92,7 +93,7 @@ class AuthRepository {
     // completar o cadastro com o MESMO nick que ja reservou seria barrado
     // pelo proprio registro.
     if (mapeamentoExistente.exists && mapeamentoExistente.data()?['uid'] != user.uid) {
-      throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+      throw FirebaseAuthException(code: 'nickname-em-uso', message: textos.erroNicknameEmUsoCurto);
     }
 
     final email = emailInformado.trim().isNotEmpty ? emailInformado.trim() : (user.email ?? '');
@@ -138,7 +139,7 @@ class AuthRepository {
     if (novaChave != chaveAtual) {
       final mapeamentoExistente = await _firestore.collection('nicknamesParaEmail').doc(novaChave).get();
       if (mapeamentoExistente.exists) {
-        throw FirebaseAuthException(code: 'nickname-em-uso', message: 'Esse nickname já está em uso.');
+        throw FirebaseAuthException(code: 'nickname-em-uso', message: textos.erroNicknameEmUsoCurto);
       }
 
       await _firestore.collection('nicknamesParaEmail').doc(chaveAtual).delete();
@@ -169,7 +170,7 @@ class AuthRepository {
 
     final doc = await _firestore.collection('nicknamesParaEmail').doc(valor.toLowerCase()).get();
     if (!doc.exists) {
-      throw FirebaseAuthException(code: 'user-not-found', message: 'Usuário não encontrado.');
+      throw FirebaseAuthException(code: 'user-not-found', message: textos.erroUsuarioNaoEncontrado);
     }
 
     return doc.data()!['email'] as String;
@@ -257,7 +258,7 @@ class AuthRepository {
     if (!doc.exists) {
       final novoUsuario = UserModel.novoInscrito(
         uid: user.uid,
-        nickname: user.displayName ?? nicknameSugerido ?? user.email?.split('@').first ?? 'Jogador',
+        nickname: user.displayName ?? nicknameSugerido ?? user.email?.split('@').first ?? textos.cargoJogador,
         email: user.email ?? '',
         fotoUrl: user.photoURL ?? '',
       );
