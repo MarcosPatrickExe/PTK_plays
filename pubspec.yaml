@@ -13,6 +13,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Traducoes prontas dos widgets do proprio Material (o "OK"/"Cancelar" de
+  # dialogo de data, o rotulo do seletor de hora, os textos de
+  # acessibilidade). Sem isso o MaterialApp so fala ingles nessas pecas, e o
+  # app ficaria metade em portugues e metade em ingles nas telas que as
+  # usam. O catalogo em lib/i18n cuida do texto NOSSO; este pacote cuida do
+  # que vem de dentro do framework.
+  flutter_localizations:
+    sdk: flutter
   http: ^1.1.0
   youtube_player_flutter: ^9.1.3
   google_fonts: ^6.3.2
