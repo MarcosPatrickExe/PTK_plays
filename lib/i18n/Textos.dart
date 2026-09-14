@@ -370,4 +370,9 @@ abstract class Textos {
   String get seloEnquete;
   String get seloLive;
   String get adminVocePrefixo;
+
+  // ----- Exclusao da propria conta -----
+  String get perfilExcluirContaOQueSai;
+  String get perfilExcluirContaSocial;
+  String get perfilExcluirContaDigiteSenha;
 }
