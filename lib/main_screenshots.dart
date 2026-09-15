@@ -135,6 +135,15 @@ class FakeAuthViewModel implements AuthViewModel {
 }
 
 class FakePostRepository implements PostRepository {
+  // Nas capturas da loja as curtidas sao so numero: as miniaturas exigiriam
+  // perfis de verdade, e inventar gente pra foto de divulgacao e
+  // exatamente o que nao se faz.
+  @override
+  Future<void> curtirPost({required String postId, required String uid, required bool curtir}) async {}
+
+  @override
+  Future<List<UserModel>> perfisDeQuemCurtiu(List<String> uids, {int limite = 3}) async => const [];
+
   static final List<PostModel> _posts = [
     PostModel(
       id: 'p1',
