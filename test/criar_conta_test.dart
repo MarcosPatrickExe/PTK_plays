@@ -16,6 +16,20 @@ import 'package:ptk_plays/viewmodels/YoutubeVideoModel.dart';
 class FakeAuthViewModel implements AuthViewModel {
   final List<Map<String, String>> cadastros = [];
 
+  /// E-mails que o "servidor" considera já cadastrados. Vazio por padrão:
+  /// o fluxo normal dos testes precisa correr até o fim sem parar no modal.
+  Set<String> emailsOcupados = const {};
+
+  /// Quantas vezes a etapa de e-mail consultou o servidor. É o que prova
+  /// que a consulta acontece no toque em "Avançar", e não a cada tecla.
+  int consultasDeEmail = 0;
+
+  @override
+  Future<bool> emailJaCadastrado(String email) async {
+    consultasDeEmail++;
+    return emailsOcupados.contains(email.trim().toLowerCase());
+  }
+
   @override
   Future<String?> cadastrar({
     required String nickname,
@@ -60,12 +74,13 @@ Widget _tela({
   bool contaSocial = false,
   String? nicknameSugerido,
   String? emailDoProvedor = 'pessoa@gmail.com',
+  FakeAuthViewModel? authViewModel,
 }) {
   return MaterialApp(
     home: CriarConta(
       viewmodelYT: FakeYoutubeViewModel(),
       apiKey: 'chave-de-teste',
-      authViewModel: FakeAuthViewModel(),
+      authViewModel: authViewModel ?? FakeAuthViewModel(),
       contaSocial: contaSocial,
       nicknameSugerido: nicknameSugerido,
       emailDoProvedor: emailDoProvedor,
@@ -295,6 +310,79 @@ void main() {
       expect(find.text('Confirme a senha'), findsNothing);
     });
 
+    testWidgets('e-mail já cadastrado para a etapa, com modal e botão travado', (tester) async {
+      // Sem isto, o duplicado só aparecia NO FIM do cadastro, quando o
+      // Firebase recusava — depois de a pessoa já ter escolhido nick,
+      // senha, foto e WhatsApp. Perder tudo isso pra descobrir que já
+      // tinha conta é o que faz desistir em vez de voltar e entrar.
+      final auth = FakeAuthViewModel()..emailsOcupados = {'jaexiste@teste.com'};
+      await tester.pumpWidget(_tela(authViewModel: auth));
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester);
+
+      final campos = find.byType(TextField);
+      await tester.enterText(campos.at(0), 'jaexiste@teste.com');
+      await tester.enterText(campos.at(1), 'jaexiste@teste.com');
+      await _esperarBotao(tester);
+
+      // A consulta só acontece no toque, e não a cada tecla: por letra
+      // seriam dezenas de consultas por cadastro, e um oráculo aberto pra
+      // perguntar de fora quais e-mails têm conta aqui.
+      expect(auth.consultasDeEmail, 0);
+
+      await _tocarEmAvancar(tester);
+      await tester.pumpAndSettle();
+
+      expect(auth.consultasDeEmail, 1);
+      expect(find.text('Esse e-mail já tem conta'), findsOneWidget);
+
+      // Fechado o modal, a etapa continua sendo a de e-mail.
+      await tester.tap(find.text('Fechar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Qual é o seu e-mail?'), findsOneWidget);
+
+      // E o botão segue travado, com o aviso no campo.
+      expect(find.text('Esse e-mail já está em uso.'), findsWidgets);
+      await _tocarEmAvancar(tester);
+      expect(find.text('Qual é o seu e-mail?'), findsOneWidget);
+    });
+
+    testWidgets('trocar o e-mail destrava o botão de novo', (tester) async {
+      final auth = FakeAuthViewModel()..emailsOcupados = {'jaexiste@teste.com'};
+      await tester.pumpWidget(_tela(authViewModel: auth));
+      await tester.pump();
+
+      await _tocarEmAvancar(tester);
+      await tester.enterText(find.byType(TextField), 'PTKzin');
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester);
+
+      final campos = find.byType(TextField);
+      await tester.enterText(campos.at(0), 'jaexiste@teste.com');
+      await tester.enterText(campos.at(1), 'jaexiste@teste.com');
+      await _esperarBotao(tester);
+      await _tocarEmAvancar(tester);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fechar'));
+      await tester.pumpAndSettle();
+
+      // Endereço novo: o travamento cai assim que a pessoa mexe no campo,
+      // sem precisar de outra ida ao servidor pra liberar a digitação.
+      await tester.enterText(campos.at(0), 'outro@teste.com');
+      await tester.enterText(campos.at(1), 'outro@teste.com');
+      await _esperarBotao(tester);
+
+      expect(find.text('Esse e-mail já está em uso.'), findsNothing);
+
+      await _tocarEmAvancar(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Agora crie uma senha'), findsOneWidget);
+    });
+
     testWidgets('voltar desfaz a etapa sem perder o que já foi digitado', (tester) async {
       await tester.pumpWidget(_tela());
       await tester.pump();
@@ -344,6 +432,46 @@ void main() {
       // O título continua: é ele que diz o que está sendo preenchido.
       expect(find.text('Como a gente\nte chama?'), findsOneWidget);
       expect(find.text(subtitulo), findsNothing);
+    });
+
+    testWidgets('o PTK some inteiro enquanto o teclado está aberto', (tester) async {
+      // A `ondaCheia` cobre quase tudo, mas deixa uma faixa colorida de
+      // uns 10% no alto — e era ali que sobrava um PTK espremido, pequeno
+      // demais pra se reconhecer e grande o bastante pra disputar atenção
+      // com o campo que a pessoa está preenchendo.
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      expect(find.byType(Image), findsWidgets);
+
+      final view = tester.view;
+      view.viewInsets = const FakeViewPadding(bottom: 600);
+      addTearDown(view.resetViewInsets);
+
+      await tester.pump();
+      // O cross-fade de saída do FundoPTK leva 520ms.
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('o subtítulo usa a linha inteira; só o título é estreitado', (tester) async {
+      // O cabeçalho inteiro era estreitado pra o título caber embaixo do
+      // cume da onda sem esbarrar na curva do outro lado. O subtítulo vem
+      // abaixo, onde a curva já desceu, e herdava a restrição à toa — o
+      // resultado era uma explicação de quatro linhas curtas com metade da
+      // largura vazia ao lado.
+      await tester.pumpWidget(_tela());
+      await tester.pump();
+      await _tocarEmAvancar(tester);
+
+      final larguraDoTitulo = tester.getSize(find.text('Como a gente\nte chama?')).width;
+      final larguraDoSubtitulo = tester
+          .getSize(find.text('Esse é o nick que vai aparecer nos seus posts e comentários dentro do app.'))
+          .width;
+
+      expect(larguraDoSubtitulo, greaterThan(larguraDoTitulo));
     });
 
     testWidgets('conta social com e-mail real vai do nick direto pra foto', (tester) async {
