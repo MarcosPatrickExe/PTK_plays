@@ -91,6 +91,11 @@ class FakeAuthViewModel implements AuthViewModel {
   Future<({String? erro, bool contaNova, BloqueioDaConta? bloqueio})> loginComApple() async =>
       (erro: null, contaNova: false, bloqueio: null);
 
+  // Nas capturas nenhum e-mail esta ocupado: o fluxo tem que correr ate o
+  // fim sem parar num modal.
+  @override
+  Future<bool> emailJaCadastrado(String email) async => false;
+
   @override
   FormaDeReautenticar get formaDeReautenticar => FormaDeReautenticar.senha;
 
