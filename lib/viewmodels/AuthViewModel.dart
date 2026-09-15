@@ -184,6 +184,29 @@ class AuthViewModel {
   }
 
   /// Retorna null em caso de sucesso, ou uma mensagem de erro traduzida.
+  /// Se ja existe conta com este e-mail. Ver
+  /// [AuthRepository.emailJaCadastrado] sobre o que este pre-teste alcanca
+  /// e o que ele nao alcanca.
+  ///
+  /// Qualquer falha devolve **false**, e nao um erro: o pre-teste e uma
+  /// gentileza pra avisar cedo, nao a checagem de verdade. Travar o
+  /// cadastro porque a funcao nao respondeu seria trocar um aviso
+  /// antecipado por uma porta fechada — e quem barra o duplicado de fato e
+  /// o Firebase Auth, no fim do fluxo.
+  ///
+  /// Isso cobre inclusive o `resource-exhausted`, que a funcao lanca quando
+  /// alguem esta varrendo enderecos. O app de verdade nunca chega perto do
+  /// limite; se chegar, o cadastro segue sem o aviso antecipado em vez de
+  /// parar.
+  Future<bool> emailJaCadastrado(String email) async {
+    try {
+      return await _repository.emailJaCadastrado(email);
+    } catch (e, stack) {
+      debugPrint('pre-teste de e-mail repetido falhou: $e\n$stack');
+      return false;
+    }
+  }
+
   /// Como a conta logada consegue provar que e ela mesma pra apagar a
   /// propria conta. A tela usa isso pra decidir se pede senha ou se abre a
   /// folha do Google/Apple.

@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'dart:math';
 import 'dart:typed_data' show Uint8List;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -20,6 +21,17 @@ import '../../i18n/Idioma.dart';
 /// conta, e cada provedor reautentica de um jeito. Ver
 /// [AuthRepository.formaDeReautenticar].
 enum FormaDeReautenticar { senha, google, apple }
+
+/// A forma em que o e-mail e guardado e comparado: sem espaco e em
+/// minusculas.
+///
+/// Existe porque a consulta do Firestore e **sensivel a maiuscula** e nao
+/// tem como pedir o contrario. Sem normalizar na escrita e na leitura,
+/// "Fulano@Gmail.com" e "fulano@gmail.com" seriam dois enderecos
+/// diferentes pro pre-teste de e-mail repetido — e ele deixaria passar o
+/// duplicado que estava tentando evitar. O proprio Firebase Auth ja guarda
+/// o e-mail em minusculas.
+String emailNormalizado(String email) => email.trim().toLowerCase();
 
 /// A decisao em si, separada do Firebase pra poder ser testada.
 ///
@@ -86,8 +98,42 @@ class AuthRepository {
 
     await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).set({
       'uid': uid,
-      'email': email,
+      'email': emailNormalizado(email),
     });
+  }
+
+  /// Se ja existe conta com este e-mail.
+  ///
+  /// **Pergunta pra uma Cloud Function, e nao pro Firestore.** A primeira
+  /// versao consultava `nicknamesParaEmail` direto daqui, e pra isso aquela
+  /// colecao precisava ficar listavel por qualquer um — ela guarda o
+  /// e-mail de todo mundo. A funcao devolve so um booleano, a colecao
+  /// voltou a ser fechada pra listagem, e o servidor consegue contar
+  /// quantas perguntas cada origem faz (ver `functions/src/preTesteDeEmail.js`).
+  ///
+  /// Do outro lado ela usa `getUserByEmail` do Admin SDK, que enxerga
+  /// **toda** conta do Auth — inclusive a de quem entrou pelo Google/Apple
+  /// e abandonou o cadastro antes de reservar o nick, caso que a consulta
+  /// ao Firestore deixava passar por livre.
+  ///
+  /// O `fetchSignInMethodsForEmail` do cliente nao serve pra isso: foi
+  /// descontinuado por ser um oraculo de enumeracao e, com a protecao
+  /// contra enumeracao ligada no Console (padrao em projeto novo), devolve
+  /// lista vazia sempre — um pre-teste em cima dele mentiria dizendo que
+  /// todo e-mail esta livre.
+  ///
+  /// A regiao e a mesma declarada na funcao. Errar a regiao aqui nao da
+  /// erro de compilacao: da "not found" em tempo de execucao, que parece
+  /// funcao inexistente.
+  Future<bool> emailJaCadastrado(String email) async {
+    final alvo = emailNormalizado(email);
+    if (alvo.isEmpty) return false;
+
+    final funcao = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('emailJaCadastrado');
+    final resposta = await funcao.call<Map<String, dynamic>>({'email': alvo});
+
+    return resposta.data['existe'] == true;
   }
 
   /// Completa o perfil de quem entrou pelo Google/Apple e caiu no cadastro
@@ -146,7 +192,7 @@ class AuthRepository {
     // depois — o login por nick resolve o e-mail justamente por aqui.
     await _firestore.collection('nicknamesParaEmail').doc(chave).set({
       'uid': user.uid,
-      'email': email,
+      'email': emailNormalizado(email),
     });
   }
 

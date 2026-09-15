@@ -2479,3 +2479,100 @@ na regra, ou entra uma Cloud Function.
 **Badge de "primeiro compartilhador"** — ideia do usuário, ganha ao
 compartilhar o app com pelo menos uma pessoa. Depende do compartilhar
 existir, e ele está na barra como "Em breve".
+
+### O pré-teste de e-mail virou Cloud Function (15/set/2026)
+
+A primeira versão do pré-teste consultava `nicknamesParaEmail` direto do
+app. Funcionava, e eu registrei na mesma hora o que ela custava: pra
+consultar, aquela coleção precisava ficar **listável por qualquer um** — e
+ela guarda o e-mail de todo mundo. O usuário mandou fazer a função.
+
+### A exposição que isso destravou consertar
+
+`allow read: if true` cobre **`get` e `list`**. Não era só "dá pra ler um
+documento se você souber o nickname": era **dá pra baixar a coleção
+inteira**, logado ou não. Todos os nicknames, e-mails e uids do app, num
+`get()` sem filtro.
+
+A leitura aberta existe por um motivo real e continua: o login por nickname
+resolve nick → e-mail **antes** de haver sessão, e pra isso lê um documento
+pelo id. Listar nunca foi necessário pra esse fluxo — foi só o efeito
+colateral de `read` cobrir os dois.
+
+**Os dois não conviviam.** Enquanto o pré-teste fosse uma consulta do
+cliente, fechar a listagem quebrava o pré-teste. Foi por isso que a versão
+anterior ficou com a exposição em pé e uma nota no `CHECKPOINT.md` em vez
+de um conserto.
+
+### Como a listagem ficou fechada sem quebrar o que precisava dela
+
+```
+allow list: if ehAdmin() || (estaLogado() && resource.data.uid == request.auth.uid);
+```
+
+Duas listagens legítimas sobreviveram: a exclusão da própria conta e a
+remoção em cascata do Painel ADM (ambas procuram a reserva pelo `uid`,
+porque ela é indexada pelo nickname).
+
+O mecanismo que faz isso funcionar merece registro, porque não é óbvio:
+regras de Firestore **não filtram** consulta. Quando a regra menciona
+`resource.data.uid`, a consulta só passa se **todo** documento que ela
+pudesse devolver satisfizer a condição — ou seja, o cliente é obrigado a
+filtrar por `uid == o meu`. Uma consulta mais larga não devolve "só o que
+pode": ela é recusada inteira.
+
+### O que a função enxerga a mais que a consulta
+
+`getUserByEmail` do Admin SDK cobre **toda** conta do Firebase Auth. A
+consulta ao Firestore só encontrava quem já tinha reservado um nickname —
+quem entrou pelo Google/Apple e abandonou antes dessa etapa passava por
+livre. O pré-teste ficou mais correto de brinde.
+
+### Por que `fetchSignInMethodsForEmail` não era opção
+
+É o caminho que todo tutorial mostra, e ele está morto por este exato
+motivo: era um oráculo de enumeração aberto. Com a **proteção contra
+enumeração** ligada no Console — padrão em projeto novo desde 2023 — ele
+devolve lista vazia **sempre**. Um pré-teste em cima dele não daria erro:
+mentiria, dizendo que todo e-mail está livre. É o pior tipo de falha,
+porque parece funcionar.
+
+### O limite de frequência, e o que ele não é
+
+Mover a pergunta pro servidor não elimina o oráculo — só coloca uma porta
+nele. A porta é um contador por origem, 30 perguntas por hora.
+
+Folgado de propósito: um cadastro faz **uma** consulta, e mesmo quem erra o
+endereço várias vezes não chega perto. O número existe pra quebrar o script
+que testaria milhões de endereços, não pra apertar quem está se cadastrando.
+
+**Não é o App Check**, que é a defesa de verdade — só o app de verdade
+consegue chamar a função. Enquanto ele não estiver ligado no Console, o
+contador é o que existe, e ele quebra um script mas não um atacante
+distribuído. Isso está escrito no `CHECKPOINT.md` como pendência.
+
+Três decisões dentro do contador:
+
+- **O identificador é um hash do IP**, não o IP. Guardar uma lista de IPs
+  pra contar requisição seria criar um registro de quem tentou se cadastrar
+  e quando — dado que ninguém pediu e que teria que ser protegido. O hash
+  conta igual e não identifica ninguém depois.
+- **A janela de tempo entra na chave do documento**, não num campo. É o que
+  dispensa uma transação pra "zerar" o contador quando o relógio vira: o
+  intervalo novo simplesmente escreve em outro documento.
+- **A transação é necessária** no incremento, apesar disso. Duas chamadas
+  simultâneas da mesma origem leriam o mesmo contador e gravariam o mesmo
+  valor — o limite viraria decorativo justamente sob a carga que ele existe
+  pra conter.
+
+### A regra que atravessa a função inteira: falhar liberando
+
+Falha do Firestore, falha do Auth, estouro do limite — **tudo** responde
+"não existe" e deixa o cadastro seguir. O pré-teste é uma gentileza pra
+avisar cedo; quem barra o duplicado de verdade é o
+`createUserWithEmailAndPassword`, no fim do fluxo.
+
+Derrubar um cadastro porque uma checagem opcional não respondeu seria
+trocar um aviso antecipado por uma porta fechada. Vale inclusive pro
+contador: um limite que não consegue contar não pode virar um cadastro que
+não acontece.

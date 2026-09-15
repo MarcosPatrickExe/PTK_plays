@@ -217,7 +217,7 @@ void main() {
       expect(find.byType(Image), findsOneWidget);
     });
 
-    testWidgets('a arte fica dentro da faixa acima da onda, com folga no topo', (tester) async {
+    testWidgets('a arte COBRE a faixa acima da onda, de ponta a ponta', (tester) async {
       const onda = FormaDaOnda(
         alturaEsquerda: .5,
         alturaDireita: .45,
@@ -233,14 +233,19 @@ void main() {
       final tela = tester.getSize(find.byType(FundoPTK));
       final arte = tester.getRect(find.byType(Image));
 
-      // As artes são quadradas: cobrir a tela inteira com elas cortaria mais
-      // de um terço da largura, justo onde está o @ e a logo do WhatsApp. Por
-      // isso a arte é enquadrada na faixa colorida, que vai até o ponto mais
-      // baixo da onda.
+      // A arte vai até o ponto mais baixo da onda, e não além: dali pra
+      // baixo a faixa branca cobre a largura toda, e nada desenhado ali
+      // seria visto.
       expect(arte.bottom, lessThanOrEqualTo(tela.height * onda.fundoDaCurva + 1));
-      // E não encosta na borda de cima: o cabelo (e o celular da selfie, que
-      // sobe mais que a cabeça) precisam de ar.
-      expect(arte.top, greaterThan(0));
+
+      // **Encosta na borda de cima, e isso é o novo contrato.** Até 15/set
+      // sobrava uma folga ali, porque a arte vinha recortada e era
+      // encaixada com `contain` — a folga impedia o cabelo de tocar a
+      // borda. Agora a arte traz o cenário original dela e cobre a faixa
+      // inteira: qualquer folga no topo mostraria o gradiente do app atrás,
+      // com uma emenda horizontal no meio da tela.
+      expect(arte.top, lessThanOrEqualTo(0.5));
+      expect(arte.width, greaterThanOrEqualTo(tela.width - 1));
     });
 
     testWidgets('a logo das boas-vindas cabe inteira na faixa colorida acima do cume', (tester) async {

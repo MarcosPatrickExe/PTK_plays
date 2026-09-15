@@ -699,4 +699,14 @@ class TextosPtBr extends Textos {
   String get feedSejaOPrimeiroACurtir => 'Seja a primeira pessoa a curtir';
   @override
   String feedMaisPessoas(int quantas) => '+$quantas';
+
+  // ----- E-mail ja cadastrado -----
+  @override
+  String get cadastroEmailJaExisteTitulo => 'Esse e-mail já tem conta';
+  @override
+  String get cadastroEmailJaExisteTexto => 'Já existe uma conta no PTK Plays com esse e-mail. Use outro endereço, ou volte e entre com esse — dá pra recuperar a senha pelo link do menu, se você esqueceu.';
+  @override
+  String get cadastroEmailJaExisteCampo => 'Esse e-mail já está em uso.';
+  @override
+  String get cadastroConferindoEmail => 'Conferindo o e-mail...';
 }

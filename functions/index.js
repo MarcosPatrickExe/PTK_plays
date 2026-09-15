@@ -1,11 +1,20 @@
-const { onRequest } = require('firebase-functions/v2/https');
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const { getMessaging } = require('firebase-admin/messaging');
 const logger = require('firebase-functions/logger');
 const { getFirestore } = require('firebase-admin/firestore');
 const { verificarHandshakeWebhook, assinaturaValida, extrairEventosDoWebhook } = require('./src/webhook');
+const {
+  normalizarEmail,
+  emailPareceValido,
+  chaveDeFrequencia,
+  dentroDoLimite,
+  JANELA_EM_MS,
+  RESPOSTA_LIVRE,
+} = require('./src/preTesteDeEmail');
 const { verificarYoutubeAoVivo } = require('./lib/youtube');
 const { twitchWebhook } = require('./lib/twitch');
 const { kickWebhook, kickAuthStart, kickOAuthCallback } = require('./lib/kick');
@@ -158,3 +167,105 @@ exports.notificarAoVivo = onDocumentCreated(
     });
   },
 );
+
+// Onde ficam os contadores do controle de frequencia do pre-teste. Cada
+// documento e uma origem numa janela de uma hora (ver chaveDeFrequencia), e
+// carrega `expiraEm` pra uma politica de TTL do Firestore poder varrer os
+// antigos. **Sem essa politica configurada no Console, os documentos so
+// acumulam** — sao pequenos, mas acumulam.
+const COLECAO_LIMITE_PRE_TESTE = 'limitesDePreTesteDeEmail';
+
+/**
+ * Responde se ja existe conta com um e-mail. So isso: um booleano.
+ *
+ * Existe pra pessoa descobrir **na etapa de e-mail** que ja tem conta, e
+ * nao no fim do cadastro — depois de ja ter escolhido nick, senha, foto e
+ * WhatsApp. Perder tudo isso pra descobrir que era so entrar e o que faz
+ * desistir em vez de voltar.
+ *
+ * **Por que uma funcao, e nao uma consulta do app.** Perguntar "esse e-mail
+ * tem conta?" e um oraculo de enumeracao por definicao. A versao anterior
+ * consultava `nicknamesParaEmail` direto do cliente, e pra isso aquela
+ * colecao precisava ficar **listavel por qualquer um** — ela guarda o
+ * e-mail de todo mundo. Aqui o servidor devolve so o booleano, a colecao
+ * voltou a ser fechada pra listagem, e da pra contar quantas perguntas cada
+ * origem faz.
+ *
+ * `getUserByEmail` tambem responde melhor que a consulta ao Firestore: ele
+ * enxerga toda conta do Auth, inclusive a de quem entrou pelo Google/Apple
+ * e abandonou o cadastro antes de reservar o nick — caso que a consulta
+ * deixava passar por livre.
+ *
+ * **Regiao declarada aqui, e nunca via setGlobalOptions**: o global moveria
+ * o `whatsappWebhook` de us-central1 e quebraria a URL cadastrada na Meta.
+ *
+ * **Falha de infraestrutura responde "nao existe"**, e nao erro. O
+ * pre-teste e uma gentileza pra avisar cedo; quem barra o duplicado de
+ * verdade e o Auth, no `createUserWithEmailAndPassword`. Derrubar o
+ * cadastro porque o Firestore piscou seria trocar um aviso antecipado por
+ * uma porta fechada.
+ */
+exports.emailJaCadastrado = onCall(
+  { region: 'southamerica-east1', cors: true },
+  async (request) => {
+    const email = normalizarEmail(request.data && request.data.email);
+
+    // Texto que nao tem chance de ser endereco nao gasta consulta ao Auth
+    // nem vaga no limite de quem chamou.
+    if (!emailPareceValido(email)) return RESPOSTA_LIVRE;
+
+    const passou = await registrarPerguntaDoPreTeste(request.rawRequest && request.rawRequest.ip);
+    if (!passou) {
+      // Este SIM e erro, e proposital: chegar aqui significa que alguem
+      // esta varrendo enderecos, e o app de verdade nunca chega perto do
+      // limite. O cliente trata como "nao sei" e segue o cadastro.
+      throw new HttpsError('resource-exhausted', 'Muitas consultas seguidas.');
+    }
+
+    try {
+      await getAuth().getUserByEmail(email);
+      return { existe: true };
+    } catch (erro) {
+      if (erro && erro.code === 'auth/user-not-found') return RESPOSTA_LIVRE;
+      logger.error('pre-teste de e-mail falhou', erro);
+      return RESPOSTA_LIVRE;
+    }
+  },
+);
+
+/**
+ * Conta mais uma pergunta pra esta origem e diz se ela cabia no limite.
+ *
+ * Usa transacao porque duas chamadas simultaneas da mesma origem leriam o
+ * mesmo contador e gravariam o mesmo valor — e o limite viraria decorativo
+ * justamente sob a carga que ele existe pra conter.
+ *
+ * Falha de leitura/escrita **libera** a pergunta: um limite que nao
+ * consegue contar nao pode virar um cadastro que nao acontece.
+ */
+async function registrarPerguntaDoPreTeste(ip) {
+  const agora = Date.now();
+  const chave = chaveDeFrequencia(ip, agora, JANELA_EM_MS);
+  const db = getFirestore();
+  const ref = db.collection(COLECAO_LIMITE_PRE_TESTE).doc(chave);
+
+  try {
+    return await db.runTransaction(async (transacao) => {
+      const doc = await transacao.get(ref);
+      const contagem = doc.exists ? doc.data().contagem || 0 : 0;
+
+      if (!dentroDoLimite(contagem)) return false;
+
+      transacao.set(ref, {
+        contagem: contagem + 1,
+        // Pra uma politica de TTL do Firestore varrer sozinha. Sem a
+        // politica configurada, o campo e so informativo.
+        expiraEm: new Date(agora + 2 * JANELA_EM_MS),
+      });
+      return true;
+    });
+  } catch (erro) {
+    logger.error('controle de frequencia do pre-teste falhou', erro);
+    return true;
+  }
+}

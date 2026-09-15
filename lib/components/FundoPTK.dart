@@ -186,21 +186,20 @@ const FormaDaOnda ondaInteira = FormaDaOnda(
 /// como glitch. A **onda** troca junto, animada, o que dá a cada tela um
 /// desenho próprio em vez de seis telas iguais com o texto trocado.
 ///
-/// As artes têm o fundo recortado (PNG/WebP com transparência), então quem
-/// pinta a área de cima é o [gradienteDoCenario] daqui — o PTK fica por
-/// cima dele sem nenhuma emenda visível. Foi por isso que o fundo original
-/// das artes saiu: o retângulo delas denunciava onde a imagem acabava.
-/// A imagem é enquadrada na faixa acima da onda e não recebe escurecimento
-/// — o texto todo vive na parte branca.
+/// **As artes vêm com o cenário original delas** (15/set). Por um tempo
+/// elas foram usadas recortadas, com o fundo tirado, porque enquadradas com
+/// `contain` o retângulo do quadrado denunciava onde a imagem acabava. O
+/// recorte resolvia a emenda e custava o cenário inteiro — as luzes, o
+/// risco roxo, as estrelinhas.
+///
+/// Com `cover` a emenda não existe: o quadrado cobre a faixa colorida de
+/// ponta a ponta, e o cenário da arte **é** o fundo. O [gradienteDoCenario]
+/// continua atrás, agora só pra enquanto a imagem carrega.
+///
+/// A imagem não recebe escurecimento — o texto todo vive na parte branca.
 class FundoPTK extends StatelessWidget {
   final String? asset;
   final FormaDaOnda onda;
-
-  /// O quanto da faixa colorida a arte ocupa em altura, medido **a partir
-  /// da onda pra cima**. Abaixo de 1, a folga sai no topo: é o que impede
-  /// o cabelo (e o celular da selfie, que sobe mais que a cabeça) de
-  /// encostar na borda de cima da tela. Os pés continuam colados na onda.
-  final double alturaDaArte;
 
   /// Logo mostrada no lugar da arte, na etapa que não tem uma. Fica
   /// centralizada na área colorida, com o degradê que a funde no fundo.
@@ -217,7 +216,6 @@ class FundoPTK extends StatelessWidget {
     super.key,
     required this.asset,
     required this.onda,
-    this.alturaDaArte = .90,
     this.logo,
     this.desenharOnda = true,
   });
@@ -232,38 +230,40 @@ class FundoPTK extends StatelessWidget {
     stops: [0, .55, 1],
   );
 
-  /// A arte enquadrada na faixa colorida — a parte da tela acima da onda.
+  /// A arte cobrindo a faixa colorida — a parte da tela acima da onda.
   ///
-  /// `contain` dentro dessa faixa, e não `cover` na tela inteira: as artes
-  /// são **quadradas**, e cobrir uma tela de celular (bem mais alta que
-  /// larga) com um quadrado exigiria cortar mais de um terço da largura —
-  /// justamente o @ e a logo do WhatsApp que o PTK segura.
+  /// **`cover`, e não `contain`.** As artes são quadradas e a faixa é mais
+  /// alta que larga, então `contain` encaixava o quadrado pela largura e
+  /// deixava uma sobra de gradiente em cima dele — com uma emenda
+  /// horizontal visível bem no meio da tela. Era essa emenda que obrigava a
+  /// recortar o fundo das artes.
+  ///
+  /// O corte que o `cover` faz é nas **laterais**, e o personagem está
+  /// centralizado: o que sai é cenário. Numa tela de celular a conta dá
+  /// corte zero na vertical — a faixa é mais alta que larga, então o
+  /// quadrado é escalado pela altura e sobra largura pra cortar.
   ///
   /// A faixa vai até [FormaDaOnda.fundoDaCurva], o ponto **mais baixo** da
   /// onda: daí pra baixo a faixa branca cobre a largura toda, então nada
-  /// que a arte desenhe ali seria visto. Ancorar embaixo faz o PTK sair de
-  /// trás da onda, em vez de flutuar com um vão embaixo dele.
+  /// que a arte desenhe ali seria visto.
   Widget _arte() {
     return LayoutBuilder(
       key: ValueKey(asset),
       builder: (context, restricoes) {
-        final faixa = restricoes.maxHeight * onda.fundoDaCurva;
-
         return Align(
           alignment: Alignment.topCenter,
-          // A folga entra como recuo no topo, e não encolhendo a caixa: a
-          // base da arte precisa continuar encostada na onda, senão o PTK
-          // flutua com um vão de gradiente embaixo dos pés.
-          child: Padding(
-            padding: EdgeInsets.only(top: faixa * (1 - alturaDaArte)),
-            child: SizedBox(
-              height: faixa * alturaDaArte,
-              width: double.infinity,
-              child: Image.asset(
-                asset!,
-                fit: BoxFit.contain,
-                alignment: Alignment.bottomCenter,
-              ),
+          child: SizedBox(
+            height: restricoes.maxHeight * onda.fundoDaCurva,
+            width: double.infinity,
+            child: Image.asset(
+              asset!,
+              fit: BoxFit.cover,
+              // O topo é o que não pode ser cortado: é onde estão a cabeça
+              // e, na selfie, o celular que sobe mais que ela. Numa faixa
+              // baixa e larga (tablet em paisagem) o corte vertical existe,
+              // e ancorar no topo garante que ele saia de baixo — onde a
+              // onda já cobriria de qualquer jeito.
+              alignment: Alignment.topCenter,
             ),
           ),
         );
