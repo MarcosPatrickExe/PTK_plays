@@ -502,6 +502,7 @@ class AuthRepository {
     await _apagarEmLote(posts.docs.map((doc) => doc.reference));
 
     await _removerVotosEmEnquetes(uid);
+    await _removerCurtidas(uid);
 
     // Indexada pelo nickname, nao pelo uid — por isso vem por consulta. Sem
     // apagar, o nick fica preso pra sempre a uma conta que nao existe mais.
@@ -531,6 +532,21 @@ class AuthRepository {
       await doc.reference.update({
         'votantes': FieldValue.arrayRemove([uid]),
         'votosPorUsuario.$uid': FieldValue.delete(),
+      });
+    }
+  }
+
+  /// Tira o uid dos posts que a pessoa curtiu — inclusive dos outros, que
+  /// ela nao pode apagar.
+  ///
+  /// Diferente das enquetes, aqui nao sobra numero nenhum: a contagem de
+  /// curtidas **e** o tamanho da lista, entao sair da lista ja desconta.
+  Future<void> _removerCurtidas(String uid) async {
+    final curtidos = await _firestore.collection('posts').where('curtidoPor', arrayContains: uid).get();
+
+    for (final doc in curtidos.docs) {
+      await doc.reference.update({
+        'curtidoPor': FieldValue.arrayRemove([uid]),
       });
     }
   }
