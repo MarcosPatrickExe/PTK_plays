@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **14/set/2026** (segunda atualização do dia), escrito pra retomar o
+Snapshot do estado do projeto em **15/set/2026**, escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -22,33 +22,25 @@ Só entra aqui o que **bloqueia trabalho** ou o que faria a próxima sessão
 quebrar algo por não saber. Cada item diz o que fazer, não só o que está
 pendente.
 
-1. **As regras novas do Firestore e do Storage PRECISAM ser publicadas —
-   sem elas, apagar a conta falha na metade.**
+1. **`firestore.rules` PRECISA ser publicado de novo — e desta vez
+   publicar post para de funcionar sem isso.**
 
-   *O que é*: a exclusão de conta passou a apagar tudo que está preso ao
-   uid (14/set, ver "Exclusão de conta" mais abaixo). Três dessas remoções
-   dependem de regras que **só existem no repositório**, ainda não no
-   Firebase:
-   - `nicknamesParaEmail`: o dono passou a poder apagar a própria reserva
-     (antes, só admin);
-   - `posts`: o dono passou a poder tirar o próprio uid de `votantes` e
-     `votosPorUsuario` em enquetes **dos outros**;
-   - `storage.rules`: `delete` ganhou regra própria em `fotos_perfil/` e
-     `posts_midia/` — a de `write` não cobria, porque numa exclusão o
-     `request.resource` é nulo e a condição de tamanho estourava.
+   *O que é*: as curtidas (15/set) trocaram o campo `curtidas` (um `int`
+   que ninguém incrementava) pela lista `curtidoPor`. A regra de `create`
+   de post mudou junto: ela exigia `curtidas == 0` e agora exige
+   `curtidoPor == []`.
 
-   *Por que é atenção*: sem publicar, a exclusão **falha no meio**. O
-   desenho é que falhar deixe a conta **existindo** (e não meio apagada),
-   então dá pra tentar de novo — mas de fora parece um bug, e ninguém vai
-   ligar o erro à falta do deploy se isto não estiver escrito.
+   *Por que é mais grave que o normal*: não é só a curtida que quebra sem o
+   deploy. **Publicar qualquer post passa a ser recusado**, porque o app
+   manda `curtidoPor` e a regra publicada ainda procura `curtidas`.
 
    *O que fazer*, no Cloud Shell:
    ```
    firebase deploy --only firestore:rules
-   firebase deploy --only storage
    ```
-   Atenção: `--only storage:rules` **não funciona** (o CLI lê "rules" como
-   nome de target).
+
+   *O deploy anterior (exclusão de conta) já foi feito* — confirmado por
+   print do Cloud Shell em 14/set, junto com o `--only storage`.
 
 2. **Conta banida agora é EXPULSA pro login — e o login dela continua
    existindo, de propósito.**
@@ -330,6 +322,79 @@ encaminha mas não serve pra contato nem pra reconhecer a pessoa.
 Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
 verificação e mexeria no vínculo com a Apple, que é a identidade da conta —
 risco alto pra ganho baixo.
+
+## Curtidas no feed (15/set)
+
+O que motivou: a conversa sobre o que um avaliador de loja vê ao entrar. A
+conclusão foi que **feed vazio não reprova, mas app que promete o que não
+faz sim** — e a tela de Conquistas listava três metas inalcançáveis.
+
+As curtidas foram o primeiro passo, escolhido por ser a menor feature que
+deixa o feed visivelmente vivo **sem trazer carga de moderação**: ninguém
+escreve texto ao curtir.
+
+### O pedido, e o que ele tinha de específico
+
+> "quando o avaliador entrar no app, ele vai poder ver quantas pessoas já
+> interagiram com as postagem através da miniatura das fotos delas abaixo
+> do botão de curtir"
+
+O alvo não era a curtida: era **a miniatura**. Um número diz que houve
+interação; rostos dizem que houve gente — e isso o avaliador enxerga em
+cinco segundos, sem criar conta.
+
+O modelo é o Instagram: barra de ações no pé do card com curtir, comentar e
+compartilhar. **Comentar e compartilhar entram desabilitados**, com "Em
+breve", pra o lugar deles no layout já ficar reservado.
+
+### Decisões que uma sessão nova não deve desfazer
+
+- **Não existe contador `curtidas` separado.** A contagem é
+  `curtidoPor.length`. Um número guardado ao lado seria uma segunda fonte
+  de verdade pro mesmo fato, e divergiria do que as miniaturas mostram.
+- **Os perfis das miniaturas são LIDOS**, não copiados pro post. Guardar
+  nick e foto congelados evitaria as leituras, mas o feed mostraria pra
+  sempre o retrato antigo de quem trocou de avatar. O custo fica contido
+  pelo limite de 3 na tela e por um cache de processo no
+  `PostRepository`.
+- **Sem transação.** `arrayUnion`/`arrayRemove` resolvem a concorrência no
+  servidor; uma transação custaria uma ida a mais no gesto que mais precisa
+  parecer instantâneo.
+- **Curtida que funciona não gera toast.** O coração mudando de cor já é a
+  confirmação. Só o erro fala.
+- **Vale em todo tipo de post**, inclusive na enquete — que é a que mais
+  fácil ficaria de fora, por já ter interação própria.
+
+### A regra, e a armadilha que ela esconde
+
+`podeCurtir()` é escrita nos dois sentidos porque **rules não tem subtração
+de lista**: entrar é a lista virar exatamente a antiga mais o meu uid; sair
+é o meu uid não estar mais lá, nada novo ter entrado, e a lista ter
+encolhido em exatamente um.
+
+O `hasOnly(['curtidoPor'])` é o que impede a curtida de virar carona pra
+outra coisa. E conta bloqueada não curte — a regra checa `contaBloqueada()`,
+igual ao voto.
+
+### O que falta, e é o próximo passo
+
+**Fazer as badges contarem de verdade** (pedido do usuário no mesmo
+recado). Hoje a tela de Conquistas mostra três metas que ninguém alcança:
+
+| Badge | Promete | Estado |
+|---|---|---|
+| Comentarista | "Comente em 10 posts ou vídeos" | não há comentário no app |
+| Popular | "Receba 50 curtidas nos seus comentários" | **agora dá pra contar** — mudando a meta pra curtidas nos POSTS |
+| Presença VIP | "Clique pra assistir 5 lives" | o app já abre o link; falta contar o toque |
+
+O obstáculo é o mesmo pras três: `contadores` é travado contra escrita do
+cliente no `firestore.rules`, e não existe Cloud Function que os
+incremente. Ou se abre uma exceção na regra (só o próprio uid, só
+incremento de 1), ou entra uma Function.
+
+**Ideia registrada, ainda não pedida**: uma badge de "primeiro
+compartilhador", ganha ao compartilhar o app com pelo menos uma pessoa.
+Depende do compartilhar existir.
 
 ## Banimento: expulsa, não cobre (14/set)
 
@@ -678,7 +743,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **372 testes** passando (`flutter test`), mais **46** no backend
+- **393 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
@@ -710,9 +775,12 @@ Cloud Shell):
 - `functions` e `firestore.rules` — republicados em **08/set**, com a
   caixa de entrada do WhatsApp.
 
-**HÁ DEPLOY PENDENTE desde 14/set**: `firestore.rules` e `storage.rules`
-mudaram pra deixar o dono apagar a própria conta por inteiro. Ver atenção
-1 — sem publicar, a exclusão de conta falha na metade.
+O deploy de 14/set (exclusão de conta: `firestore.rules` + `storage.rules`)
+**foi feito** — confirmado por print do Cloud Shell.
+
+**HÁ DEPLOY PENDENTE desde 15/set**: `firestore.rules` mudou de novo, pelas
+curtidas. Ver atenção 1 — sem publicar, **publicar post para de
+funcionar**, não só a curtida.
 
 Atenção: `firebase deploy --only storage:rules` **não funciona** (o CLI
 interpreta "rules" como nome de target); o comando certo é `firebase
