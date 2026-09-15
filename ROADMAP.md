@@ -2354,3 +2354,128 @@ recusando** — é onde é mais fácil esquecer, porque é fora do fluxo feliz, 
 A navegação preservada. Hoje uma suspensão que vence com o app aberto não
 devolve a pessoa pro lugar onde ela estava — ela cai no login. Quem for
 "consertar" isso no futuro precisa saber o que aquilo custava.
+
+## Curtidas no feed (15/set/2026)
+
+Veio de uma conversa, não de um pedido direto: o usuário perguntou se um
+avaliador de loja não ia querer ver o app "vivo" — gente comentando e
+curtindo os primeiros posts.
+
+**A pergunta estava certa, mas o diagnóstico precisou de correção.** Feed
+vazio não reprova: app novo com zero usuários é o normal, e o revisor sabe.
+O que reprova é **app que promete o que não faz** — e a tela de Conquistas
+listava três metas que ninguém pode alcançar ("Comente em 10 posts" sem
+existir comentário, "Receba 50 curtidas" sem existir curtida, "Clique pra
+assistir 5 lives" sem ninguém contar o clique). Três barras de progresso
+paradas em 0% pra sempre, pra todo mundo. Isso é guideline 2.1 —
+completude —, que é o mesmo da primeira reprovação.
+
+Também ficou dito, e vale guardar: **não povoar o app com contas falsas**.
+Se for notado, vira problema de fraude e envenena a revisão inteira. O
+caminho honesto existe — o canal tem público, e os 12 testadores do teste
+fechado do Google já estão lá.
+
+### Por que curtida antes de comentário
+
+Curtida é a menor feature que deixa o feed visivelmente vivo **sem trazer
+carga de moderação**: ninguém escreve texto ao curtir.
+
+Comentário arrastaria o **guideline 1.2** junto — conteúdo gerado por
+usuário exige filtro, denúncia, bloqueio de usuário e um caminho pra agir
+em até 24h. Fazer comentário sem isso seria trocar um risco de reprovação
+por outro.
+
+### O alvo era a miniatura, não a curtida
+
+> "quando o avaliador entrar no app, ele vai poder ver quantas pessoas já
+> interagiram com as postagem através da miniatura das fotos delas abaixo
+> do botão de curtir"
+
+Um número diz que houve interação; **rostos dizem que houve gente**. É o
+que se lê em cinco segundos, sem criar conta e sem testar nada — e é a
+diferença entre o app parecer um mural e parecer uma comunidade.
+
+### Contagem sem contador
+
+O campo `curtidas` era um `int` que **nada no app incrementava**: nascia 0
+no `criarPost` e ficava 0 pra sempre. Virou a lista `curtidoPor`, e a
+contagem passou a ser o tamanho dela.
+
+Manter o `int` ao lado da lista teria sido o caminho "óbvio" — é o que
+quase todo feed faz, pra não precisar carregar a lista só pra mostrar um
+número. Foi recusado porque **seriam duas fontes de verdade pro mesmo
+fato**, e elas divergem no primeiro erro de escrita. O sintoma seria o
+número na tela discordando das miniaturas logo abaixo dele — o tipo de bug
+em que ninguém confia mais depois de ver uma vez. Neste app a lista é
+pequena e já vem no documento do post; o ganho do contador seria zero.
+
+Posts antigos chegam com a lista vazia, e isso é verdade, não perda: antes
+de existir a lista, ninguém tinha curtido.
+
+### Ler os perfis, e não copiá-los
+
+As miniaturas precisam da foto de cada pessoa, e o post só guarda uids. As
+duas saídas:
+
+- **copiar** nick e foto pro post no momento da curtida (zero leituras
+  extras, mas o feed mostraria pra sempre o retrato antigo de quem trocou
+  de avatar);
+- **ler** `users/{uid}` de quem aparece na tela.
+
+Ficou a leitura, com o custo contido por dois lados: o limite de 3 na tela
+(o resto vira "+N") e um cache de processo no `PostRepository`, que faz a
+mesma pessoa ser lida uma vez só mesmo aparecendo em dez posts do feed. O
+cache some quando o app fecha — de propósito: é suficiente pro caso que
+importa e não deixa miniatura velha entre um dia e outro.
+
+### Sem transação
+
+`arrayUnion`/`arrayRemove` resolvem a concorrência no servidor: duas
+pessoas curtindo o mesmo post ao mesmo tempo não se sobrescrevem, porque a
+operação é aplicada sobre o valor mais recente e não sobre uma cópia lida
+antes. Uma transação daria o mesmo resultado e custaria uma ida a mais ao
+servidor — justo no gesto que mais precisa parecer instantâneo.
+
+O sentido (curtir ou descurtir) sai do estado que a tela já tem, e não de
+uma releitura. O feed inteiro vem por stream; reler o que a tela sabe seria
+uma ida ao servidor por toque.
+
+### A regra, e por que ela é escrita duas vezes
+
+**Rules não tem subtração de lista.** Então `podeCurtir()` descreve os dois
+sentidos separadamente: entrar é a lista virar exatamente a antiga mais o
+meu uid; sair é o meu uid não estar mais lá, nada novo ter entrado, e a
+lista ter encolhido em exatamente um. É o mesmo truque usado pra tirar o
+voto de enquete na exclusão de conta.
+
+`hasOnly(['curtidoPor'])` é o que impede a curtida de virar carona pra
+outra coisa — ninguém edita o texto do post nem mexe em enquete por essa
+porta. E conta bloqueada não curte: a regra checa `contaBloqueada()`.
+
+### A armadilha do deploy
+
+A regra de `create` de post exigia `curtidas == 0` e passou a exigir
+`curtidoPor == []`. **Sem publicar as regras, publicar post para de
+funcionar** — não é só a curtida que depende do deploy. Quem esbarrar
+nisso vai ver "sem permissão" ao publicar e procurar no lugar errado.
+
+### O teste que quebrou por altura, não por comportamento
+
+O card ficou mais alto com a barra, e o `ListView.builder` só constrói o
+que cabe na tela. O teste de paginação passou a não encontrar os últimos
+posts — que existiam na lista, mas nunca eram montados. A correção é rolar
+até eles; sem o comentário explicando, a próxima sessão leria aquele
+`findsNothing` como "a paginação quebrou".
+
+### O que fica registrado pra depois
+
+**As badges contando de verdade** — próximo passo, já pedido. As curtidas
+destravam a "Popular" (mudando a meta de "curtidas nos comentários" pra
+"curtidas nos posts") e a "Presença VIP" é fácil (o app já abre o link da
+live; falta contar o toque). O obstáculo é o mesmo pras três: `contadores`
+é travado contra escrita do cliente, então ou se abre uma exceção estreita
+na regra, ou entra uma Cloud Function.
+
+**Badge de "primeiro compartilhador"** — ideia do usuário, ganha ao
+compartilhar o app com pelo menos uma pessoa. Depende do compartilhar
+existir, e ele está na barra como "Em breve".
