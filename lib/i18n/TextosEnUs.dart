@@ -703,4 +703,14 @@ class TextosEnUs extends Textos {
   String get feedSejaOPrimeiroACurtir => 'Be the first to like this';
   @override
   String feedMaisPessoas(int quantas) => '+$quantas';
+
+  // ----- E-mail ja cadastrado -----
+  @override
+  String get cadastroEmailJaExisteTitulo => 'That email already has an account';
+  @override
+  String get cadastroEmailJaExisteTexto => 'There\'s already a PTK Plays account with that email. Use another address, or go back and sign in with it — you can recover the password from the menu link if you forgot it.';
+  @override
+  String get cadastroEmailJaExisteCampo => 'That email is already in use.';
+  @override
+  String get cadastroConferindoEmail => 'Checking the email...';
 }
