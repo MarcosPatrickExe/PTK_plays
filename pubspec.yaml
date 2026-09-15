@@ -41,6 +41,11 @@ dependencies:
   crypto: ^3.0.6
   image_picker: ^1.2.3
   firebase_storage: ^13.4.6
+  # Só pra chamar o pré-teste de e-mail repetido (`emailJaCadastrado`).
+  # Ele mora numa Cloud Function, e não numa consulta do app, porque
+  # perguntar "esse e-mail tem conta?" é um oráculo de enumeração — do
+  # lado do servidor ele devolve só um booleano e dá pra limitar.
+  cloud_functions: ^6.0.0
   video_player: ^2.14.0
 
 dev_dependencies:
