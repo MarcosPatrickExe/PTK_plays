@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:ptk_plays/data/models/PostModel.dart';
+import 'package:ptk_plays/data/models/UserModel.dart';
 import 'package:ptk_plays/data/repositories/PostRepository.dart';
 
 /// Substitui o Firestore: guarda o que teria sido gravado, pra o teste
@@ -17,6 +18,22 @@ class FakePostRepository implements PostRepository {
   /// O que o stream do feed devolve. Vazio por padrão; os testes que
   /// precisam de posts na tela preenchem antes de montar o widget.
   List<PostModel> postagensDoStream = const [];
+
+  /// Curtidas registradas, em ordem: (postId, uid, curtiu ou descurtiu).
+  final List<({String postId, String uid, bool curtir})> curtidas = [];
+
+  /// O que `perfisDeQuemCurtiu` devolve. Vazio por padrão — os testes que
+  /// exercitam as miniaturas preenchem antes de montar o widget.
+  List<UserModel> perfisParaMiniaturas = const [];
+
+  @override
+  Future<void> curtirPost({required String postId, required String uid, required bool curtir}) async {
+    curtidas.add((postId: postId, uid: uid, curtir: curtir));
+  }
+
+  @override
+  Future<List<UserModel>> perfisDeQuemCurtiu(List<String> uids, {int limite = 3}) async =>
+      perfisParaMiniaturas.take(limite).toList();
 
   @override
   Stream<List<PostModel>> streamPostagens() => Stream.value(postagensDoStream);
