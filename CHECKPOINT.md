@@ -22,25 +22,31 @@ Só entra aqui o que **bloqueia trabalho** ou o que faria a próxima sessão
 quebrar algo por não saber. Cada item diz o que fazer, não só o que está
 pendente.
 
-1. **`firestore.rules` PRECISA ser publicado de novo — e desta vez
-   publicar post para de funcionar sem isso.**
+1. **Três deploys pendentes, e um deles derruba o app sem aviso claro.**
 
-   *O que é*: as curtidas (15/set) trocaram o campo `curtidas` (um `int`
-   que ninguém incrementava) pela lista `curtidoPor`. A regra de `create`
-   de post mudou junto: ela exigia `curtidas == 0` e agora exige
-   `curtidoPor == []`.
-
-   *Por que é mais grave que o normal*: não é só a curtida que quebra sem o
-   deploy. **Publicar qualquer post passa a ser recusado**, porque o app
-   manda `curtidoPor` e a regra publicada ainda procura `curtidas`.
-
-   *O que fazer*, no Cloud Shell:
    ```
+   cd functions && npm install    # cloud_functions é novo no app, mas aqui
+                                  # não mudou dependência — só rode se o
+                                  # container reciclou
+   firebase deploy --only functions:emailJaCadastrado
    firebase deploy --only firestore:rules
    ```
 
-   *O deploy anterior (exclusão de conta) já foi feito* — confirmado por
-   print do Cloud Shell em 14/set, junto com o `--only storage`.
+   *O que cada um faz:*
+
+   - **`functions:emailJaCadastrado`** — a função nova do pré-teste de
+     e-mail. Sem ela o app chama e recebe "not found"; o cadastro **segue
+     normalmente** (a falha responde "não existe"), só perde o aviso
+     antecipado. É a única das três que falha de forma gentil.
+   - **`firestore:rules`** — carrega **duas** mudanças acumuladas:
+     1. as **curtidas**: a regra de `create` de post exigia `curtidas == 0`
+        e passa a exigir `curtidoPor == []`. **Sem publicar, publicar
+        qualquer post para de funcionar**, com um "sem permissão" que manda
+        quem investiga pro lugar errado;
+     2. o fechamento da listagem de `nicknamesParaEmail`.
+
+   *Só o `--only functions:emailJaCadastrado`*, e não `--only functions`
+   inteiro: o deploy completo republica webhook e funções de live à toa.
 
 2. **Conta banida agora é EXPULSA pro login — e o login dela continua
    existindo, de propósito.**
@@ -391,30 +397,82 @@ livre. A consulta vai em `nicknamesParaEmail`, pelo campo `email`.
    etapa do nick não tem reserva, e passa por livre. O Firebase ainda barra
    no fim.
 
-### ⚠️ Uma exposição que já existia, e que este trabalho não criou
+### A exposição de `nicknamesParaEmail` foi fechada
 
-`nicknamesParaEmail` tem `allow read: if true`, e em regras do Firestore
-isso cobre **`get` e `list`**. Ou seja: qualquer pessoa, logada ou não,
-consegue **baixar a coleção inteira** — todos os nicknames, e-mails e uids
-do app.
+`allow read: if true` cobria **`get` e `list`**. Na prática, qualquer
+pessoa — logada ou não — conseguia baixar a coleção inteira: todos os
+nicknames, e-mails e uids do app.
 
-A leitura pública existe por um motivo real (o login por nickname precisa
-resolver nick → e-mail **antes** de haver sessão). Mas ela só precisa do
-`get` de um documento por id, nunca da listagem.
-
-**O conserto**, quando for a hora:
+Agora são duas regras separadas:
 
 ```
 allow get: if true;
-allow list: if false;
+allow list: if ehAdmin() || (estaLogado() && resource.data.uid == request.auth.uid);
 ```
 
-**Isso quebra o pré-teste de e-mail repetido**, que é uma consulta — ou
-seja, os dois não convivem. O endgame correto é o pré-teste virar uma
-Cloud Function com o Admin SDK (`getUserByEmail`), que devolve só um
-booleano e pode ser limitada por taxa. **Não foi feito nesta sessão**, e é
-decisão do usuário: hoje o app tem a conveniência e a exposição; com a
-Function, teria a conveniência sem a exposição.
+O `get` aberto continua porque o login por nickname resolve nick → e-mail
+**antes** de haver sessão, e pra isso basta ler um documento pelo id.
+
+As duas listagens que sobraram são as legítimas: a exclusão da própria
+conta e a remoção em cascata do Painel ADM. A condição em
+`resource.data.uid` **obriga a consulta a filtrar por uid** — sem o filtro,
+algum documento devolvido reprova a regra e a consulta inteira é recusada.
+
+**Isso só ficou possível porque o pré-teste de e-mail saiu do cliente.**
+Enquanto ele era uma consulta do app, os dois não conviviam.
+
+## Pré-teste de e-mail: a Cloud Function (15/set)
+
+`emailJaCadastrado`, um **callable** em `southamerica-east1`. Recebe um
+e-mail, devolve `{existe: bool}`. Só isso.
+
+### Por que não dava pra fazer no cliente
+
+Perguntar "esse e-mail tem conta?" é um oráculo de enumeração por
+definição. A primeira versão consultava `nicknamesParaEmail` direto do app,
+e pra isso aquela coleção precisava ficar listável por qualquer um — e ela
+guarda o e-mail de todo mundo. A função devolve só um booleano, a coleção
+voltou a ser fechada, e o servidor consegue contar quantas perguntas cada
+origem faz.
+
+O `fetchSignInMethodsForEmail` do cliente **não serve**: foi descontinuado
+pelo mesmo motivo, e com a proteção contra enumeração ligada no Console
+(padrão em projeto novo) ele devolve lista vazia sempre — um pré-teste em
+cima dele mentiria dizendo que todo e-mail está livre.
+
+### O que a função enxerga a mais
+
+`getUserByEmail` do Admin SDK cobre **toda** conta do Auth, inclusive a de
+quem entrou pelo Google/Apple e abandonou o cadastro antes de reservar o
+nick — caso que a consulta ao Firestore deixava passar por livre.
+
+### Decisões que uma sessão nova não deve desfazer
+
+- **A região é declarada NA função**, nunca por `setGlobalOptions`. O
+  global moveria o `whatsappWebhook` de `us-central1` e quebraria a URL
+  cadastrada na Meta. A mesma região está escrita no cliente
+  (`AuthRepository.emailJaCadastrado`) — errar lá não dá erro de
+  compilação, dá "not found" em execução, que parece função inexistente.
+- **Falha de infraestrutura responde "não existe"**, não erro. O pré-teste
+  é uma gentileza pra avisar cedo; quem barra o duplicado de verdade é o
+  Auth. Isso vale até pro `resource-exhausted` do limite.
+- **O identificador do limite é um hash do IP**, não o IP. Guardar uma
+  lista de IPs pra contar requisição seria criar um registro de quem tentou
+  se cadastrar e quando.
+- **A janela de tempo entra na chave do documento**, não num campo. É o que
+  dispensa transação pra zerar o contador quando o relógio vira.
+
+### Duas coisas que ficaram pendentes
+
+1. **App Check não está ligado**, e ele é a defesa de verdade — só o app
+   de verdade consegue chamar a função. O limite de 30 perguntas por hora
+   por origem é o que existe enquanto isso; ele quebra um script, mas não
+   um atacante distribuído.
+2. **A coleção `limitesDePreTesteDeEmail` acumula.** Cada documento carrega
+   `expiraEm` pra uma **política de TTL do Firestore** varrer sozinha, e
+   essa política precisa ser criada no Console (Firestore → TTL). Sem ela,
+   o campo é só informativo e os documentos ficam — são pequenos, mas
+   ficam.
 
 ## Curtidas no feed (15/set)
 
@@ -836,7 +894,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **397 testes** passando (`flutter test`), mais **46** no backend
+- **397 testes** passando (`flutter test`), mais **58** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
@@ -871,9 +929,8 @@ Cloud Shell):
 O deploy de 14/set (exclusão de conta: `firestore.rules` + `storage.rules`)
 **foi feito** — confirmado por print do Cloud Shell.
 
-**HÁ DEPLOY PENDENTE desde 15/set**: `firestore.rules` mudou de novo, pelas
-curtidas. Ver atenção 1 — sem publicar, **publicar post para de
-funcionar**, não só a curtida.
+**HÁ DEPLOY PENDENTE desde 15/set**, e agora são **três** comandos. Ver
+atenção 1.
 
 Atenção: `firebase deploy --only storage:rules` **não funciona** (o CLI
 interpreta "rules" como nome de target); o comando certo é `firebase
