@@ -377,4 +377,15 @@ abstract class Textos {
   String get perfilExcluirContaOQueSai;
   String get perfilExcluirContaSocial;
   String get perfilExcluirContaDigiteSenha;
+
+  // ----- Curtidas no feed -----
+  String get feedCurtir;
+  String get feedDescurtir;
+  String get feedComentar;
+  String get feedCompartilhar;
+  String get feedEmBreve;
+  String get feedUmaCurtida;
+  String feedVariasCurtidas(int quantas);
+  String get feedSejaOPrimeiroACurtir;
+  String feedMaisPessoas(int quantas);
 }
