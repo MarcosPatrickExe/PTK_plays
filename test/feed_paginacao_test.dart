@@ -75,6 +75,14 @@ void main() {
       await tester.pump();
 
       expect(find.text('aviso r11'), findsOneWidget);
+
+      // Rolar até o fim, e não só procurar: o `ListView.builder` só
+      // constrói o que cabe na tela, e o card ficou mais alto quando a
+      // barra de curtidas entrou nele. Sem rolar, os últimos posts existem
+      // na lista mas nunca chegam a ser montados — e o `findsNothing`
+      // diria "a paginação quebrou" quando o que mudou foi a altura.
+      await tester.scrollUntilVisible(find.text('aviso velho'), 300);
+
       expect(find.text('aviso r12'), findsOneWidget);
       expect(find.text('aviso velho'), findsOneWidget);
     });

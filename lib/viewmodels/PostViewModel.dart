@@ -18,6 +18,31 @@ class PostViewModel {
   Future<void> votar({required String postId, required int indiceOpcao, required String uid}) =>
       _repository.votar(postId: postId, indiceOpcao: indiceOpcao, uid: uid);
 
+  /// Curte ou descurte. **Devolve null em silencio quando da certo** e a
+  /// mensagem pro toast quando falha — igual ao resto das escritas do feed.
+  ///
+  /// O toque nao espera a resposta do servidor pra pintar o coracao: o
+  /// stream do Firestore aplica a mudanca localmente antes de confirmar, e
+  /// e isso que faz a curtida parecer instantanea mesmo com rede ruim. Se o
+  /// servidor recusar, o stream desfaz sozinho e o toast explica.
+  Future<String?> alternarCurtida({
+    required String postId,
+    required String uid,
+    required bool curtir,
+  }) async {
+    try {
+      await _repository.curtirPost(postId: postId, uid: uid, curtir: curtir);
+      return null;
+    } catch (e, stack) {
+      debugPrint('curtida falhou: $e\n$stack');
+      return mensagemComCodigo(e);
+    }
+  }
+
+  /// Os perfis de quem curtiu, pras miniaturas do card.
+  Future<List<UserModel>> perfisDeQuemCurtiu(List<String> uids, {int limite = 3}) =>
+      _repository.perfisDeQuemCurtiu(uids, limite: limite);
+
   /// Publica um aviso de texto. A validacao do conteudo (vazio, tamanho) e
   /// feita na tela antes de chegar aqui, porque erro de formulario vai pro
   /// modal bloqueante e erro de escrita vai pro toast (regra do CLAUDE.md).

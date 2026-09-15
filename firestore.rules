@@ -84,6 +84,37 @@ service cloud.firestore {
         && !(request.auth.uid in request.resource.data.get('votosPorUsuario', {}));
     }
 
+    // Curtir e descurtir o proprio "gostei", e nada alem disso.
+    //
+    // A regra e escrita nos dois sentidos porque rules nao tem subtracao de
+    // lista: **entrar** e a lista virar exatamente a antiga mais o meu uid;
+    // **sair** e o meu uid nao estar mais la, nada novo ter entrado, e a
+    // lista ter encolhido em exatamente um.
+    //
+    // `hasOnly(['curtidoPor'])` e o que impede a curtida de virar carona
+    // pra outra coisa: ninguem edita o texto do post, troca o autor nem
+    // mexe em enquete por esta porta.
+    //
+    // **Nao existe contador `curtidas` separado**, de proposito: a contagem
+    // e o tamanho desta lista. Um numero guardado ao lado seria uma segunda
+    // fonte de verdade pro mesmo fato, e nenhuma regra conseguiria garantir
+    // que os dois nao divergissem.
+    function podeCurtir() {
+      return estaLogado()
+        && !contaBloqueada()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['curtidoPor'])
+        && (
+          // curtindo
+          (!(request.auth.uid in resource.data.get('curtidoPor', []))
+            && request.resource.data.curtidoPor == resource.data.get('curtidoPor', []).concat([request.auth.uid]))
+          ||
+          // descurtindo
+          (!(request.auth.uid in request.resource.data.get('curtidoPor', []))
+            && resource.data.get('curtidoPor', []).hasAll(request.resource.data.get('curtidoPor', []))
+            && request.resource.data.get('curtidoPor', []).size() == resource.data.get('curtidoPor', []).size() - 1)
+        );
+    }
+
     function categoriasValidas(categorias) {
       return categorias is list &&
         categorias.hasOnly(['otaku', 'gamer', 'streamer', 'geek', 'outro']);
@@ -189,7 +220,9 @@ service cloud.firestore {
         // Data vinda do servidor: o relogio do aparelho nao decide a
         // posicao do post no feed.
         && request.resource.data.criadoEm == request.time
-        && request.resource.data.curtidas == 0
+        // Post nasce sem curtida nenhuma. A lista, e nao um contador: ver
+        // podeCurtir() sobre por que nao ha um `curtidas` separado.
+        && request.resource.data.curtidoPor == []
         && request.resource.data.comentariosCount == 0
         && (ehAdmin()
               ? request.resource.data.tipo in ['avisoTexto', 'avisoMidia', 'enquete']
@@ -203,6 +236,7 @@ service cloud.firestore {
       allow update: if ehAdmin() && tipoDePostagemValido(request.resource.data.tipo);
       allow update: if podeVotar();
       allow update: if podeTirarOProprioVoto();
+      allow update: if podeCurtir();
 
       // Autor apaga o proprio post; admin apaga o de qualquer um.
       allow delete: if ehAdmin() || (estaLogado() && resource.data.autorUid == request.auth.uid);

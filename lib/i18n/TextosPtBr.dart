@@ -679,4 +679,24 @@ class TextosPtBr extends Textos {
   String get perfilExcluirContaSocial => 'Pra confirmar que é você, vamos abrir a tela do provedor com que você entrou mais uma vez.';
   @override
   String get perfilExcluirContaDigiteSenha => 'Digite sua senha pra confirmar.';
+
+  // ----- Curtidas no feed -----
+  @override
+  String get feedCurtir => 'Curtir';
+  @override
+  String get feedDescurtir => 'Descurtir';
+  @override
+  String get feedComentar => 'Comentar';
+  @override
+  String get feedCompartilhar => 'Compartilhar';
+  @override
+  String get feedEmBreve => 'Em breve';
+  @override
+  String get feedUmaCurtida => '1 curtida';
+  @override
+  String feedVariasCurtidas(int quantas) => '$quantas curtidas';
+  @override
+  String get feedSejaOPrimeiroACurtir => 'Seja a primeira pessoa a curtir';
+  @override
+  String feedMaisPessoas(int quantas) => '+$quantas';
 }

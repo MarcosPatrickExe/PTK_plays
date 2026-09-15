@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../components/BarraDeCurtidas.dart';
 import '../i18n/Idioma.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -294,6 +295,8 @@ class _ListaDoFeedState extends State<ListaDoFeed> {
             if (uid == null) return;
             widget.postViewModel.votar(postId: post.id, indiceOpcao: indiceOpcao, uid: uid);
           },
+          onCurtir: () => _curtir(context, widget.postViewModel, post, widget.uidAtual),
+          carregarPerfisDeQuemCurtiu: widget.postViewModel.perfisDeQuemCurtiu,
         );
       },
     );
@@ -319,6 +322,23 @@ class _ListaDoFeedState extends State<ListaDoFeed> {
       ),
     );
   }
+}
+
+/// Curte ou descurte, decidindo o sentido pelo estado que a tela ja tem.
+///
+/// So fala quando da errado. Curtida que funciona nao precisa de toast: o
+/// coracao mudando de cor ja e a confirmacao, e um aviso por toque seria
+/// barulho num gesto que se repete o tempo todo.
+Future<void> _curtir(BuildContext context, PostViewModel postViewModel, PostModel post, String? uid) async {
+  if (uid == null) return;
+
+  final erro = await postViewModel.alternarCurtida(
+    postId: post.id,
+    uid: uid,
+    curtir: !post.foiCurtidoPor(uid),
+  );
+
+  if (erro != null && context.mounted) mostrarToast(context, mensagem: erro, erro: true);
 }
 
 /// Pede confirmacao e apaga o post. A exclusao e definitiva e some pra
@@ -390,6 +410,12 @@ class PostCard extends StatelessWidget {
   /// regras do Firestore aplicam o mesmo recorte no servidor.
   final Future<void> Function()? onExcluir;
 
+  /// Nulo esconde a barra inteira de curtir. E o caso das telas que
+  /// mostram post sem sessao (o Painel ADM reusa este card so pra listar).
+  final VoidCallback? onCurtir;
+
+  final Future<List<UserModel>> Function(List<String> uids)? carregarPerfisDeQuemCurtiu;
+
   const PostCard({
     super.key,
     required this.isDark,
@@ -397,6 +423,8 @@ class PostCard extends StatelessWidget {
     this.uidAtual,
     this.onVotar,
     this.onExcluir,
+    this.onCurtir,
+    this.carregarPerfisDeQuemCurtiu,
   });
 
   @override
@@ -462,6 +490,16 @@ class PostCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _conteudoPorTipo(context),
+          if (onCurtir != null)
+            BarraDeCurtidas(
+              isDark: isDark,
+              curtidoPor: post.curtidoPor,
+              euCurti: post.foiCurtidoPor(uidAtual),
+              // Sem sessao o coracao aparece mas nao responde: o card
+              // continua legivel, e quem tocar entende que falta entrar.
+              onCurtir: uidAtual == null ? null : onCurtir,
+              carregarPerfis: carregarPerfisDeQuemCurtiu,
+            ),
         ],
       ),
     );

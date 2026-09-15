@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/PostModel.dart';
+import '../models/UserModel.dart';
 
 class PostRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -47,7 +48,7 @@ class PostRepository {
       // A regra exige criadoEm == request.time: a data vem do servidor, o
       // relogio do aparelho nao decide a posicao do post no feed.
       'criadoEm': FieldValue.serverTimestamp(),
-      'curtidas': 0,
+      'curtidoPor': <String>[],
       'comentariosCount': 0,
       if (texto != null) 'texto': texto,
       if (fotoUrl != null) 'fotoUrl': fotoUrl,
@@ -58,6 +59,62 @@ class PostRepository {
       if (opcoes != null) 'votosPorUsuario': <String, int>{},
     });
   }
+
+  /// Curte ou descurte um post.
+  ///
+  /// Recebe [curtir] em vez de olhar o estado atual: quem chama ja tem o
+  /// post na mao (o feed inteiro vem por stream), e uma transacao so pra
+  /// reler o que a tela ja sabe custaria uma ida ao servidor por toque —
+  /// justo no gesto que precisa parecer instantaneo.
+  ///
+  /// `arrayUnion`/`arrayRemove` resolvem a concorrencia sem transacao: duas
+  /// pessoas curtindo o mesmo post ao mesmo tempo nao se sobrescrevem,
+  /// porque o servidor aplica a operacao sobre o valor mais recente — e nao
+  /// sobre uma copia lida antes.
+  Future<void> curtirPost({required String postId, required String uid, required bool curtir}) {
+    return _firestore.collection('posts').doc(postId).update({
+      'curtidoPor': curtir ? FieldValue.arrayUnion([uid]) : FieldValue.arrayRemove([uid]),
+    });
+  }
+
+  /// Os perfis de quem curtiu, pras miniaturas embaixo do botao.
+  ///
+  /// **Le os perfis em vez de guardar uma copia deles no post.** Guardar
+  /// (nick e foto congelados no momento da curtida) evitaria estas
+  /// leituras, mas deixaria a miniatura mostrando a foto velha de quem
+  /// trocou de avatar — e o feed inteiro carregaria esse retrato antigo pra
+  /// sempre.
+  ///
+  /// O custo fica contido por dois lados: o [limite] (so os primeiros
+  /// aparecem na tela, o resto vira "+N") e o cache abaixo, que faz a mesma
+  /// pessoa ser lida uma vez so mesmo aparecendo em dez posts do feed.
+  Future<List<UserModel>> perfisDeQuemCurtiu(List<String> uids, {int limite = 3}) async {
+    final escolhidos = uids.take(limite).toList();
+    final perfis = <UserModel>[];
+
+    for (final uid in escolhidos) {
+      final emCache = _perfisEmCache[uid];
+      if (emCache != null) {
+        perfis.add(emCache);
+        continue;
+      }
+
+      final doc = await _firestore.collection('users').doc(uid).get();
+      final dados = doc.data();
+      if (dados == null) continue;
+
+      final perfil = UserModel.fromFirestore(dados);
+      _perfisEmCache[uid] = perfil;
+      perfis.add(perfil);
+    }
+
+    return perfis;
+  }
+
+  /// Cache de processo, e nao de sessao: some quando o app fecha. E o
+  /// suficiente pro caso que importa — a mesma pessoa curtindo varios posts
+  /// do feed — sem o risco de a miniatura ficar velha entre um dia e outro.
+  final Map<String, UserModel> _perfisEmCache = {};
 
   /// Apaga um post. As regras so deixam passar se quem chamou for o admin
   /// ou o proprio autor do post.

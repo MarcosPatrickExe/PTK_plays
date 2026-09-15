@@ -683,4 +683,24 @@ class TextosEnUs extends Textos {
   String get perfilExcluirContaSocial => 'To confirm it\'s you, we\'ll open the sign-in screen of the provider you used, one more time.';
   @override
   String get perfilExcluirContaDigiteSenha => 'Type your password to confirm.';
+
+  // ----- Curtidas no feed -----
+  @override
+  String get feedCurtir => 'Like';
+  @override
+  String get feedDescurtir => 'Unlike';
+  @override
+  String get feedComentar => 'Comment';
+  @override
+  String get feedCompartilhar => 'Share';
+  @override
+  String get feedEmBreve => 'Coming soon';
+  @override
+  String get feedUmaCurtida => '1 like';
+  @override
+  String feedVariasCurtidas(int quantas) => '$quantas likes';
+  @override
+  String get feedSejaOPrimeiroACurtir => 'Be the first to like this';
+  @override
+  String feedMaisPessoas(int quantas) => '+$quantas';
 }
