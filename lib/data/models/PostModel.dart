@@ -251,7 +251,25 @@ class PostModel {
   final String autorCargo;
 
   final DateTime criadoEm;
-  final int curtidas;
+
+  /// Uids de quem curtiu. **A contagem é o tamanho desta lista** — não há
+  /// um campo `curtidas` separado, de propósito.
+  ///
+  /// Um contador guardado ao lado da lista seria uma segunda fonte de
+  /// verdade pro mesmo fato, e as duas divergiriam no primeiro erro de
+  /// escrita — com o número na tela discordando das miniaturas logo
+  /// abaixo dele, que é o tipo de bug que ninguém confia mais depois de
+  /// ver uma vez.
+  ///
+  /// A lista também é o que permite mostrar **quem** curtiu, e não só
+  /// quantos. Posts antigos, gravados quando isto era um `int`, chegam com
+  /// a lista vazia — o que é verdade: ninguém tinha curtido.
+  final List<String> curtidoPor;
+
+  int get curtidas => curtidoPor.length;
+
+  bool foiCurtidoPor(String? uid) => uid != null && curtidoPor.contains(uid);
+
   final int comentariosCount;
 
   /// Peso do post na ordenacao do feed: quanto maior, mais pra cima. Post
@@ -293,7 +311,7 @@ class PostModel {
     required this.criadoEm,
     this.autorCargo = 'inscrito',
     this.prioridade = 0,
-    this.curtidas = 0,
+    this.curtidoPor = const [],
     this.comentariosCount = 0,
     this.texto,
     this.fotoUrl,
@@ -321,7 +339,7 @@ class PostModel {
       // sem precisar migrar nada no Firestore.
       prioridade: data['prioridade'] ?? prioridadePadrao(tipo: tipo, autorCargo: data['autorCargo']),
       criadoEm: (data['criadoEm'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      curtidas: data['curtidas'] ?? 0,
+      curtidoPor: data['curtidoPor'] != null ? List<String>.from(data['curtidoPor']) : const [],
       comentariosCount: data['comentariosCount'] ?? 0,
       texto: data['texto'],
       fotoUrl: data['fotoUrl'],
