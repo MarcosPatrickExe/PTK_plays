@@ -21,6 +21,17 @@ import '../../i18n/Idioma.dart';
 /// [AuthRepository.formaDeReautenticar].
 enum FormaDeReautenticar { senha, google, apple }
 
+/// A forma em que o e-mail e guardado e comparado: sem espaco e em
+/// minusculas.
+///
+/// Existe porque a consulta do Firestore e **sensivel a maiuscula** e nao
+/// tem como pedir o contrario. Sem normalizar na escrita e na leitura,
+/// "Fulano@Gmail.com" e "fulano@gmail.com" seriam dois enderecos
+/// diferentes pro pre-teste de e-mail repetido — e ele deixaria passar o
+/// duplicado que estava tentando evitar. O proprio Firebase Auth ja guarda
+/// o e-mail em minusculas.
+String emailNormalizado(String email) => email.trim().toLowerCase();
+
 /// A decisao em si, separada do Firebase pra poder ser testada.
 ///
 /// [AuthRepository] cria `FirebaseAuth.instance` no proprio campo, entao
@@ -86,8 +97,36 @@ class AuthRepository {
 
     await _firestore.collection('nicknamesParaEmail').doc(nicknameChave).set({
       'uid': uid,
-      'email': email,
+      'email': emailNormalizado(email),
     });
+  }
+
+  /// Se ja existe conta com este e-mail.
+  ///
+  /// **Consulta `nicknamesParaEmail`, e nao o Firebase Auth.** O caminho
+  /// obvio seria `fetchSignInMethodsForEmail`, mas ele foi descontinuado
+  /// justamente por ser um oraculo de enumeracao: qualquer um podia
+  /// perguntar "essa pessoa tem conta aqui?" sem limite. Com a protecao
+  /// contra enumeracao ligada no Console — que e o padrao em projeto novo —
+  /// ele devolve lista vazia sempre, e um pre-teste em cima dele mentiria
+  /// dizendo que todo e-mail esta livre.
+  ///
+  /// **Ha um buraco conhecido**: quem entrou pelo Google/Apple e abandonou
+  /// o cadastro antes da etapa do nick nao tem reserva aqui, e passa por
+  /// livre. O Firebase ainda barra no fim, com `email-already-in-use` — o
+  /// pre-teste adianta o aviso na maioria dos casos, nao substitui a
+  /// checagem de verdade.
+  Future<bool> emailJaCadastrado(String email) async {
+    final alvo = emailNormalizado(email);
+    if (alvo.isEmpty) return false;
+
+    final achados = await _firestore
+        .collection('nicknamesParaEmail')
+        .where('email', isEqualTo: alvo)
+        .limit(1)
+        .get();
+
+    return achados.docs.isNotEmpty;
   }
 
   /// Completa o perfil de quem entrou pelo Google/Apple e caiu no cadastro
@@ -146,7 +185,7 @@ class AuthRepository {
     // depois — o login por nick resolve o e-mail justamente por aqui.
     await _firestore.collection('nicknamesParaEmail').doc(chave).set({
       'uid': user.uid,
-      'email': email,
+      'email': emailNormalizado(email),
     });
   }
 
