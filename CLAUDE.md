@@ -47,7 +47,7 @@ Toast ainda) — ao mexer nessas telas de novo, alinhar com essa regra.
 ## Regra permanente: toda falha diz de onde veio
 
 Definida em 12/set/2026, depois de **duas revisões da App Store perdidas**
-adivinhando a causa de um popup genérico (ver `CHECKPOINT.md`, atenção 4).
+adivinhando a causa de um popup genérico (ver `CHECKPOINT.md`, atenção 7).
 
 **A regra**: nenhuma mensagem de erro causada por uma exceção pode chegar
 na tela sem um código que identifique a causa. Usar
