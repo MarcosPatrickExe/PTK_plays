@@ -2576,3 +2576,92 @@ Derrubar um cadastro porque uma checagem opcional não respondeu seria
 trocar um aviso antecipado por uma porta fechada. Vale inclusive pro
 contador: um limite que não consegue contar não pode virar um cadastro que
 não acontece.
+
+
+# O degradê da logo, medido pela logo (15/set/2026)
+
+## Três passadas no mesmo problema, e só a terceira mexeu no número certo
+
+Em 05/set o véu roxo por cima da logo de boas-vindas foi enfraquecido (ver
+"Logo das boas-vindas e texto centralizado"). Em 13/set as paradas dele
+foram empurradas pra baixo. Em 15/set o usuário mandou um print e disse a
+mesma coisa das outras duas vezes: **o degradê está cobrindo o PTK.**
+
+Quando um ajuste de constante falha duas vezes seguidas, o problema
+raramente é o valor da constante. Aqui não era mesmo.
+
+## O que estava errado
+
+As paradas do degradê eram frações da **onda**: `topoDaCurva * .78` pra
+começar a escurecer, `* .95` pro tom do meio, `fundoDaCurva` pro mais
+fechado. Nenhum dos três sabia onde a logo estava.
+
+E a logo não ocupa a faixa toda. Ela é **centralizada** na faixa colorida
+acima do cume, e o lado do quadrado é o menor entre 96% da faixa e 82% da
+largura da tela — no celular, quem limita é sempre a largura. O resultado é
+que ela **termina bem acima** do fim da faixa, e o véu, ancorado na faixa,
+começava dentro dela.
+
+Numa tela de 411×800 (um celular comum), com a onda da primeira etapa:
+
+| | px |
+|---|---|
+| faixa colorida acima do cume | 358 |
+| lado do quadrado da logo | 337 (limitado pela largura) |
+| **base da logo** | **347** |
+| onde o degradê começava (`topoDaCurva * .78`) | 279 |
+| onde o desfoque começava (`.70` da faixa) | 251 |
+
+São **68px de véu roxo por cima do desenho**, na altura da boca e do
+microfone do headset, e quase 30% do quadrado fora de foco. O print do
+usuário mostrava exatamente isso.
+
+## Por que empurrar a constante de novo não ia resolver
+
+Porque a distância entre a base da logo e o fim da faixa **depende do
+aparelho**. Numa tela estreita e comprida a largura limita mais o quadrado,
+a logo encolhe e a base sobe — a mesma fração cairia em outro lugar do
+desenho. Qualquer número fixo acerta num tamanho de tela e erra nos outros,
+que é a definição do bug que voltou duas vezes.
+
+## O desenho novo: a conta sai da logo
+
+`MedidasDaLogo` (`lib/components/FundoPTK.dart`) é uma classe pura que
+recebe a onda e o tamanho disponível e devolve `baseDaLogo`,
+`paradasDoDegrade` e `paradasDoBorrado`. As duas listas de paradas nascem
+da base do quadrado:
+
+- o **degradê** é transparente até a logo acabar, e só escurece no vão
+  entre ela e a curva branca;
+- o **desfoque** alcança apenas os últimos 12% do quadrado.
+
+Esses 12% não são um chute estético: são a faixa que o alfa do próprio
+arquivo já dissolve desde 05/set. **A borda reta do busto é a única coisa
+que esses dois efeitos existiam pra esconder** — tudo que eles cobriam
+acima disso era dano colateral.
+
+Ela é uma classe separada, e não um cálculo dentro do `build`, por um
+motivo prático: é a conta que erra, então é a conta que precisa de teste.
+Testar isso pela árvore de widgets significaria ler pixel de gradiente.
+
+## O `1.0000000000000004`
+
+O teste que varre tamanhos de tela × ondas conferindo que as paradas não
+desandam achou um bug que ninguém procurava: `fundoDaCurva` sai de
+**amostrar** a Bézier, e na `ondaInteira` — a do cartão do desktop, cujos
+quatro números são 1 — a soma dá `1.0000000000000004`.
+
+Uma parada acima de 1 derruba o `LinearGradient` em tempo de execução. E a
+`ondaInteira` é justamente a que a tela de boas-vindas usa no desktop, que
+é a única tela onde a logo existe. O `clamp` que conserta isso está
+comentado no código com esse número escrito por extenso, porque sem a
+explicação ele parece defensividade à toa e o próximo a passar por ali
+tiraria.
+
+## O que ficou de lição
+
+O teste que mais vale dos seis novos é o que checa **de propósito** que a
+fórmula antiga (`topoDaCurva * .78`) cairia dentro do desenho. Ele não
+descreve o comportamento certo — descreve o errado, e falha se alguém
+voltar pra ele. Num bug que já voltou duas vezes, isso vale mais que
+qualquer assert sobre o valor novo.
