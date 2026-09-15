@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:ptk_plays/components/CampoFlutuante.dart';
 import 'package:ptk_plays/components/FundoPTK.dart';
 import 'package:ptk_plays/components/ModalCropFoto.dart';
+import 'package:ptk_plays/components/ModalMSG.dart';
 import 'package:ptk_plays/components/Responsive.dart';
 import 'package:ptk_plays/components/SeletorAvatarPreset.dart';
 import 'package:ptk_plays/components/Toast.dart';
@@ -194,6 +195,12 @@ class _CriarContaState extends State<CriarConta> {
   final _senha = TextEditingController();
   final _whatsapp = TextEditingController();
 
+  /// Fica true depois de a checagem no servidor encontrar conta com este
+  /// e-mail, e volta a false assim que a pessoa mexe no campo. É o que
+  /// mantém o "Avançar" travado até o endereço mudar.
+  bool _emailJaCadastrado = false;
+  bool _conferindoEmail = false;
+
   String? _avatarPreset;
   Uint8List? _fotoPropria;
   bool _escolhendoFoto = false;
@@ -227,8 +234,11 @@ class _CriarContaState extends State<CriarConta> {
       case EtapaCadastro.nickname:
         return validarNickname(_nickname.text);
       case EtapaCadastro.email:
+        // O "já existe" vem por último: só faz sentido reclamar de um
+        // e-mail repetido depois de ele ser um e-mail válido.
         return validarEmail(_email.text) ??
-            validarConfirmacaoEmail(email: _email.text, confirmacao: _confirmarEmail.text);
+            validarConfirmacaoEmail(email: _email.text, confirmacao: _confirmarEmail.text) ??
+            (_emailJaCadastrado ? textos.cadastroEmailJaExisteCampo : null);
       case EtapaCadastro.senha:
         return validarSenha(_senha.text);
       case EtapaCadastro.foto:
@@ -263,8 +273,15 @@ class _CriarContaState extends State<CriarConta> {
   }
   bool get _ehUltimaEtapa => _indice == _etapas.length - 1;
 
-  void _avancar({bool ignorarPendencia = false}) {
+  Future<void> _avancar({bool ignorarPendencia = false}) async {
     if (!ignorarPendencia && !_podeAvancar) return;
+
+    // A etapa de e-mail tem uma checagem que só o servidor sabe responder,
+    // e ela acontece AQUI e não a cada tecla digitada. Por letra seriam
+    // dezenas de consultas por cadastro — e um oráculo aberto pra
+    // perguntar, de fora, quais e-mails têm conta neste app.
+    if (_etapaAtual == EtapaCadastro.email && !await _emailEstaLivre()) return;
+
     if (_ehUltimaEtapa) {
       _criarConta();
       return;
@@ -272,6 +289,35 @@ class _CriarContaState extends State<CriarConta> {
 
     setState(() => _indice++);
     _sincronizarPagina();
+  }
+
+  /// Checa se o e-mail já tem conta e, se tiver, avisa e trava a etapa.
+  ///
+  /// Sem isto o duplicado só aparecia **no fim do cadastro**, quando o
+  /// Firebase recusava o `createUserWithEmailAndPassword` — depois de a
+  /// pessoa já ter escolhido nick, senha, foto e WhatsApp. Perder tudo
+  /// isso pra descobrir que já tinha conta é o tipo de coisa que faz
+  /// desistir em vez de voltar e entrar.
+  Future<bool> _emailEstaLivre() async {
+    setState(() => _conferindoEmail = true);
+    final ocupado = await widget.authViewModel.emailJaCadastrado(_email.text);
+    if (!mounted) return false;
+
+    setState(() {
+      _conferindoEmail = false;
+      _emailJaCadastrado = ocupado;
+    });
+
+    if (!ocupado) return true;
+
+    // Modal, e não toast: é erro de formulário, e a pessoa precisa parar e
+    // corrigir antes de seguir (regra de feedback do CLAUDE.md).
+    mostrarErroCustom(
+      context,
+      title: textos.cadastroEmailJaExisteTitulo,
+      msg: textos.cadastroEmailJaExisteTexto,
+    );
+    return false;
   }
 
   void _voltar() {
@@ -456,7 +502,13 @@ class _CriarContaState extends State<CriarConta> {
     return Stack(
       children: [
         FundoPTK(
-          asset: assetDaEtapa(_etapaAtual),
+          // Com o teclado aberto a arte sai inteira, e não só encolhe. A
+          // `ondaCheia` deixa uma faixa colorida de uns 10% no alto, e era
+          // ali que sobrava um PTK espremido — pequeno demais pra se
+          // reconhecer e grande o bastante pra disputar a atenção com o
+          // campo que a pessoa está preenchendo. O `AnimatedSwitcher` do
+          // FundoPTK cuida do cross-fade de saída.
+          asset: tecladoAberto ? null : assetDaEtapa(_etapaAtual),
           onda: onda,
           // A etapa de boas-vindas não tem arte do PTK: no lugar dela
           // vai a logo do canal, que é o que a pessoa reconhece antes
@@ -609,7 +661,6 @@ class _CriarContaState extends State<CriarConta> {
                       asset: assetDaEtapa(_etapaAtual),
                       onda: ondaInteira,
                       desenharOnda: false,
-                      alturaDaArte: .92,
                       logo: _etapaAtual == EtapaCadastro.boasVindas ? 'assets/ptk/ptk_logo.webp' : null,
                     ),
                   ),
@@ -681,8 +732,12 @@ class _CriarContaState extends State<CriarConta> {
               rotulo: textos.email,
               icone: Icons.mail_outline,
               tipoDeTeclado: TextInputType.emailAddress,
-              validador: validarEmail,
-              onMudou: () => setState(() {}),
+              // O aviso de "já existe" fica no campo enquanto o endereço
+              // não mudar — o modal some com um toque, e sem isto a pessoa
+              // ficaria com o botão travado sem nada na tela dizendo por
+              // quê.
+              validador: (valor) => validarEmail(valor) ?? (_emailJaCadastrado ? textos.cadastroEmailJaExisteCampo : null),
+              onMudou: () => setState(() => _emailJaCadastrado = false),
             ),
             CampoFlutuante(
               controller: _confirmarEmail,
@@ -807,7 +862,10 @@ class _CriarContaState extends State<CriarConta> {
                     key: const ValueKey('avancar'),
                     label: _ehUltimaEtapa ? textos.criarConta : textos.avancar,
                     habilitado: _podeAvancar,
-                    carregando: _criando,
+                    // A consulta do e-mail repetido é uma ida ao servidor:
+                    // sem o giro no botão, o toque pareceria não ter
+                    // funcionado e a pessoa tocaria de novo.
+                    carregando: _criando || _conferindoEmail,
                     onTap: _avancar,
                   )
                 // SizedBox vazio, e não `null`: sem um filho com tamanho o
@@ -871,16 +929,28 @@ class _EstiloDaEtapa {
   TextAlign get alinhamentoDoTexto => TextAlign.left;
   CrossAxisAlignment get colunaDoTexto => CrossAxisAlignment.start;
 
-  /// Quanto da largura o cabeçalho ocupa. Com o cume à esquerda ele é mais
-  /// estreito de propósito: é o que segura o texto embaixo do cume, sem
-  /// esbarrar na curva descendo do outro lado. No desktop essa disputa não
-  /// existe — o painel é só do formulário —, então o texto usa a largura
+  /// Quanto da largura o **título** ocupa. Com o cume à esquerda ele é
+  /// mais estreito de propósito: é o que segura o título embaixo do cume,
+  /// sem esbarrar na curva descendo do outro lado. No desktop essa disputa
+  /// não existe — o painel é só do formulário —, então ele usa a largura
   /// inteira.
-  double get larguraDoTexto {
+  ///
+  /// **Só o título.** O subtítulo vem abaixo dele, onde a curva já desceu,
+  /// e usa sempre a linha toda (ver [larguraDoSubtitulo]).
+  double get larguraDoTitulo {
     if (desktop) return 1;
     if (tecladoAberto) return 1;
     return cumeEhAEsquerda ? .70 : .84;
   }
+
+  /// O subtítulo ocupa a linha inteira, sempre.
+  ///
+  /// Ele herdava o estreitamento do título até 15/set, e o resultado era
+  /// uma explicação de quatro linhas curtas ocupando 70% da largura com a
+  /// metade direita vazia — o texto do WhatsApp era o caso mais visível.
+  /// A curva que justificava o estreitamento passa **acima** do subtítulo;
+  /// aqui embaixo não há com o que esbarrar.
+  double get larguraDoSubtitulo => 1;
 
   double get tamanhoDoTitulo {
     if (desktop) return 34;
@@ -961,11 +1031,8 @@ class _CabecalhoDaEtapa extends StatelessWidget {
       ),
       child: Align(
         alignment: estilo.alinhamento,
-        child: FractionallySizedBox(
-          // Não ocupa a largura toda de propósito: é o que permite o texto
-          // subir até o cume sem esbarrar na curva do outro lado.
-          widthFactor: estilo.larguraDoTexto,
-          alignment: estilo.alinhamento,
+        child: SizedBox(
+          width: double.infinity,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -981,14 +1048,20 @@ class _CabecalhoDaEtapa extends StatelessWidget {
                 _SeloDeEtapa(numero: estilo.numeroDaEtapa, total: estilo.totalDeEtapas),
                 const SizedBox(height: 18),
               ],
-              Text(
-                estilo.tituloComQuebra(titulo),
-                textAlign: estilo.alinhamentoDoTexto,
-                style: GoogleFonts.outfit(
-                  fontSize: estilo.tamanhoDoTitulo,
-                  fontWeight: FontWeight.w800,
-                  color: corDeTituloDoCadastro,
-                  height: 1.15,
+              // O estreitamento fica SÓ aqui: é o título que sobe até o
+              // cume da onda e precisa desviar da curva do outro lado.
+              FractionallySizedBox(
+                widthFactor: estilo.larguraDoTitulo,
+                alignment: estilo.alinhamento,
+                child: Text(
+                  estilo.tituloComQuebra(titulo),
+                  textAlign: estilo.alinhamentoDoTexto,
+                  style: GoogleFonts.outfit(
+                    fontSize: estilo.tamanhoDoTitulo,
+                    fontWeight: FontWeight.w800,
+                    color: corDeTituloDoCadastro,
+                    height: 1.15,
+                  ),
                 ),
               ),
               // Com o teclado aberto o subtítulo sai de cena: o título já
@@ -1003,13 +1076,17 @@ class _CabecalhoDaEtapa extends StatelessWidget {
                     ? const SizedBox(width: double.infinity)
                     : Padding(
                         padding: const EdgeInsets.only(top: 10),
-                        child: Text(
-                          estilo.subtituloQueCabe(subtitulo, subtituloCurto),
-                          textAlign: estilo.alinhamentoDoTexto,
-                          style: GoogleFonts.outfit(
-                            fontSize: estilo.tamanhoDoSubtitulo,
-                            color: corDeApoioDoCadastro,
-                            height: 1.45,
+                        child: FractionallySizedBox(
+                          widthFactor: estilo.larguraDoSubtitulo,
+                          alignment: estilo.alinhamento,
+                          child: Text(
+                            estilo.subtituloQueCabe(subtitulo, subtituloCurto),
+                            textAlign: estilo.alinhamentoDoTexto,
+                            style: GoogleFonts.outfit(
+                              fontSize: estilo.tamanhoDoSubtitulo,
+                              color: corDeApoioDoCadastro,
+                              height: 1.45,
+                            ),
                           ),
                         ),
                       ),
