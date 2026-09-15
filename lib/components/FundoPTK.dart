@@ -364,18 +364,108 @@ class _PintorDaOnda extends CustomPainter {
   bool shouldRepaint(_PintorDaOnda anterior) => anterior.forma != forma;
 }
 
+/// A conta de onde o degradê e o desfoque da logo podem existir sem
+/// encostar no desenho.
+///
+/// Vive fora do widget porque é **só a conta** — e foi a conta que errou
+/// duas vezes. Até 15/set as paradas do degradê eram frações da **onda**
+/// (`topoDaCurva * .78`, `* .95`): onde a logo estava não entrava no
+/// cálculo. Como a logo é centralizada na faixa colorida, ela termina bem
+/// acima do fim da faixa — e o véu roxo, ancorado na faixa, começava em
+/// cima do rosto. O ajuste de 13/set empurrou as paradas pra baixo e
+/// continuou sendo chute: seguia sem saber onde a logo acabava, e por isso
+/// voltou a cobrir o PTK no aparelho do usuário.
+///
+/// Agora as duas coisas nascem da **base do quadrado da logo**: o degradê
+/// só existe no vão entre ela e a onda, e o desfoque só toca os últimos
+/// [fracaoBorrada] do quadrado — a faixa que o próprio arquivo já dissolve
+/// no alfa, que é a única borda que havia pra esconder.
+class MedidasDaLogo {
+  /// Altura total do fundo, em px.
+  final double altura;
+
+  /// A faixa colorida que sobra acima do cume da onda, em px. É nela que a
+  /// logo é centralizada.
+  final double faixaVisivel;
+
+  /// Lado do quadrado da logo, em px.
+  final double lado;
+
+  /// Fração da tela a partir da qual a onda cobre a largura inteira.
+  final double fundoDaCurva;
+
+  const MedidasDaLogo._({
+    required this.altura,
+    required this.faixaVisivel,
+    required this.lado,
+    required this.fundoDaCurva,
+  });
+
+  factory MedidasDaLogo.em({
+    required FormaDaOnda onda,
+    required double altura,
+    required double largura,
+  }) {
+    final faixa = altura * onda.topoDaCurva;
+    return MedidasDaLogo._(
+      altura: altura,
+      faixaVisivel: faixa,
+      // A logo cabe na faixa (96% dela) ou na largura (82%), o que for
+      // menor: no celular quem limita é a largura.
+      lado: (faixa * .96).clamp(0.0, largura * .82),
+      fundoDaCurva: onda.fundoDaCurva,
+    );
+  }
+
+  /// Onde o quadrado da logo começa e termina, em px a partir do topo.
+  double get topoDaLogo => (faixaVisivel - lado) / 2;
+  double get baseDaLogo => (faixaVisivel + lado) / 2;
+
+  /// A base da logo como fração da tela — o ponto onde o degradê pode
+  /// começar a escurecer.
+  double get fimDaLogo => altura <= 0 ? 0 : (baseDaLogo / altura).clamp(0.0, fundoDaCurva);
+
+  /// As três paradas do degradê, em fração da **tela** (ele é pintado num
+  /// `Positioned.fill`): transparente até a logo acabar, roxo fechando só
+  /// onde a onda já cobre tudo.
+  List<double> get paradasDoDegrade {
+    // O clamp não é paranoia: `fundoDaCurva` vem de amostrar a Bézier, e
+    // na [ondaInteira] (a do cartão do desktop, cujos quatro números são 1)
+    // a soma dá 1.0000000000000004. Uma parada acima de 1 derruba o
+    // LinearGradient em tempo de execução — e é justamente a onda que a
+    // tela de boas-vindas usa no desktop, onde a logo existe.
+    final fim = fundoDaCurva.clamp(0.0, 1.0);
+    final inicio = fimDaLogo.clamp(0.0, fim);
+    return [inicio, inicio + (fim - inicio) * .5, fim];
+  }
+
+  /// Quanto do quadrado, medido de baixo pra cima, o desfoque alcança.
+  static const fracaoBorrada = .12;
+
+  /// As paradas da máscara de desfoque, em fração da **faixa** — é ela que
+  /// dá altura às duas cópias da logo, então a máscara é medida nela e não
+  /// na tela.
+  List<double> get paradasDoBorrado {
+    if (faixaVisivel <= 0) return const [0, .5, 1];
+    final fim = (baseDaLogo / faixaVisivel).clamp(0.0, 1.0);
+    final inicio = ((baseDaLogo - lado * fracaoBorrada) / faixaVisivel).clamp(0.0, fim);
+    return [0, inicio, fim];
+  }
+}
+
 /// Logo do canal na área colorida, desaparecendo conforme desce: nítida em
-/// cima, levemente embaçada e velada por um roxo perto da onda.
+/// cima, com a borda de baixo dissolvida antes de encontrar a onda.
 ///
 /// O embaçamento progressivo sai de duas camadas com máscaras opostas — o
 /// Flutter não tem blur com intensidade variável. A de cima é a logo
-/// nítida, revelada só no topo; a de baixo é a mesma logo embaçada,
-/// revelada só na parte inferior. Onde as duas se encontram, a passagem de
-/// uma pra outra é o que dá a impressão de foco se perdendo.
+/// nítida, revelada até a base do quadrado; a de baixo é a mesma logo
+/// embaçada, revelada só no último pedacinho. Onde as duas se encontram, a
+/// passagem de uma pra outra é o que dá a impressão de foco se perdendo.
 ///
-/// O efeito é fraco de propósito. O arquivo da logo já tem o alfa
+/// O efeito é fraco de propósito, e desde 15/set ele é **medido pela
+/// logo**, não pela onda — ver [MedidasDaLogo]. O arquivo já tem o alfa
 /// dissolvido nas últimas linhas (o busto era quadrado e terminava num
-/// corte reto), então não sobra borda pra esconder — desfoque e degradê
+/// corte reto), então não sobra borda pra esconder: desfoque e degradê
 /// fortes só embaçavam o rosto sem resolver nada.
 class _LogoComDegrade extends StatelessWidget {
   final String asset;
@@ -390,21 +480,21 @@ class _LogoComDegrade extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, restricoes) {
-        // A logo fica centralizada na faixa colorida que sobra acima do
-        // cume — não no meio da tela. Centralizar na tela inteira jogava
-        // ela pra baixo e a onda comia um pedaço.
-        final faixaVisivel = restricoes.maxHeight * onda.topoDaCurva;
-        final lado = (faixaVisivel * .96).clamp(0.0, restricoes.maxWidth * .82);
+        final medidas = MedidasDaLogo.em(
+          onda: onda,
+          altura: restricoes.maxHeight,
+          largura: restricoes.maxWidth,
+        );
 
         // A logo e as duas máscaras vivem dentro da faixa, e não da tela
-        // inteira: é o que faz o desfoque e o escurecimento acompanharem a
-        // altura que sobrou, em vez de pegarem só o comecinho da imagem.
+        // inteira: é o que faz o desfoque acompanhar a altura que sobrou,
+        // em vez de pegar só o comecinho da imagem.
         final logo = SizedBox(
-          height: faixaVisivel,
+          height: medidas.faixaVisivel,
           child: Center(
             child: SizedBox(
-              width: lado,
-              height: lado,
+              width: medidas.lado,
+              height: medidas.lado,
               child: Image.asset(asset, fit: BoxFit.contain),
             ),
           ),
@@ -418,31 +508,24 @@ class _LogoComDegrade extends StatelessWidget {
               right: 0,
               child: Stack(
                 children: [
-                  _comMascara(child: logo, revelarNoTopo: false, borrar: true),
-                  _comMascara(child: logo, revelarNoTopo: true, borrar: false),
+                  _comMascara(medidas, child: logo, revelarNoTopo: false, borrar: true),
+                  _comMascara(medidas, child: logo, revelarNoTopo: true, borrar: false),
                 ],
               ),
             ),
-            // Degradê por cima de tudo: transparente no alto, roxo mais
-            // fechado encostando na onda. É de propósito discreto — quem
-            // resolve a borda de baixo da logo é o alfa dissolvido no
-            // próprio arquivo, não uma cortina por cima dela. As paradas
-            // seguem a curva pro escuro fechar só onde a onda já cobre
-            // tudo (fundoDaCurva), sem corte reto no meio do roxo.
+            // Degradê por cima de tudo: transparente enquanto a logo
+            // existe, roxo mais fechado só encostando na onda. Quem resolve
+            // a borda de baixo da logo é o alfa dissolvido no próprio
+            // arquivo — este degradê só costura o vão entre a logo e a
+            // curva, e por isso começa exatamente onde o desenho acaba.
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    // Paradas empurradas pra baixo e opacidade reduzida em
-                    // 13/set: antes o escurecimento comecava em 45% da faixa
-                    // e ja chegava opaco, o que cobria o rosto da logo — nao
-                    // so a borda de baixo, que e o unico problema real a
-                    // resolver aqui (e que o alfa do proprio arquivo ja
-                    // dissolve). Agora ele so aparece onde a onda comeca.
                     colors: const [Colors.transparent, Color(0x142A1163), Color(0x662A1163)],
-                    stops: [onda.topoDaCurva * .78, onda.topoDaCurva * .95, onda.fundoDaCurva],
+                    stops: medidas.paradasDoDegrade,
                   ),
                 ),
               ),
@@ -453,7 +536,12 @@ class _LogoComDegrade extends StatelessWidget {
     );
   }
 
-  Widget _comMascara({required Widget child, required bool revelarNoTopo, required bool borrar}) {
+  Widget _comMascara(
+    MedidasDaLogo medidas, {
+    required Widget child,
+    required bool revelarNoTopo,
+    required bool borrar,
+  }) {
     final cores = revelarNoTopo
         ? const [Colors.white, Colors.white, Colors.transparent]
         : const [Colors.transparent, Colors.transparent, Colors.white];
@@ -464,10 +552,7 @@ class _LogoComDegrade extends StatelessWidget {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: cores,
-        // O borrado so entra nos ultimos ~30% da faixa (antes eram 55%):
-        // a logo inteira ficava levemente fora de foco a troco de esconder
-        // uma borda que o alfa do arquivo ja resolve.
-        stops: const [0, .7, .92],
+        stops: medidas.paradasDoBorrado,
       ).createShader(limites),
       child: borrar
           ? ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 3.5, sigmaY: 3.5), child: child)
