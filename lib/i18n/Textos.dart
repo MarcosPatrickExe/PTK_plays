@@ -388,4 +388,10 @@ abstract class Textos {
   String feedVariasCurtidas(int quantas);
   String get feedSejaOPrimeiroACurtir;
   String feedMaisPessoas(int quantas);
+
+  // ----- E-mail ja cadastrado -----
+  String get cadastroEmailJaExisteTitulo;
+  String get cadastroEmailJaExisteTexto;
+  String get cadastroEmailJaExisteCampo;
+  String get cadastroConferindoEmail;
 }
