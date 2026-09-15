@@ -183,7 +183,30 @@ service cloud.firestore {
     // mesmo nickname (a segunda tentativa vira "update" de um dono diferente
     // e e barrada).
     match /nicknamesParaEmail/{nicknameChave} {
-      allow read: if true;
+      // `get` aberto, `list` fechado — e a separacao e o ponto.
+      //
+      // `allow read` cobre os DOIS, e era isso que estava aqui. Na pratica
+      // significava que qualquer pessoa, logada ou nao, conseguia baixar a
+      // colecao inteira: todos os nicknames, e-mails e uids do app.
+      //
+      // A leitura aberta existe por um motivo real — o login por nickname
+      // precisa resolver nick -> e-mail ANTES de haver sessao —, mas pra
+      // isso basta ler UM documento pelo id. Listar nunca foi necessario.
+      allow get: if true;
+
+      // Duas listagens legitimas, e so elas:
+      //
+      // 1. a exclusao da PROPRIA conta, que precisa achar a reserva da
+      //    pessoa (ela e indexada pelo nickname, nao pelo uid, entao so da
+      //    pra achar por consulta);
+      // 2. a remocao em cascata do Painel ADM, que faz a mesma consulta
+      //    com o uid de outra pessoa.
+      //
+      // A condicao em `resource.data.uid` obriga a consulta do cliente a
+      // filtrar por `uid == o meu`: sem o filtro, algum documento devolvido
+      // reprova a regra e a consulta inteira e recusada. E o que impede a
+      // colecao de ser baixada por completo.
+      allow list: if ehAdmin() || (estaLogado() && resource.data.uid == request.auth.uid);
       allow create: if estaLogado() && request.auth.uid == request.resource.data.uid;
       allow update: if estaLogado()
         && request.auth.uid == resource.data.uid
