@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'dart:math';
 import 'dart:typed_data' show Uint8List;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -103,30 +104,36 @@ class AuthRepository {
 
   /// Se ja existe conta com este e-mail.
   ///
-  /// **Consulta `nicknamesParaEmail`, e nao o Firebase Auth.** O caminho
-  /// obvio seria `fetchSignInMethodsForEmail`, mas ele foi descontinuado
-  /// justamente por ser um oraculo de enumeracao: qualquer um podia
-  /// perguntar "essa pessoa tem conta aqui?" sem limite. Com a protecao
-  /// contra enumeracao ligada no Console — que e o padrao em projeto novo —
-  /// ele devolve lista vazia sempre, e um pre-teste em cima dele mentiria
-  /// dizendo que todo e-mail esta livre.
+  /// **Pergunta pra uma Cloud Function, e nao pro Firestore.** A primeira
+  /// versao consultava `nicknamesParaEmail` direto daqui, e pra isso aquela
+  /// colecao precisava ficar listavel por qualquer um — ela guarda o
+  /// e-mail de todo mundo. A funcao devolve so um booleano, a colecao
+  /// voltou a ser fechada pra listagem, e o servidor consegue contar
+  /// quantas perguntas cada origem faz (ver `functions/src/preTesteDeEmail.js`).
   ///
-  /// **Ha um buraco conhecido**: quem entrou pelo Google/Apple e abandonou
-  /// o cadastro antes da etapa do nick nao tem reserva aqui, e passa por
-  /// livre. O Firebase ainda barra no fim, com `email-already-in-use` — o
-  /// pre-teste adianta o aviso na maioria dos casos, nao substitui a
-  /// checagem de verdade.
+  /// Do outro lado ela usa `getUserByEmail` do Admin SDK, que enxerga
+  /// **toda** conta do Auth — inclusive a de quem entrou pelo Google/Apple
+  /// e abandonou o cadastro antes de reservar o nick, caso que a consulta
+  /// ao Firestore deixava passar por livre.
+  ///
+  /// O `fetchSignInMethodsForEmail` do cliente nao serve pra isso: foi
+  /// descontinuado por ser um oraculo de enumeracao e, com a protecao
+  /// contra enumeracao ligada no Console (padrao em projeto novo), devolve
+  /// lista vazia sempre — um pre-teste em cima dele mentiria dizendo que
+  /// todo e-mail esta livre.
+  ///
+  /// A regiao e a mesma declarada na funcao. Errar a regiao aqui nao da
+  /// erro de compilacao: da "not found" em tempo de execucao, que parece
+  /// funcao inexistente.
   Future<bool> emailJaCadastrado(String email) async {
     final alvo = emailNormalizado(email);
     if (alvo.isEmpty) return false;
 
-    final achados = await _firestore
-        .collection('nicknamesParaEmail')
-        .where('email', isEqualTo: alvo)
-        .limit(1)
-        .get();
+    final funcao = FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('emailJaCadastrado');
+    final resposta = await funcao.call<Map<String, dynamic>>({'email': alvo});
 
-    return achados.docs.isNotEmpty;
+    return resposta.data['existe'] == true;
   }
 
   /// Completa o perfil de quem entrou pelo Google/Apple e caiu no cadastro
