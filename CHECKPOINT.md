@@ -323,6 +323,99 @@ Firebase Auth **continua com o relay**. Trocar o e-mail do Auth exigiria
 verificação e mexeria no vínculo com a Apple, que é a identidade da conta —
 risco alto pra ganho baixo.
 
+## Correções do cadastro e o cenário das artes de volta (15/set)
+
+### As artes voltaram a ter o fundo delas — e o motivo de eu ter tirado não se sustentava
+
+O usuário perguntou por que eu tinha removido o fundo das artes que ele
+subiu em PNG quadrado. A resposta honesta é que o recorte resolvia um
+problema **de enquadramento**, e não da arte: com `contain`, o quadrado era
+encaixado pela largura e sobrava gradiente do app acima dele, com uma
+emenda horizontal visível no meio da tela.
+
+Trocando pra **`cover`**, a emenda some sem custo nenhum — o quadrado cobre
+a faixa colorida de ponta a ponta e o cenário da arte **vira** o fundo. O
+corte do `cover` cai nas laterais, onde só há cenário; numa tela de celular
+a conta dá corte zero na vertical.
+
+Os originais estavam no histórico (`6702196^` e `15091cd^`) e voltaram de
+lá, só convertidos pra WebP. **Ficaram menores** que os recortes: 55–73 KB
+contra 62–82 KB — degradê comprime melhor que transparência, e o canal alfa
+sumiu.
+
+**Se alguém for mexer no enquadramento de novo**: `contain` traz a emenda
+de volta, e é ela que gera a tentação de recortar o fundo. Os dois andam
+juntos.
+
+### O PTK some inteiro com o teclado aberto
+
+A `ondaCheia` cobre quase tudo mas deixa uma faixa colorida de ~10% no
+alto, e sobrava ali um PTK espremido — pequeno demais pra se reconhecer e
+grande o bastante pra disputar atenção com o campo. Agora o `asset` vira
+`null` quando o teclado abre, e o `AnimatedSwitcher` do `FundoPTK` faz o
+cross-fade de saída.
+
+### Só o título é estreitado; o subtítulo usa a linha inteira
+
+O cabeçalho inteiro ia pra 70% da largura quando o cume da onda fica à
+esquerda. O **título** precisa disso (ele sobe até o cume e esbarraria na
+curva do outro lado); o **subtítulo** vem abaixo, onde a curva já desceu, e
+herdava a restrição à toa. O sintoma era a etapa do WhatsApp: quatro linhas
+curtas com metade da largura vazia ao lado.
+
+### E-mail repetido para na etapa de e-mail
+
+Antes o duplicado só aparecia **no fim do cadastro**, quando o Firebase
+recusava o `createUserWithEmailAndPassword` — depois de a pessoa já ter
+escolhido nick, senha, foto e WhatsApp.
+
+**Não dá pra usar `fetchSignInMethodsForEmail`**: foi descontinuado
+justamente por ser um oráculo de enumeração e, com a proteção contra
+enumeração ligada no Console (padrão em projeto novo), devolve lista vazia
+sempre — um pré-teste em cima dele mentiria dizendo que todo e-mail está
+livre. A consulta vai em `nicknamesParaEmail`, pelo campo `email`.
+
+**Três coisas pra saber antes de mexer nisso:**
+
+1. **A consulta acontece no toque em "Avançar"**, e não a cada tecla. Por
+   letra seriam dezenas de consultas por cadastro, e um oráculo bem mais
+   aberto.
+2. **O e-mail é normalizado** (minúsculas, sem espaço) na escrita e na
+   leitura. A consulta do Firestore é sensível a maiúscula e não tem como
+   pedir o contrário — sem normalizar, "Fulano@Gmail.com" e
+   "fulano@gmail.com" passariam como endereços diferentes.
+   **Não confirmado**: se há linhas antigas em `nicknamesParaEmail` com
+   e-mail em caixa mista. Se houver, elas escapam do pré-teste até serem
+   reescritas.
+3. **Buraco conhecido**: quem entrou pelo Google/Apple e abandonou antes da
+   etapa do nick não tem reserva, e passa por livre. O Firebase ainda barra
+   no fim.
+
+### ⚠️ Uma exposição que já existia, e que este trabalho não criou
+
+`nicknamesParaEmail` tem `allow read: if true`, e em regras do Firestore
+isso cobre **`get` e `list`**. Ou seja: qualquer pessoa, logada ou não,
+consegue **baixar a coleção inteira** — todos os nicknames, e-mails e uids
+do app.
+
+A leitura pública existe por um motivo real (o login por nickname precisa
+resolver nick → e-mail **antes** de haver sessão). Mas ela só precisa do
+`get` de um documento por id, nunca da listagem.
+
+**O conserto**, quando for a hora:
+
+```
+allow get: if true;
+allow list: if false;
+```
+
+**Isso quebra o pré-teste de e-mail repetido**, que é uma consulta — ou
+seja, os dois não convivem. O endgame correto é o pré-teste virar uma
+Cloud Function com o Admin SDK (`getUserByEmail`), que devolve só um
+booleano e pode ser limitada por taxa. **Não foi feito nesta sessão**, e é
+decisão do usuário: hoje o app tem a conveniência e a exposição; com a
+Function, teria a conveniência sem a exposição.
+
 ## Curtidas no feed (15/set)
 
 O que motivou: a conversa sobre o que um avaliador de loja vê ao entrar. A
@@ -743,7 +836,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **393 testes** passando (`flutter test`), mais **46** no backend
+- **397 testes** passando (`flutter test`), mais **46** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
