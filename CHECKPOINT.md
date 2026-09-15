@@ -1,6 +1,6 @@
 # Checkpoint — PTK Plays
 
-Snapshot do estado do projeto em **15/set/2026**, escrito pra retomar o
+Snapshot do estado do projeto em **15/set/2026** (fim do dia), escrito pra retomar o
 trabalho numa sessão nova do Claude sem perder contexto (a sessão anterior
 passou por um `/clear` aqui). Ver também:
 
@@ -22,33 +22,77 @@ Só entra aqui o que **bloqueia trabalho** ou o que faria a próxima sessão
 quebrar algo por não saber. Cada item diz o que fazer, não só o que está
 pendente.
 
-1. **Três deploys pendentes, e um deles derruba o app sem aviso claro.**
+1. **As quatro entregas de 15/set continuam sem ter rodado contra o
+   Firebase de verdade. O deploy já entrou; a validação, não.**
 
-   ```
-   cd functions && npm install    # cloud_functions é novo no app, mas aqui
-                                  # não mudou dependência — só rode se o
-                                  # container reciclou
-   firebase deploy --only functions:emailJaCadastrado
-   firebase deploy --only firestore:rules
-   ```
+   *O que é*: curtidas, expulsão de conta banida, exclusão de conta
+   completa e pré-teste de e-mail dependem de regra do Firestore ou de
+   Cloud Function — coisas que **só o servidor avalia**. Nenhum teste
+   deste repositório alcança isso: não há harness de `firestore.rules`, e
+   o `AuthRepository` cria `FirebaseAuth.instance` no próprio campo.
 
-   *O que cada um faz:*
+   *Por que é atenção*: uma regra errada não quebra build nem teste. A
+   primeira sessão que mexer em qualquer uma dessas quatro coisas precisa
+   saber que elas **nunca foram exercitadas**.
 
-   - **`functions:emailJaCadastrado`** — a função nova do pré-teste de
-     e-mail. Sem ela o app chama e recebe "not found"; o cadastro **segue
-     normalmente** (a falha responde "não existe"), só perde o aviso
-     antecipado. É a única das três que falha de forma gentil.
-   - **`firestore:rules`** — carrega **duas** mudanças acumuladas:
-     1. as **curtidas**: a regra de `create` de post exigia `curtidas == 0`
-        e passa a exigir `curtidoPor == []`. **Sem publicar, publicar
-        qualquer post para de funcionar**, com um "sem permissão" que manda
-        quem investiga pro lugar errado;
-     2. o fechamento da listagem de `nicknamesParaEmail`.
+   *Como confirmar* — cada roteiro já está escrito no fim do arquivo de
+   teste correspondente. Em ordem de risco:
 
-   *Só o `--only functions:emailJaCadastrado`*, e não `--only functions`
-   inteiro: o deploy completo republica webhook e funções de live à toa.
+   1. **Publicar um post** (feed → botão flutuante). O mais barato e o de
+      maior risco: é ele que a regra republicada em 15/set destravou.
+   2. **Curtir e descurtir** um post de outra pessoa; conferir que a
+      contagem muda e as miniaturas aparecem. Roteiro de 5 pontos no fim de
+      `test/curtidas_test.dart`.
+   3. **Cadastrar com um e-mail que já existe** — o modal "Esse e-mail já
+      tem conta" deve aparecer **na etapa de e-mail**, não no fim.
+   4. **Apagar uma conta descartável** de cada tipo (senha, Google, Apple).
+      Roteiro de 6 pontos no fim de `test/exclusao_de_conta_test.dart`.
+   5. **Banir a própria conta** pelo Painel ADM em outro aparelho, com o
+      app aberto. Roteiro de 5 pontos no fim de `test/conta_gate_test.dart`.
 
-2. **Conta banida agora é EXPULSA pro login — e o login dela continua
+   *O que cada falha significa*:
+   - **"sem permissão" ao publicar post** → a regra publicada voltou a
+     não bater com o app. Em 15/set isso aconteceu por um motivo bem
+     concreto: o `firebase deploy` rodou **antes** do merge do PR #78, e
+     ele publica os arquivos da máquina onde roda, não os do GitHub. O
+     conserto foi `git pull origin main` e rodar de novo.
+   - **curtida não registra, mas post publica** → a regra `podeCurtir()`
+     não entrou. Console → Firestore → Regras.
+   - **o modal de e-mail repetido nunca aparece** → a função não
+     respondeu. `firebase functions:log --only emailJaCadastrado` diz se
+     ela foi chamada. **Isso falha de forma gentil de propósito**: o
+     cadastro segue normalmente, só sem o aviso antecipado.
+   - **exclusão de conta trava no meio** → provavelmente a listagem de
+     `nicknamesParaEmail`, que passou a exigir filtro por `uid`. O desenho
+     é falhar deixando a conta **existindo**, então dá pra tentar de novo.
+
+2. **Duas configurações de Console ficaram pendentes, e uma delas é de
+   segurança.**
+
+   *O que é*: o pré-teste de e-mail (`emailJaCadastrado`) é, por
+   definição, um oráculo de enumeração — alguém pode perguntar "essa
+   pessoa tem conta aqui?". Mover a pergunta pro servidor colocou uma
+   **porta** nele, não o eliminou.
+
+   *Por que é atenção*:
+
+   - **App Check não está ligado**, e ele é a defesa de verdade: só o app
+     de verdade consegue chamar a função. O que existe hoje é um contador
+     de 30 perguntas por hora por origem, que quebra um script mas **não
+     um atacante distribuído**. Ligar em Console → App Check, registrando
+     o app Android/iOS/Web, e depois `enforceAppCheck: true` no `onCall`
+     (`functions/index.js`) — **nessa ordem**, senão o app em produção
+     para de chamar a função antes de estar registrado.
+   - **A coleção `limitesDePreTesteDeEmail` acumula.** Cada documento leva
+     um campo `expiraEm` esperando uma **política de TTL** do Firestore,
+     que precisa ser criada em Console → Firestore → TTL, apontando pra
+     essa coleção e esse campo. Sem ela o campo é decorativo e os
+     documentos ficam. São pequenos, mas ficam.
+
+   *Não confirmado*: se o App Check já foi registrado em algum momento
+   anterior deste projeto. Nada no repositório indica que sim.
+
+3. **Conta banida agora é EXPULSA pro login — e o login dela continua
    existindo, de propósito.**
 
    *Correção de uma leitura errada deste arquivo*: a versão anterior
@@ -85,7 +129,7 @@ pendente.
    exclusão a partir do próprio modal, com a pessoa reautenticando.
    **Não confirmado**: se a Apple de fato exige isso de conta moderada.
 
-3. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
+4. **A caixa de entrada do WhatsApp nunca recebeu uma mensagem de
    verdade.**
 
    *O que é*: em 07/set o `whatsappWebhook` passou a gravar tudo que a
@@ -130,21 +174,25 @@ pendente.
      problema é leitura: confira se a conta que você abriu tem `cargo ==
      'admin'`, porque a regra só libera leitura pra admin.
 
-4. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
+5. **Falta a arte de boas-vindas do cadastro.** É a única das 6 etapas sem
    arte própria do PTK — hoje ela mostra a **logo do canal**
    (`assets/ptk/ptk_logo.webp`) centralizada na área roxa, o que ficou
-   bom, mas não é uma arte do personagem. Pra trocar: soltar o arquivo em
+   bom, mas não é uma arte do personagem. Quando a arte chegar, ela entra
+   por `assetDaEtapa` e passa a ser desenhada com `cover`, um caminho
+   diferente do da logo — o degradê e o desfoque de `MedidasDaLogo` (ver a
+   seção de 15/set sobre isso) **deixam de valer**, porque arte com `cover`
+   não tem borda pra dissolver. Pra trocar: soltar o arquivo em
    `assets/ptk/` e apontar em `assetDaEtapa` (`lib/view/CriarConta.dart`).
    Se vier no mesmo estilo quadrado das outras cinco, passar pelo mesmo
    preparo (ver "Artes do cadastro" mais abaixo).
-5. **Custom claim de admin no Auth** — a pendência que o usuário pediu
+6. **Custom claim de admin no Auth** — a pendência que o usuário pediu
    explicitamente pra fazer "na próxima". É uma Cloud Function que marca o
    admin com um custom claim, e resolve **duas** limitações de uma vez:
    - fechar a escrita no Storage (hoje qualquer logado pode subir arquivo
      na própria pasta `posts_midia/{uid}/`, mesmo sem conseguir publicar);
    - permitir que a remoção em cascata de usuário apague também a conta do
      Firebase Auth e os arquivos órfãos do Storage.
-6. **App Store — o build foi REPROVADO. Não reenviar como está.**
+7. **App Store — o build foi REPROVADO. Não reenviar como está.**
 
    *O que é*: o build submetido em 25/ago/2026 foi reprovado na revisão de
    **27/ago** (Submission `6db9576f-1f55-4ba0-aa62-6d06009a9495`), em dois
@@ -204,7 +252,7 @@ pendente.
    *Conferir também*: a Apple chama o binário de **"1.2.0 (17)"**, mas o
    `pubspec.yaml` diz `1.2.1+17`. Olhar a página do build no App Store
    Connect antes de concluir o que foi revisado.
-7. **Cadastro social estava quebrado — corrigido em 13/set, falta validar.**
+8. **Cadastro social estava quebrado — corrigido em 13/set, falta validar.**
 
    *O que era*: `CriarConta._criarConta` chamava `cadastrar` nos **dois**
    fluxos. Na conta social isso virava
@@ -223,7 +271,7 @@ pendente.
    Firebase real. O que dá pra fazer aqui é teste de widget do fluxo de
    etapas, que existe.
 
-8. **Exclusão de conta por login social — CORRIGIDO em 14/set, falta
+9. **Exclusão de conta por login social — CORRIGIDO em 14/set, falta
    validar num aparelho.**
 
    *O que era*: `AuthRepository.excluirConta` reautenticava sempre com
@@ -260,13 +308,100 @@ pendente.
    nelas (`write: if false` vale pra todo mundo, admin incluído). Limpá-las
    ao apagar a conta precisa de uma Cloud Function com o Admin SDK, que não
    existe. **Isso é dado pessoal** (telefone e nome de perfil) sobrevivendo
-   à exclusão — vale resolver junto com o custom claim de admin (atenção 5).
+   à exclusão — vale resolver junto com o custom claim de admin (atenção 6).
 
-9. **Google Play — aviso de nível de API.** O código está certo
+10. **Google Play — aviso de nível de API.** O código está certo
    (`compileSdk`/`targetSdk` fixos em **36** desde 27/jul, e as tags
    `v1.2.1+13`, `1.2.1+14` e `v1.2.1+16` já contêm isso). O que o Play
    Console olha é o **artefato publicado** — o aviso só some quando um
    build feito a partir dessa versão for promovido. Ver `CLAUDE.md`.
+
+## O que está esperando resposta do usuário
+
+Registrado aqui porque o `/clear` apaga a conversa, mas não apaga o fato de
+que estas decisões estão paradas. **Não decidir nada disso sozinho** —
+onde há recomendação minha, ela está marcada como recomendação.
+
+### Decisões de produto
+
+1. **Badges contando de verdade — e por qual caminho.** O usuário já
+   aprovou a feature ("vamos fazer as Badges contarem de verdade"), então
+   isto não é a pergunta; a pergunta é **como**. A tela de Conquistas hoje
+   mostra três metas inalcançáveis:
+
+   | Badge | Promete | Estado |
+   |---|---|---|
+   | Comentarista | "Comente em 10 posts ou vídeos" | não há comentário no app |
+   | Popular | "Receba 50 curtidas nos seus comentários" | **destravada pelas curtidas** — basta mudar a meta pra curtidas nos POSTS |
+   | Presença VIP | "Clique pra assistir 5 lives" | o app já abre o link; falta contar o toque |
+
+   O obstáculo é o mesmo pras três: `contadores` é travado contra escrita
+   do cliente no `firestore.rules`. **Duas saídas, e elas não são
+   equivalentes:**
+
+   - **Exceção estreita na regra** (só o próprio uid, só `+1`, só o
+     contador que muda). Sai hoje, sem deploy de função. O custo é que o
+     cliente passa a poder inflar o próprio contador — não há como a regra
+     saber se o clique na live aconteceu de verdade.
+   - **Cloud Function** disparada por gatilho (`onDocumentUpdated` no post
+     pra curtida, uma callable pro clique na live). Não dá pra falsificar,
+     e custa um deploy e latência.
+
+   **Minha recomendação**: Function pra "Popular" (o contador tem valor
+   social e mentir nele estraga a badge pra todo mundo) e exceção na regra
+   pra "Presença VIP" (ninguém ganha nada inflando quantas lives assistiu).
+   Mas é recomendação, não decisão.
+
+2. **Comentários — fazer ou adiar.** Discutido em 15/set e **não
+   decidido**. O ponto que decide: comentário arrasta o **guideline 1.2**
+   junto — conteúdo gerado por usuário exige filtro, denúncia, bloqueio de
+   usuário e um caminho pra agir em até 24h. Não é "adicionar um campo de
+   texto", é um pacote. Fazer sem isso troca um risco de reprovação por
+   outro.
+
+3. **Nome da badge de compartilhar.** Ideia do usuário: ganhar uma badge ao
+   compartilhar o app com pelo menos uma pessoa. Ele sugeriu "O primeiro
+   compartilhador"; apontei que soa como se só a primeira pessoa ganhasse,
+   e sugeri algo que diga o papel — **"Espalhador"** ou **"Trouxe gente"**.
+   Sem resposta. Depende do compartilhar existir (hoje está na barra do
+   feed como "Em breve").
+
+4. **"Regras de uso" ou "termos de uso"** no modal de conta banida. O
+   usuário escreveu "termos de uso"; usei **"regras de uso"** porque o
+   repositório tem um `REGRAS_DA_COMUNIDADE.md` e me pareceu melhor a
+   mensagem apontar pro documento que existe. Flaguei e não houve resposta.
+   Trocar é **uma linha em cada catálogo** (`bloqueioBanidaTexto` e
+   `bloqueioSuspensaTexto`).
+
+5. **Conta banida e a exclusão de conta (5.1.1(v)).** A Apple exige que
+   **toda** conta possa ser apagada de dentro do app, e quem está banido
+   não alcança mais o botão (ele mora no `Profile`, e o banido cai no
+   login). O caminho seria oferecer a exclusão a partir do próprio modal de
+   banimento. **Não confirmado**: se a Apple de fato exige isso de conta
+   moderada. Ver atenção 3.
+
+6. **`lib/view/Cadastro.dart` é código morto.** O `Login` navega pro
+   `CriarConta` em etapas; o único caminho que ainda chega no `Cadastro` é
+   a rota `/cadastro` do arranque de screenshots. Ele foi traduzido por
+   completude em 14/set, mas é **candidato a exclusão**. Sem resposta.
+
+### Ações que só o usuário pode fazer
+
+7. **Chave APNs** — o único bloqueio real do push. Adiado por decisão dele
+   em 14/set ("vamos deixar para a próxima etapa"). Gerar no Apple
+   Developer Portal e carregar no Firebase Console.
+
+8. **App Check e a política de TTL** — ver atenção 2. O App Check é o que
+   protege o pré-teste de e-mail de verdade.
+
+9. **App Review Notes com conta de demonstração** — continua sendo a coisa
+   de maior alavancagem da lista inteira, e a mais barata. Sem ela, um
+   revisor que esbarre no login não vê nada do app e reprova por
+   funcionalidade também.
+
+10. **Reproduzir o login com Apple num iPad** — ninguém no projeto tem
+    aparelho Apple; o caminho montado é o Appetize (ver seção própria, com
+    o limite de 3 minutos por sessão).
 
 ## Cadastro reativo e WhatsApp opcional (13/set)
 
@@ -420,6 +555,48 @@ algum documento devolvido reprova a regra e a consulta inteira é recusada.
 
 **Isso só ficou possível porque o pré-teste de e-mail saiu do cliente.**
 Enquanto ele era uma consulta do app, os dois não conviviam.
+
+## O degradê da logo de boas-vindas parou de cobrir o PTK (15/set)
+
+Terceira passada no mesmo problema, e a primeira que mexeu no número
+certo. Na etapa de boas-vindas do cadastro a logo do canal aparece na área
+roxa com um degradê e um desfoque discretos em cima — e o usuário reclamou
+de novo, com print, que **o véu estava por cima do rosto**.
+
+**A armadilha, que é a parte que vale guardar**: as paradas do degradê
+eram frações da **onda** (`topoDaCurva * .78` e `* .95`), e onde a logo
+estava não entrava na conta. Só que a logo é **centralizada** na faixa
+colorida, e o quadrado dela é limitado pela largura da tela — então ela
+termina bem **acima** do fim da faixa. Num celular de 800px de altura: a
+logo acabava em 347px e o escurecimento já começava em 279px, ou seja,
+**68px desenho adentro**, bem na altura da boca e do microfone do headset.
+O desfoque entrava ainda mais cedo, em 250px — quase 30% do quadrado fora
+de foco.
+
+O ajuste de 13/set tinha empurrado essas mesmas frações pra baixo. Foi por
+isso que não resolveu: continuava sendo um chute sobre um número que não
+sabia onde a logo acabava. **Ajustar a constante uma terceira vez teria
+falhado de novo em outro tamanho de tela.**
+
+**O que mudou**: nasceu `MedidasDaLogo` (`lib/components/FundoPTK.dart`),
+uma classe pura que calcula a base do quadrado da logo e devolve as
+paradas dos dois efeitos a partir dela. O degradê só existe no **vão entre
+a logo e a curva**; o desfoque só alcança os **últimos 12%** do quadrado —
+a faixa que o alfa do próprio arquivo já dissolve, que é a única borda que
+havia pra esconder.
+
+**Um bug de tabela que o teste achou sozinho**: `fundoDaCurva` sai de
+amostrar a Bézier, e na `ondaInteira` (a do cartão do desktop, cujos
+quatro números são 1) a conta dá `1.0000000000000004`. Uma parada acima de
+1 **derruba o `LinearGradient` em execução** — e é exatamente a onda que a
+tela de boas-vindas usa no desktop, onde a logo existe. O `clamp` que
+conserta isso está no código, comentado, e não é paranoia.
+
+Coberto por 6 testes novos em `test/fundo_ptk_test.dart` (grupo
+`MedidasDaLogo`). Um deles checa **de propósito** que a conta antiga
+cairia dentro do desenho: se alguém voltar pra ela, o teste acusa em vez
+de passar calado. Outro varre 4 tamanhos de tela × 8 ondas conferindo que
+as paradas não desandam — foi ele que achou o `1.0000000000000004`.
 
 ## Pré-teste de e-mail: a Cloud Function (15/set)
 
@@ -658,7 +835,7 @@ perfil, badges, cargo, posts, comentários e curtidas **apagados**, e
 redirecionamento pro login.
 
 **O que estava quebrado**: `excluirConta` reautenticava sempre com senha, e
-apagava **só** `users/{uid}`. Detalhes e o que falta validar: atenção 8.
+apagava **só** `users/{uid}`. Detalhes e o que falta validar: atenção 9.
 
 **A ordem da exclusão não é arbitrária** — é a parte que mais fácil se
 quebra numa refatoração futura:
@@ -844,7 +1021,7 @@ gastar esforço:
   17/ago. Um `apple/unknown` no Appetize é **inconclusivo**, não é
   diagnóstico.
 
-Por isso as duas checagens gratuitas do Firebase Console (atenção 6) vêm
+Por isso as duas checagens gratuitas do Firebase Console (atenção 7) vêm
 antes: elas não precisam de simulador nenhum.
 
 ### O iPad cai dos dois lados do corte de layout
@@ -863,21 +1040,22 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Estado do git
 
-- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**. Últimos merges em
-  `main`: **PR #74** (`eac8212`), **PR #75** (`131c2f8`) e **PR #76**
-  (documentação). Depois deles veio `9378987` — o usuário subiu a arte
-  nova direto na `main` pela interface web do GitHub; ela **já foi
-  preparada e o PNG cru foi apagado** (ver "Artes do cadastro").
-- A branch tem o trabalho de **14/set** por cima disso: campo de confirmar
-  senha removido, texto da etapa de WhatsApp, a arte nova, o i18n inteiro
-  e a exclusão de conta para qualquer login.
+- Branch de dev: **`claude/ptk-plays-setup-2q86aw`**, **2 commits à frente
+  da `main`** (o degradê da logo de boas-vindas). **Sem PR aberto pra
+  eles** — o usuário ainda não pediu.
+- Último merge: **PR #78** (`f850ad0`), com o cenário das artes de volta,
+  três correções no cadastro e o pré-teste de e-mail virando Cloud
+  Function. Antes dele, **PR #77** (curtidas) e **PR #76** (i18n, exclusão
+  de conta, banimento).
+- **Nenhum PR aberto.**
 - **`main` → deploy automático no Vercel em `https://ptk-plays.vercel.app`**
   (atenção: `plays.vercel.app`, que consta em versões antigas deste
   arquivo, **dá 404** — não é o endereço certo).
 - Cada PR gera um **preview próprio no Vercel**, comentado no próprio PR —
   é assim que o usuário revisa mudança visual antes de mesclar.
-- `pubspec.yaml`: `version: 1.2.1+17`. Dependência nova:
-  **`flutter_localizations`**.
+- `pubspec.yaml`: `version: 1.2.1+17`. Dependências novas desta leva:
+  **`flutter_localizations`** (i18n) e **`cloud_functions`** (pré-teste de
+  e-mail).
 - iOS/Android buildam via Codemagic **só** quando uma tag `v*` é criada e
   enviada — nunca criar/enviar tag sem o usuário pedir, e esta sessão não
   consegue dar `git push` de tag de qualquer forma.
@@ -894,7 +1072,7 @@ o caso de **girar o iPad no meio do cadastro** (que é a mesma remontagem de
 
 ## Saúde do projeto
 
-- **397 testes** passando (`flutter test`), mais **58** no backend
+- **403 testes** passando (`flutter test`), mais **58** no backend
   (`cd functions && npm test`).
 - `flutter analyze`: **0 erros e 1 warning**, mais uma baseline conhecida
   de ~96 *infos* antigas (nomes de arquivo em PascalCase, `withOpacity`
@@ -926,11 +1104,37 @@ Cloud Shell):
 - `functions` e `firestore.rules` — republicados em **08/set**, com a
   caixa de entrada do WhatsApp.
 
-O deploy de 14/set (exclusão de conta: `firestore.rules` + `storage.rules`)
-**foi feito** — confirmado por print do Cloud Shell.
+- **14/set** — `firestore.rules` + `storage.rules`, pela exclusão de conta
+  (confirmado por print do Cloud Shell).
+- **15/set, primeira tentativa** — o usuário rodou
+  `functions:emailJaCadastrado` e `firestore:rules`, e **nenhum dos dois
+  surtiu efeito**: os comandos rodaram **antes** do merge do PR #78, e o
+  `firebase deploy` publica os arquivos da máquina onde roda, não os do
+  GitHub. Publicar post ficou quebrado em produção nesse intervalo.
+- **15/set, segunda tentativa — ENTROU.** O usuário rodou `git pull origin
+  main` e repetiu os dois deploys. **Conferido por `curl` nesta sessão**,
+  e é esta a parte que vale copiar da próxima vez:
 
-**HÁ DEPLOY PENDENTE desde 15/set**, e agora são **três** comandos. Ver
-atenção 1.
+  | Checagem | Antes | Depois |
+  |---|---|---|
+  | `GET .../southamerica-east1-ptk-plays.cloudfunctions.net/emailJaCadastrado` | 404 | **400** |
+  | `GET .../notificarAoVivo` (controle, função que já existia) | 403 | 403 |
+  | `list` de `nicknamesParaEmail` sem login, via REST do Firestore | 200 | **403** |
+
+  **404 → 400 é o sinal de que a função passou a existir**: 404 é "não há
+  nada nessa URL"; 400 é a própria função recusando um GET malformado (ela
+  é `onCall` e espera POST com corpo). O controle existe porque 404 sozinho
+  não prova nada — ele confirma que a URL antiga ainda serve pra função v2
+  neste projeto. E o `list` caindo de 200 pra 403 é a regra nova no ar: só
+  a antiga permitia listar a coleção sem sessão.
+
+**Não há mais deploy pendente.** Faltam **duas configurações de Console**
+(App Check e política de TTL), que não são deploy — ver atenção 2.
+
+**Uma regra que vale pra sempre desta seção**: "rodei o deploy" não quer
+dizer que o código novo subiu — e o modo de falhar é sempre o mesmo, rodar
+o comando antes do `git pull`. Confirmar com `firebase functions:list`, com
+o horário no Console → Firestore → Regras, ou com uma chamada de verdade.
 
 Atenção: `firebase deploy --only storage:rules` **não funciona** (o CLI
 interpreta "rules" como nome de target); o comando certo é `firebase
@@ -1270,40 +1474,52 @@ O backfill já rodou: **124 lives do YouTube + 3 VODs da Twitch**.
 
 ## Pendências, em ordem de esforço
 
-1. **Confirmar que o webhook está gravando** de verdade (ver atenção 3) —
-   é mandar uma mensagem pro número de teste e olhar a aba.
-2. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
-3. **Destravar a reprovação da Apple** (ver atenção 6). A parte de código
+1. **Exercitar as quatro entregas de 15/set contra o Firebase de verdade**
+   (ver atenção 1) — é abrir o app e seguir cinco roteiros curtos.
+2. **Confirmar que o webhook do WhatsApp está gravando** (ver atenção 4) —
+   mandar uma mensagem pro número de teste e olhar a aba.
+3. **Arte de boas-vindas** do cadastro (trivial: 1 arquivo + 1 linha).
+4. **App Check e política de TTL** no Console (ver atenção 2). Nenhum dos
+   dois é código.
+5. **Badges contando de verdade** — aprovado pelo usuário, com uma decisão
+   de caminho em aberto (ver "O que está esperando resposta", item 1). As
+   curtidas já destravaram a badge "Popular".
+6. **Destravar a reprovação da Apple** (ver atenção 7). A parte de código
    saiu em 11/set; o que resta — reproduzir num iPad e escrever as App
    Review Notes — depende do usuário e de aparelho físico. O provedor Apple
    no Firebase Console **já foi ligado** pelo usuário em 13/set.
-4. **Notificações push** — pedido em 13/set e **adiado pelo usuário em
-   14/set** ("vamos deixar para a próxima etapa"), que escolheu o i18n
-   primeiro. Bloqueado na **chave APNs**, que só ele pode gerar. O lado do
-   código é:
-   `firebase_messaging` no `pubspec.yaml`, token salvo no perfil do usuário,
-   e uma Cloud Function disparada pelos webhooks de live **que já existem**
-   (`twitchWebhook`, `kickWebhook`, `verificarYoutubeAoVivo`) — o gatilho
-   está pronto, falta o disparo. Depois disso, o **envio por cargo pelo
-   Painel ADM** (a aba Notificações já existe e explica que não está
-   pronta) sai de graça em cima da mesma infra.
-5. ~~**Internacionalização (pt-BR + en-US)**~~ — **FEITA em 14/set**, sem
-   corte: o usuário pediu o app inteiro de uma vez, não em levas. Ver
-   "Duas línguas" mais abaixo e a regra permanente no `CLAUDE.md`.
-6. **Custom claim de admin** no Auth (ver atenção 5).
-7. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
-   tela de chat. A opção já existe no menu e avisa que não está pronta.
-   Quando existir, entra também na remoção em cascata (o lugar já está
-   marcado no código).
-8. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
-   vez, com detector de visibilidade).
-9. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
-   cliente de propósito, então precisa de Cloud Function.
-10. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
-   reescreve boa parte do `firestore.rules`.
-11. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
-   existe e está no ar; falta o **envio**, que depende do número de
-   produção e dos modelos de mensagem aprovados na Meta.
+7. **Notificações push** — pedido em 13/set e **adiado pelo usuário em
+   14/set** ("vamos deixar para a próxima etapa"). Bloqueado na **chave
+   APNs**, que só ele pode gerar. O lado do código é: `firebase_messaging`
+   no `pubspec.yaml`, token salvo no perfil do usuário, e uma Cloud
+   Function disparada pelos webhooks de live **que já existem**
+   (`twitchWebhook`, `kickWebhook`, `verificarYoutubeAoVivo`).
+
+   **Atenção — metade disso já existe E JÁ ESTÁ NO AR.**
+   `functions/index.js` tem um `notificarAoVivo` (`onDocumentCreated` em
+   `posts/{postId}`, região `southamerica-east1`) que envia FCM pro tópico
+   de live, e ele **responde** — verificado em 15/set por `curl` na URL
+   `https://southamerica-east1-ptk-plays.cloudfunctions.net/notificarAoVivo`
+   (HTTP 403, que é "existe e recusou a chamada direta"; 404 seria "não
+   existe"). **Não confirmado**: se alguém já se inscreve no tópico pelo
+   app — sem inscrito, a função dispara e a notificação não chega em
+   ninguém. Conferir isso antes de reimplementar qualquer coisa.
+8. **Comentários** — não decidido (ver "O que está esperando resposta",
+   item 2). Arrasta o guideline 1.2 junto.
+9. **Custom claim de admin** no Auth (ver atenção 6).
+10. **Etapa 3 — mensagem privada do admin**: coleção `conversas` + regras +
+    tela de chat. A opção já existe no menu e avisa que não está pronta.
+    Quando existir, entra também na remoção em cascata (o lugar já está
+    marcado no código).
+11. **Etapa 4 — autoplay do preview na aba Vídeos** (mudo, um player por
+    vez, com detector de visibilidade).
+12. **Etapa 5 — badges pelo painel**: `badges` é travado contra escrita do
+    cliente de propósito, então precisa de Cloud Function.
+13. **Etapa 7 — cargos customizados com permissões**: a mais invasiva,
+    reescreve boa parte do `firestore.rules`.
+14. **Etapa 8 — envio pelo WhatsApp**: a caixa de entrada (leitura) já
+    existe e está no ar; falta o **envio**, que depende do número de
+    produção e dos modelos de mensagem aprovados na Meta.
 
 **Ideias registradas, ainda não pedidas**: log de auditoria de moderação
 (quem baniu quem e quando), campo de motivo ao banir (hoje o clique bane

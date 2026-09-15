@@ -204,6 +204,94 @@ void main() {
     });
   });
 
+  group('MedidasDaLogo', () {
+    // Onda de referência: é a primeira etapa do cadastro, a das
+    // boas-vindas, que é onde a logo aparece.
+    const onda = FormaDaOnda(alturaEsquerda: .52, alturaDireita: .46, curvaEsquerda: .58, curvaDireita: .40);
+
+    MedidasDaLogo medidasDeCelular() =>
+        MedidasDaLogo.em(onda: onda, altura: 800, largura: 411);
+
+    test('o degradê só começa depois que a logo acaba — era isso que cobria o PTK', () {
+      final medidas = medidasDeCelular();
+      final paradas = medidas.paradasDoDegrade;
+
+      // A primeira parada (a transparente) não pode cair dentro do
+      // quadrado da logo. A conta antiga era `topoDaCurva * .78`, que
+      // nessa tela dava .349 — e a logo só terminava em .434, ou seja, o
+      // véu roxo entrava ~68px desenho adentro, bem na altura da boca e do
+      // microfone do headset.
+      expect(paradas.first * 800, greaterThanOrEqualTo(medidas.baseDaLogo - .01));
+      expect(onda.topoDaCurva * .78 * 800, lessThan(medidas.baseDaLogo),
+          reason: 'a conta antiga deixaria de ser um bug e o teste perderia o sentido');
+    });
+
+    test('o degradê ainda fecha na onda, pra costurar o vão até a curva', () {
+      final paradas = medidasDeCelular().paradasDoDegrade;
+
+      expect(paradas.last, closeTo(onda.fundoDaCurva, .0001));
+      expect(paradas[1], greaterThan(paradas.first));
+      expect(paradas[1], lessThan(paradas.last));
+    });
+
+    test('o desfoque só alcança os últimos 12% do quadrado, onde o alfa já dissolve', () {
+      final medidas = medidasDeCelular();
+      final paradas = medidas.paradasDoBorrado;
+
+      // As paradas do borrado são frações da FAIXA (é ela que dá altura às
+      // duas cópias da logo), não da tela.
+      final inicioEmPx = paradas[1] * medidas.faixaVisivel;
+      final fimEmPx = paradas[2] * medidas.faixaVisivel;
+
+      expect(fimEmPx, closeTo(medidas.baseDaLogo, .01));
+      expect(medidas.baseDaLogo - inicioEmPx, closeTo(medidas.lado * MedidasDaLogo.fracaoBorrada, .01));
+      // O rosto fica na metade de cima do quadrado: o borrado não chega lá.
+      expect(inicioEmPx, greaterThan(medidas.topoDaLogo + medidas.lado / 2));
+    });
+
+    test('as paradas nunca desandam, em nenhuma onda e em nenhuma tela', () {
+      // Um LinearGradient com paradas fora de ordem estoura em tempo de
+      // execução — e o cálculo depende de três números que vêm de fora
+      // (altura, largura e a onda da etapa).
+      for (final onda in [...ondasDoCadastro, ondaCheia, ondaInteira]) {
+        for (final tela in const [Size(411, 800), Size(320, 480), Size(1024, 600), Size(600, 1024)]) {
+          final medidas = MedidasDaLogo.em(onda: onda, altura: tela.height, largura: tela.width);
+          final degrade = medidas.paradasDoDegrade;
+          final borrado = medidas.paradasDoBorrado;
+
+          for (final paradas in [degrade, borrado]) {
+            for (var i = 1; i < paradas.length; i++) {
+              expect(paradas[i], greaterThanOrEqualTo(paradas[i - 1]),
+                  reason: 'paradas fora de ordem em $onda / $tela');
+            }
+            expect(paradas.first, inInclusiveRange(0, 1));
+            expect(paradas.last, inInclusiveRange(0, 1));
+          }
+        }
+      }
+    });
+
+    test('a logo continua cabendo na faixa acima do cume', () {
+      final medidas = medidasDeCelular();
+
+      expect(medidas.topoDaLogo, greaterThanOrEqualTo(0));
+      expect(medidas.baseDaLogo, lessThanOrEqualTo(medidas.faixaVisivel + .01));
+      expect(medidas.fimDaLogo, lessThanOrEqualTo(onda.fundoDaCurva));
+    });
+
+    test('numa faixa alta quem limita a logo é a largura, e a base sobe junto', () {
+      // Aparelho estreito e comprido: o quadrado não pode crescer além de
+      // 82% da largura, então sobra vão entre a logo e a onda — e é
+      // exatamente esse vão que o degradê tem pra si.
+      final medidas = MedidasDaLogo.em(onda: onda, altura: 1200, largura: 360);
+
+      expect(medidas.lado, closeTo(360 * .82, .01));
+      expect(medidas.baseDaLogo, lessThan(medidas.faixaVisivel));
+      expect(medidas.paradasDoDegrade.first, lessThan(medidas.paradasDoDegrade.last),
+          reason: 'sem vão o degradê não teria onde existir');
+    });
+  });
+
   group('FundoPTK', () {
     testWidgets('desenha a onda por cima da arte', (tester) async {
       await tester.pumpWidget(const MaterialApp(
