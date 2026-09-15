@@ -188,11 +188,16 @@ class AuthViewModel {
   /// [AuthRepository.emailJaCadastrado] sobre o que este pre-teste alcanca
   /// e o que ele nao alcanca.
   ///
-  /// Falha da consulta devolve **false**, e nao um erro: o pre-teste e uma
+  /// Qualquer falha devolve **false**, e nao um erro: o pre-teste e uma
   /// gentileza pra avisar cedo, nao a checagem de verdade. Travar o
-  /// cadastro porque uma leitura do Firestore falhou seria trocar um aviso
+  /// cadastro porque a funcao nao respondeu seria trocar um aviso
   /// antecipado por uma porta fechada — e quem barra o duplicado de fato e
   /// o Firebase Auth, no fim do fluxo.
+  ///
+  /// Isso cobre inclusive o `resource-exhausted`, que a funcao lanca quando
+  /// alguem esta varrendo enderecos. O app de verdade nunca chega perto do
+  /// limite; se chegar, o cadastro segue sem o aviso antecipado em vez de
+  /// parar.
   Future<bool> emailJaCadastrado(String email) async {
     try {
       return await _repository.emailJaCadastrado(email);
